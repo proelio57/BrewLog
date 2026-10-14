@@ -156,6 +156,20 @@ fun LiveBrewScreen(nav: NavHostController) {
         view.keepScreenOn = settings.keepAwake
         onDispose { view.keepScreenOn = false }
     }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(snapshot.phase, snapshot.elapsed.toLong(), snapshot.currentStepIndex) {
+        if (snapshot.phase == BrewPhase.BREWING) {
+            com.brewlog.app.brewing.BrewNotificationManager.show(context, config, snapshot)
+        } else {
+            com.brewlog.app.brewing.BrewNotificationManager.dismiss(context)
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            com.brewlog.app.brewing.BrewNotificationManager.dismiss(context)
+        }
+    }
+
     BackHandler {
         if (snapshot.phase == BrewPhase.BREWING) confirmDiscard = true else close()
     }

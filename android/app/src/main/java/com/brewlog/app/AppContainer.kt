@@ -42,7 +42,15 @@ class AppContainer(context: Context) {
     private val prefs = context.getSharedPreferences("brewlog", Context.MODE_PRIVATE)
 
     val settings = SettingsRepository(prefs)
-    val presets: List<Recipe> = context.assets.open("recipes.json").bufferedReader().use { RecipeLibrary.parse(it.readText()) }
+    val bundledRecipes: List<Recipe> = context.assets.open("recipes.json").bufferedReader().use { RecipeLibrary.parse(it.readText()) }
+    val recipeFeed = com.brewlog.app.data.RecipeFeed(
+        bundledRecipes = bundledRecipes,
+        cacheDirectory = context.filesDir,
+        prefs = prefs,
+        isEnabled = { settings.current.onlineRecipes },
+        scope = scope,
+    )
+    val presets: List<Recipe> get() = recipeFeed.presets.value
     val repository = BrewRepository(context.filesDir, scope)
     val scale = ScaleManager(context.applicationContext, prefs, scope)
     val sound = SoundPlayer { settings.current }
@@ -67,6 +75,7 @@ class BrewLogApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        container.recipeFeed.syncIfNeeded()
     }
 }
 

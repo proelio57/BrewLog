@@ -1,0 +1,28 @@
+{
+  "id": "kasuya-devil-v60",
+  "name": "Kasuya Devil's Recipe",
+  "author": "Tetsu Kasuya",
+  "method": "v60",
+  "summary": "Designed specifically for dark or medium-dark roasts to eliminate all bitterness and astringency while highlighting rich chocolate and caramel sweetness.",
+  "tasteNotes": "Deep, velvety chocolate, toasted almond sweetness, heavy syrupy mouthfeel and zero bitterness or dry astringency.",
+  "taste": { "acidity": 1, "sweetness": 5, "body": 5, "clarity": 3 },
+  "dose": 20,
+  "water": 280,
+  "temperature": 82,
+  "grind": "Coarse (approx. 950–1100 µm, Comandante 28–30 clicks)",
+  "targetTime": 210,
+  "flowMin": 3,
+  "flowMax": 7,
+  "steps": [
+    { "kind": "bloom", "time": 0, "target": 50, "note": "Low temp bloom at 82 °C. Gently swirl to wet all grounds." },
+    { "kind": "pour", "time": 45, "target": 120, "note": "Pour gently to 120 g in small concentric circles." },
+    { "kind": "pour", "time": 90, "target": 180, "note": "Pour to 180 g." },
+    { "kind": "pour", "time": 135, "target": 240, "note": "Pour to 240 g." },
+    { "kind": "pour", "time": 170, "target": 280, "note": "Final pour to 280 g." },
+    { "kind": "remove", "time": 210, "note": "Remove dripper at 3:30 even if some water remains." }
+  ],
+  "tips": [
+    "Strictly keep water temperature between 80 °C and 83 °C.",
+    "Do not let the final astringent drops enter your cup; remove the dripper before it fully drains."
+  ]
+}

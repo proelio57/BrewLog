@@ -32,6 +32,7 @@ import com.brewlog.app.LocalContainer
 import com.brewlog.app.ui.screens.BeanEditorScreen
 import com.brewlog.app.ui.screens.BeanListScreen
 import com.brewlog.app.ui.screens.BrewDetailScreen
+import com.brewlog.app.ui.screens.BrewEditorScreen
 import com.brewlog.app.ui.screens.BrewSetupScreen
 import com.brewlog.app.ui.screens.EquipmentEditorScreen
 import com.brewlog.app.ui.screens.GearScreen
@@ -61,6 +62,7 @@ object Routes {
     const val NEW = "new"
 
     fun brewDetail(id: String, isNew: Boolean = false) = "brewDetail/$id?isNew=$isNew"
+    fun brewEditor(id: String) = "brewEditor/$id"
     fun recipe(id: String) = "recipe/$id"
     fun recipeEditor(id: String, duplicate: Boolean = false) = "recipeEditor/$id?duplicate=$duplicate"
     fun bean(id: String) = "bean/$id"
@@ -130,6 +132,9 @@ fun AppRoot() {
                 arguments = listOf(navArgument("isNew") { type = NavType.BoolType; defaultValue = false }),
             ) { entry ->
                 BrewDetailScreen(nav, entry.arguments?.getString("id").orEmpty(), entry.arguments?.getBoolean("isNew") ?: false)
+            }
+            composable("brewEditor/{id}") { entry ->
+                BrewEditorScreen(nav, entry.arguments?.getString("id").orEmpty())
             }
             composable("recipe/{id}") { entry -> RecipeDetailScreen(nav, entry.arguments?.getString("id").orEmpty()) }
             composable(

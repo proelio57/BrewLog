@@ -106,7 +106,13 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
         title = if (isNew) "How was it?" else brew.recipeName,
         onBack = if (isNew) null else ({ nav.popBackStack() }),
         actions = {
-            if (isNew) TextButton(onClick = { nav.popBackStack() }) { Text("Save", fontWeight = FontWeight.SemiBold) }
+            if (isNew) {
+                TextButton(onClick = { nav.popBackStack() }) { Text("Save", fontWeight = FontWeight.SemiBold) }
+            } else {
+                TextButton(onClick = { nav.navigate(Routes.brewEditor(brew.id)) }) {
+                    Text("Edit", fontWeight = FontWeight.SemiBold)
+                }
+            }
         },
     ) { padding ->
         CardList(padding) {

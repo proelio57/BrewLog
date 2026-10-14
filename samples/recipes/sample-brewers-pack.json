@@ -1,0 +1,70 @@
+[
+  {
+    "id": "sample-orea-v4-big-bloom",
+    "name": "Orea V4 Big Bloom",
+    "author": "BrewLog Test Lab",
+    "method": "kalita",
+    "summary": "Sample test recipe demonstrating a 4× bloom on flat-bottom Orea V4 with open bottom plug.",
+    "tasteNotes": "Very clean, bright berry acidity, transparent floral notes.",
+    "taste": { "acidity": 4, "sweetness": 4, "body": 2, "clarity": 5 },
+    "dose": 15,
+    "water": 250,
+    "temperature": 95,
+    "grind": "Medium (approx. 750 µm)",
+    "targetTime": 140,
+    "flowMin": 4,
+    "flowMax": 8,
+    "steps": [
+      { "kind": "bloom", "time": 0, "target": 60, "note": "Pour 60 g bloom, swirl 3 times." },
+      { "kind": "pour", "time": 40, "target": 150, "note": "Pour fast spiral to 150 g." },
+      { "kind": "pour", "time": 75, "target": 250, "note": "Pour center stream to 250 g." }
+    ],
+    "tips": ["Drawdown should finish around 2:10."]
+  },
+  {
+    "id": "sample-origami-wave-flow",
+    "name": "Origami Wave Pulse",
+    "author": "BrewLog Test Lab",
+    "method": "universal",
+    "summary": "Sample recipe using Kalita Wave 185 papers inside the Origami dripper for enhanced sweetness.",
+    "tasteNotes": "Honey sweetness, stone fruit, mellow orange acidity and velvety body.",
+    "taste": { "acidity": 3, "sweetness": 5, "body": 4, "clarity": 4 },
+    "dose": 16,
+    "water": 250,
+    "temperature": 93,
+    "grind": "Medium (approx. 800 µm)",
+    "targetTime": 180,
+    "flowMin": 3,
+    "flowMax": 7,
+    "steps": [
+      { "kind": "bloom", "time": 0, "target": 50, "note": "Gentle 50 g bloom." },
+      { "kind": "pour", "time": 35, "target": 120, "note": "Pour in concentric circles to 120 g." },
+      { "kind": "pour", "time": 70, "target": 190, "note": "Pour to 190 g." },
+      { "kind": "pour", "time": 105, "target": 250, "note": "Final center pour to 250 g." }
+    ],
+    "tips": ["Rinse Wave paper carefully so pleats don't collapse."]
+  },
+  {
+    "id": "sample-switch-blooming-immersion",
+    "name": "Switch Blooming Immersion",
+    "author": "BrewLog Test Lab",
+    "method": "switch",
+    "summary": "Sample Switch recipe with open bloom and closed full immersion steep.",
+    "tasteNotes": "Rich cocoa, plum sweetness and round syrupy mouthfeel.",
+    "taste": { "acidity": 2, "sweetness": 5, "body": 5, "clarity": 3 },
+    "dose": 18,
+    "water": 280,
+    "temperature": 92,
+    "grind": "Medium-coarse (approx. 850 µm)",
+    "targetTime": 180,
+    "flowMin": 3,
+    "flowMax": 8,
+    "steps": [
+      { "kind": "bloom", "time": 0, "target": 60, "valve": "open", "note": "Valve OPEN. Bloom with 60 g water." },
+      { "kind": "closeValve", "time": 40, "note": "CLOSE valve." },
+      { "kind": "pour", "time": 40, "target": 280, "valve": "closed", "note": "Fill to 280 g and let steep." },
+      { "kind": "openValve", "time": 120, "note": "OPEN valve at 2:00 to drain." }
+    ],
+    "tips": ["A gentle swirl at 1:45 helps sink any floating grounds before release."]
+  }
+]

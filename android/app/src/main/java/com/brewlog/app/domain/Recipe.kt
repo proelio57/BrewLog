@@ -37,48 +37,58 @@ enum class ValveState {
 
 @Serializable
 data class RecipeStep(
-    val kind: StepKind,
+    val kind: StepKind = StepKind.POUR,
     /** Start time in seconds from brew start. */
-    val time: Double,
+    val time: Double = 0.0,
     /** Cumulative target weight in grams (pours/blooms only). */
     val target: Double? = null,
     /** Valve state for hybrid brewers like the Hario Switch. */
     val valve: ValveState? = null,
     val note: String? = null,
+    val water: Double? = null,
+    val description: String? = null,
 ) {
+    val effectiveTarget: Double? get() = target ?: water
+    val effectiveNote: String? get() = note ?: description
+
     val headline: String
-        get() = if (kind.isPour && target != null) {
+        get() = if (kind.isPour && effectiveTarget != null) {
             val verb = if (kind == StepKind.BLOOM) "Bloom to" else "Pour to"
-            "$verb ${roundHalfAway(target).toLong()} g"
+            "$verb ${roundHalfAway(effectiveTarget!!).toLong()} g"
         } else {
             kind.title
         }
 }
 
 @Serializable
-data class TasteProfile(val acidity: Int, val sweetness: Int, val body: Int, val clarity: Int)
+data class TasteProfile(
+    val acidity: Int = 3,
+    val sweetness: Int = 3,
+    val body: Int = 3,
+    val clarity: Int = 3,
+)
 
 @Serializable
 data class Recipe(
-    val id: String,
-    val name: String,
-    val author: String,
-    val method: BrewMethod,
-    val summary: String,
+    val id: String = newId(),
+    val name: String = "",
+    val author: String = "",
+    val method: BrewMethod = BrewMethod.UNIVERSAL,
+    val summary: String = "",
     /** Plain-language description of how the cup should taste. */
-    val tasteNotes: String,
-    val taste: TasteProfile,
-    val dose: Double,
-    val water: Double,
-    val temperature: Double,
-    val grind: String,
+    val tasteNotes: String = "",
+    val taste: TasteProfile = TasteProfile(),
+    val dose: Double = 15.0,
+    val water: Double = 250.0,
+    val temperature: Double = 93.0,
+    val grind: String = "",
     /** Expected total brew time (incl. drawdown) in seconds. */
-    val targetTime: Double,
+    val targetTime: Double = 180.0,
     /** Healthy average pour rate range in g/s. */
-    val flowMin: Double,
-    val flowMax: Double,
-    val steps: List<RecipeStep>,
-    val tips: List<String>,
+    val flowMin: Double = 3.0,
+    val flowMax: Double = 6.0,
+    val steps: List<RecipeStep> = emptyList(),
+    val tips: List<String> = emptyList(),
     val isCustom: Boolean? = null,
 ) {
     val ratio: Double get() = if (dose > 0) water / dose else 0.0

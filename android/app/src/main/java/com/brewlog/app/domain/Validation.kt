@@ -43,10 +43,12 @@ fun Recipe.validated(): Recipe {
     val cleanFlowMax = flowMax.clamped(cleanFlowMin + 0.5, 40.0)
 
     val clampedSteps = steps.take(InputLimits.MAX_STEPS).map { step ->
+        val effTarget = step.effectiveTarget
+        val effNote = step.effectiveNote
         step.copy(
             time = step.time.clamped(0.0, InputLimits.MAX_BREW_SECONDS),
-            target = if (step.kind.isPour) (step.target ?: 0.0).clamped(0.0, cleanWater * 1.5) else null,
-            note = step.note?.sanitized(InputLimits.MAX_SHORT_TEXT)?.ifEmpty { null },
+            target = if (step.kind.isPour) (effTarget ?: 0.0).clamped(0.0, cleanWater * 1.5) else null,
+            note = effNote?.sanitized(InputLimits.MAX_SHORT_TEXT)?.ifEmpty { null },
         )
     }
     // Stable sort by time, then make cumulative pour targets non-decreasing.
