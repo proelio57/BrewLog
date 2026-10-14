@@ -1,0 +1,42 @@
+{
+  "name": "BrewLog",
+  "identifier": "com.brewlog.app.source",
+  "sourceURL": "https://raw.githubusercontent.com/proelio57/BrewLog/sidestore/source.json",
+  "iconURL": "https://raw.githubusercontent.com/proelio57/BrewLog/sidestore/icon.png",
+  "tintColor": "#B86D3C",
+  "apps": [
+    {
+      "name": "BrewLog",
+      "bundleIdentifier": "com.brewlog.app",
+      "developerName": "BrewLog",
+      "subtitle": "Pour-over brewing companion",
+      "localizedDescription": "Live BOOKOO scale guidance, a brew journal and taste-based tips for your next cup.",
+      "iconURL": "https://raw.githubusercontent.com/proelio57/BrewLog/sidestore/icon.png",
+      "tintColor": "#B86D3C",
+      "category": "lifestyle",
+      "versions": [
+        {
+          "version": "1.0.4",
+          "buildVersion": "4",
+          "date": "2026-10-14T13:28:47Z",
+          "localizedDescription": "fix(ios): simplify BrewSetupView change handlers for the type checker\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v1.0.4/BrewLog.ipa",
+          "size": 1662311,
+          "minOSVersion": "17.0"
+        }
+      ],
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {
+          "NSBluetoothAlwaysUsageDescription": "BrewLog connects to your Bluetooth coffee scale to read the weight live while you brew."
+        }
+      },
+      "version": "1.0.4",
+      "versionDate": "2026-10-14T13:28:47Z",
+      "versionDescription": "fix(ios): simplify BrewSetupView change handlers for the type checker\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v1.0.4/BrewLog.ipa",
+      "size": 1662311
+    }
+  ],
+  "news": []
+}
