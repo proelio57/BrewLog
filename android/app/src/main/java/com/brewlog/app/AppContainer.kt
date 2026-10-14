@@ -58,6 +58,10 @@ class AppContainer(context: Context) {
     val haptics = Haptics(context.applicationContext) { settings.current }
     val setup = BrewSetupState(prefs, presets).also { it.restoreCustom(repository.data.value.customRecipes) }
 
+    init {
+        pressure.setEnabled(settings.current.espressoPressureEnabled)
+    }
+
     /** The live brew survives configuration changes because it lives here, not in the UI. */
     var activeBrew: Pair<BrewConfig, BrewSession>? = null
 

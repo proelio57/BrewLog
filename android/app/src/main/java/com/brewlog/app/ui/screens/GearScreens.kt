@@ -358,9 +358,7 @@ fun SettingsScreen(nav: NavHostController) {
                 BrewCard {
                     SwitchRow("Enable pressure monitoring", settings.espressoPressureEnabled) { v ->
                         update { it.copy(espressoPressureEnabled = v) }
-                        if (!v) {
-                            container.pressure.disconnect()
-                        }
+                        container.pressure.setEnabled(v)
                     }
                     if (settings.espressoPressureEnabled) {
                         val pressureState by container.pressure.state.collectAsStateWithLifecycle()

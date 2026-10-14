@@ -405,7 +405,7 @@ class PressureManager(
     }
 
     companion object {
-        private const val KEY_ENABLED = "pressure.enabled"
+        private const val KEY_ENABLED = "espressoPressureEnabled"
         private const val KEY_DEMO = "pressure.demo"
         private const val KEY_ADDRESS = "pressure.lastAddress"
         private const val SCAN_TIMEOUT_MS = 15_000L

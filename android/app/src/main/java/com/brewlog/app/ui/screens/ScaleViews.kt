@@ -281,10 +281,10 @@ fun PressureMonitorSheet(onDismiss: () -> Unit) {
                 HorizontalDivider()
                 battery?.let { InfoRow("Battery", "$it%") }
                 InfoRow("Pressure", String.format(java.util.Locale.US, "%.2f bar", bar))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { pressure.tare() }) { Text("Zero / Tare") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { pressure.tare() }) { Text("Tare") }
                     if (isDemo) {
-                        OutlinedButton(onClick = { pressure.startMonitoring() }) { Text("Simulate shot") }
+                        OutlinedButton(onClick = { pressure.startMonitoring() }) { Text("Simulate") }
                     }
                     TextButton(onClick = { pressure.disconnect() }) { Text("Disconnect", color = Color(0xFFFF3B30)) }
                 }
