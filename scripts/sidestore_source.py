@@ -49,7 +49,11 @@ def main():
         source = {}
 
     old_app = (source.get("apps") or [{}])[0]
-    versions = [v for v in old_app.get("versions", []) if v.get("version") != args.version]
+    def key(text):
+        return [int(part) if part.isdigit() else 0 for part in str(text).split(".")]
+
+    # Drop the same version and any "newer" ones, e.g. after the numbering was reset from 1.0.x to 0.1.x.
+    versions = [v for v in old_app.get("versions", []) if key(v.get("version", "0")) < key(args.version)]
     now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     notes = args.notes.strip()[:2000]
     size = os.path.getsize(args.ipa)

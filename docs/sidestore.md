@@ -57,8 +57,8 @@ write* on that repository. Every push to GitLab then reaches GitHub within minut
 
 ## Good to know
 
-- **Version numbers**: `MARKETING_VERSION` from `project.yml` plus the run number, e.g. `1.0.42`. Raise
-  `MARKETING_VERSION` (e.g. to `1.1`) for bigger releases; the run number keeps every build unique.
+- **Version numbers**: `MARKETING_VERSION` from `project.yml` plus the run number, e.g. `0.1.42`. Raise
+  `MARKETING_VERSION` (e.g. to `0.2`) for bigger releases; the run number keeps every build unique.
 - **Changelog**: the message of the last commit is shown in SideStore.
 - **Free Apple ID**: apps have to be refreshed every 7 days, at most 3 apps (SideStore counts as one) and
   10 app IDs per week. The Live Activity is an app extension and needs its own app ID, so BrewLog uses two.
