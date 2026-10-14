@@ -133,6 +133,41 @@ A privacy-first, accountless sync system where user identity and encryption are 
   - Felicita Arc / Incline.
   - DiFluid Microbalance.
 
+### BOOKOO Espresso Monitor (Real-Time Pressure Profiling & Dual-Device BLE)
+
+- **Device Reference:** [BOOKOO Espresso Monitor](https://de.bookoocoffee.com/products/bookoo-espresso-monitor?shpxid=b3cf5a4a-3eda-4360-9bd8-e4d944aa192c) – Digital pressure sensor with G1/8 / M6 threads for espresso machines (E61, manual levers like Flair 58, Cafelat Robot, Decent).
+- **Protocol Analysis:**
+  - Standardized BooKoo BLE transmission architecture (documented in [BooKooCode/OpenSource](https://github.com/BooKooCode/OpenSource/blob/main/espresso_monitor/protocols.md) and field-tested in Beanconqueror).
+  - **Service UUID:** `00000fff-0000-1000-8000-00805f9b34fb` (16-bit: `0x0FFF`)
+  - **Extraction / Pressure Data Characteristic UUID:** `0000ff02-0000-1000-8000-00805f9b34fb` (16-bit: `0xFF02`, notifications enabled via standard CCCD `0x2902`)
+  - **Command Characteristic UUID:** `0000ff01-0000-1000-8000-00805f9b34fb` (16-bit: `0xFF01`)
+  - **Checksum Calculation:** XOR over transmission packet bytes (`CheckSum = Header1 ^ Header2 ^ Data0 ^ ... ^ DataN`).
+  - **Data Telemetry:** Real-time extraction pressure in bar (0.00–16.00 bar, 0.01 bar resolution), internal timestamp in milliseconds, battery level (%), and extraction status.
+  - **Safe Command Set:** Start extraction, stop extraction, zero/tare pressure sensor.
+
+- **Dual-Device Parallel Bluetooth Architecture:**
+  - Modern smartphones (Android 8+ and iOS CoreBluetooth) natively support multiple concurrent peripheral BLE connections (up to 7–8 simultaneous devices).
+  - **Concurrent Stream Management:**
+    - Device 1 (`ScaleManager`): Connects to the coffee scale (e.g. BooKoo Themis Mini) $\rightarrow$ streams Weight ($g$) and Flow Rate ($g/s$).
+    - Device 2 (`PressureManager`): Connects to the pressure transducer (BooKoo Espresso Monitor) $\rightarrow$ streams Pressure ($bar$).
+  - **Monotonic Phase Synchronization:** Both data streams emit timestamps aligned to a unified monotonic clock (`System.nanoTime()` / `CACurrentMediaTime()`). This prevents drift and guarantees sample-accurate alignment between flow and pressure curves.
+
+- **Dynamic Conditional UI & Multi-Axis Graphing:**
+  - **Zero-Clutter Invariant:** The pressure curve and pressure metrics are **completely hidden by default**. They do NOT clutter standard pour-over or single-scale espresso workflows.
+  - **Display Conditions:** The pressure gauge and chart line appear **IF AND ONLY IF**:
+    1. The user enables *Espresso Pressure Monitoring* in *Settings / Gear*, **AND**
+    2. A compatible pressure monitor is actively connected via Bluetooth.
+  - **Live Brewing Graph:**
+    - Primary Y-Axis (Left): Brew weight ($g$) and Flow Rate ($g/s$).
+    - Secondary Y-Axis (Right): Real-time Pressure in bar ($0$ to $12+$ bar), rendered in a distinctive high-contrast color (e.g. amber/copper or vivid cyan).
+  - **Smart Extraction Trigger (Auto-Start Timer):**
+    - Configurable pressure threshold (e.g. $> 0.5$ bar): Automatically starts the shot timer when pre-infusion pressure begins to rise, eliminating manual button taps while pulling shots on a lever machine.
+
+- **Data Model & Persistence:**
+  - `data class PressurePoint(val timeMillis: Long, val bar: Double)`
+  - Extend `Brew` model with optional `pressureCurve: List<PressurePoint>? = null`.
+  - Stored in local JSON/SQLite and exported seamlessly in BrewLog and Beanconqueror backup files.
+
 ### Smartwatch Companion (Wear OS & watchOS)
 - **Features:**
   - Wrist-based brew timer synchronized with the phone.
