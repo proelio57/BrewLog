@@ -44,15 +44,25 @@ echo "==> Compiling APK ($BUILD_TYPE)..."
 ./android/gradlew -p android "$GRADLE_TASK"
 
 mkdir -p build
+VERSION="${VERSION_NAME:-}"
+if [ -z "$VERSION" ]; then
+  VERSION=$(grep -o 'versionName = .*"\(.*\)"' android/app/build.gradle.kts | head -n1 | sed 's/.*"\(.*\)".*/\1/' || true)
+  VERSION="${VERSION:-0.1}"
+fi
+
 if [ "$BUILD_TYPE" == "Release" ]; then
+  # Clean up old release builds
+  rm -f build/*release*.apk build/BrewLog.apk build/BrewLog-[0-9]*.apk
   if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
-    cp "android/app/build/outputs/apk/release/app-release.apk" "build/BrewLog.apk"
-    echo "==> Successfully built: $(pwd)/build/BrewLog.apk"
+    cp "android/app/build/outputs/apk/release/app-release.apk" "build/BrewLog-${VERSION}.apk"
+    echo "==> Successfully built: $(pwd)/build/BrewLog-${VERSION}.apk"
   elif [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
-    cp "android/app/build/outputs/apk/release/app-release-unsigned.apk" "build/BrewLog-release-unsigned.apk"
-    echo "==> Successfully built: $(pwd)/build/BrewLog-release-unsigned.apk (unsigned)"
+    cp "android/app/build/outputs/apk/release/app-release-unsigned.apk" "build/BrewLog-${VERSION}-release-unsigned.apk"
+    echo "==> Successfully built: $(pwd)/build/BrewLog-${VERSION}-release-unsigned.apk (unsigned)"
   fi
 else
-  cp "android/app/build/outputs/apk/debug/app-debug.apk" "build/BrewLog-debug.apk"
-  echo "==> Successfully built: $(pwd)/build/BrewLog-debug.apk"
+  # Clean up old debug builds
+  rm -f build/*debug*.apk
+  cp "android/app/build/outputs/apk/debug/app-debug.apk" "build/BrewLog-${VERSION}-debug.apk"
+  echo "==> Successfully built: $(pwd)/build/BrewLog-${VERSION}-debug.apk"
 fi

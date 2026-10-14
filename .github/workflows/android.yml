@@ -50,7 +50,7 @@ jobs:
       - name: Version
         id: version
         run: |
-          base="1.0"
+          base="0.1"
           echo "version=${base}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
