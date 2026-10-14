@@ -171,4 +171,28 @@ class PressureMonitorUnitTest {
 
         monitor.stop()
     }
+
+    @Test
+    fun demoPressureMonitorFollowsRecipeTargetTime() = runBlocking {
+        val emitted = mutableListOf<Double>()
+        val monitor = com.brewlog.app.scale.DemoPressureMonitor(
+            scope = this,
+            onPressure = { emitted.add(it) },
+        )
+
+        monitor.start()
+        val recipe = Recipe(
+            id = "espresso-test",
+            name = "Test Espresso",
+            targetTime = 28.0,
+            water = 36.0,
+        )
+        monitor.simulate(recipe)
+
+        delay(200)
+        assertTrue(emitted.isNotEmpty())
+        monitor.tare()
+        monitor.stopSimulation()
+        monitor.stop()
+    }
 }

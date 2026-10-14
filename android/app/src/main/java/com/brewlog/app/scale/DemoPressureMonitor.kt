@@ -43,9 +43,14 @@ class DemoPressureMonitor(
         currentPressure = 0.0
     }
 
-    fun simulateShot(durationSeconds: Double = 30.0) {
+    fun simulate(recipe: com.brewlog.app.domain.Recipe? = null, delaySeconds: Double = 0.0) {
+        val duration = (recipe?.targetTime ?: 30.0).coerceIn(15.0, 60.0)
+        simulateShot(durationSeconds = duration, delaySeconds = delaySeconds)
+    }
+
+    fun simulateShot(durationSeconds: Double = 30.0, delaySeconds: Double = 0.0) {
         shotDurationSeconds = durationSeconds
-        shotStartTime = monotonicMillis()
+        shotStartTime = monotonicMillis() + (delaySeconds * 1000).toLong()
         currentPressure = 0.0
     }
 
@@ -57,7 +62,9 @@ class DemoPressureMonitor(
     private fun tick() {
         val start = shotStartTime
         if (start != null) {
-            val elapsed = (monotonicMillis() - start) / 1000.0
+            val now = monotonicMillis()
+            if (now >= start) {
+                val elapsed = (now - start) / 1000.0
             currentPressure = when {
                 elapsed < 4.0 -> {
                     // Pre-infusion ramp up to 2.5 - 3.0 bar
@@ -83,6 +90,9 @@ class DemoPressureMonitor(
         } else {
             currentPressure = 0.0
         }
+    } else {
+        currentPressure = 0.0
+    }
 
         val noise = Random.nextDouble(-0.03, 0.03)
         val finalBar = max(0.0, ((currentPressure + noise) * 100).roundToLong() / 100.0)

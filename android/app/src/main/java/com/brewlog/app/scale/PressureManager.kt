@@ -55,8 +55,10 @@ data class PressureReading(val bar: Double, val timeMillis: Long)
 interface PressureCommands {
     val isReady: Boolean
     fun tare()
+    fun prepareForBrew(recipe: com.brewlog.app.domain.Recipe)
     fun startMonitoring()
     fun stopMonitoring()
+    fun brewFinished()
 }
 
 /**
@@ -104,7 +106,7 @@ class PressureManager(
 
     override val isReady: Boolean get() = _isEnabled.value && (_isDemo.value || _state.value == PressureConnectionState.CONNECTED)
 
-    val displayName: String get() = if (_isDemo.value) "Demo Pressure Monitor" else (_connectedName.value ?: "Espresso Monitor")
+    val displayName: String get() = if (_isDemo.value) "Demo pressure" else (_connectedName.value ?: "Espresso Monitor")
 
     private var gatt: BluetoothGatt? = null
     private var commandCharacteristic: BluetoothGattCharacteristic? = null
@@ -149,10 +151,10 @@ class PressureManager(
         }
     }
 
-    fun toggleDemo(enable: Boolean) {
-        _isDemo.value = enable
-        prefs.edit().putBoolean(KEY_DEMO, enable).apply()
-        if (enable) {
+    fun setDemo(enabled: Boolean) {
+        _isDemo.value = enabled
+        prefs.edit().putBoolean(KEY_DEMO, enabled).apply()
+        if (enabled) {
             disconnect()
             demo.start()
         } else {
@@ -161,6 +163,8 @@ class PressureManager(
             reconnectSaved()
         }
     }
+
+    fun toggleDemo(enable: Boolean) = setDemo(enable)
 
     fun startScan() {
         if (_isDemo.value) return
@@ -172,7 +176,7 @@ class PressureManager(
             _state.value = PressureConnectionState.UNSUPPORTED
             return
         }
-        if (adapter?.isEnabled != true) {
+        if (!adapter.isEnabled) {
             _state.value = PressureConnectionState.BLUETOOTH_OFF
             return
         }
@@ -232,6 +236,15 @@ class PressureManager(
         send(BookooPressureProtocol.Command.TARE_PRESSURE)
     }
 
+    override fun prepareForBrew(recipe: com.brewlog.app.domain.Recipe) {
+        if (_isDemo.value) {
+            demo.simulate(recipe)
+        } else {
+            tare()
+            startMonitoring()
+        }
+    }
+
     override fun startMonitoring() {
         if (_isDemo.value) {
             demo.simulateShot()
@@ -246,6 +259,10 @@ class PressureManager(
             return
         }
         send(BookooPressureProtocol.Command.STOP_MONITOR)
+    }
+
+    override fun brewFinished() {
+        stopMonitoring()
     }
 
     private fun send(command: BookooPressureProtocol.Command) {

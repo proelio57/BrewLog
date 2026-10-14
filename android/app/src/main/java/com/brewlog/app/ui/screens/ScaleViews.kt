@@ -325,7 +325,7 @@ fun PressureMonitorSheet(onDismiss: () -> Unit) {
                     Text("Simulates a 9-bar espresso shot with pre-infusion and pressure decline without physical hardware.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Switch(checked = isDemo, onCheckedChange = { pressure.toggleDemo(it) })
+                Switch(checked = isDemo, onCheckedChange = { pressure.setDemo(it) })
             }
         }
     }

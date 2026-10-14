@@ -369,7 +369,7 @@ fun SettingsScreen(nav: NavHostController) {
                             Text("BOOKOO espresso monitor", Modifier.weight(1f))
                             Text(if (isPressureDemo) "Demo" else (pressureName ?: pressureState.label), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        SwitchRow("Demo pressure (simulated shot)", isPressureDemo) { container.pressure.toggleDemo(it) }
+                        SwitchRow("Demo pressure (simulated shot)", isPressureDemo) { container.pressure.setDemo(it) }
                     }
                     Text(
                         "Connect a BOOKOO Espresso Monitor via Bluetooth to log and graph real-time extraction pressure (up to 12 bar) alongside weight and flow.",

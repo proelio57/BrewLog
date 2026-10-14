@@ -109,7 +109,7 @@ fun LiveBrewScreen(nav: NavHostController) {
     var confirmDiscard by remember { mutableStateOf(false) }
 
     fun close() {
-        container.pressure.stopMonitoring()
+        if (pressureReady) container.pressure.brewFinished()
         session.discard()
         container.activeBrew = null
         nav.popBackStack()
@@ -117,7 +117,7 @@ fun LiveBrewScreen(nav: NavHostController) {
 
     fun finish() {
         if (session.phase != BrewPhase.BREWING) return
-        container.pressure.stopMonitoring()
+        if (pressureReady) container.pressure.brewFinished()
         session.finish()
         val brew = Brew(
             recipeId = config.recipe.id,
@@ -219,7 +219,16 @@ fun LiveBrewScreen(nav: NavHostController) {
         }
         StepsStrip(config, snapshot)
         Spacer(Modifier.weight(1f))
-        Controls(snapshot, onReady = { session.ready(); container.haptics.tap() }, onStart = { session.startManually() }, onFinish = { finish() })
+        Controls(
+            snapshot,
+            onReady = {
+                session.ready()
+                if (pressureReady) container.pressure.prepareForBrew(config.recipe)
+                container.haptics.tap()
+            },
+            onStart = { session.startManually() },
+            onFinish = { finish() },
+        )
         Spacer(Modifier.height(4.dp))
     }
 
