@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Merged with the keys generated from project.yml (GENERATE_INFOPLIST_FILE). -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<!-- Keep the brew running while the app is in the background: cues (audio) and live weight (scale). -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>bluetooth-central</string>
+	</array>
+	<!-- Where online recipe updates are downloaded from. Set by CI; empty = off. -->
+	<key>BrewLogRecipeFeedURL</key>
+	<string>$(RECIPE_FEED_URL)</string>
+</dict>
+</plist>

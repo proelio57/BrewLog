@@ -1,0 +1,25 @@
+# Publishes Shared/recipes.json for the app's online recipe updates. No app build needed:
+# installed apps download the list every few hours.
+name: Recipes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Shared/recipes.json"
+      - ".github/workflows/recipes.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RELEASE_REPO: ${{ vars.RELEASE_REPO || github.repository }}
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/sidestore-publish.sh recipes

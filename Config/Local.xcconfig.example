@@ -1,0 +1,6 @@
+// Copy this file to Config/Local.xcconfig (git-ignored) to run on a real iPhone.
+// Find your Team ID at https://developer.apple.com/account -> Membership details.
+DEVELOPMENT_TEAM = ABCDE12345
+
+// Bundle identifiers must be unique per developer account:
+PRODUCT_BUNDLE_IDENTIFIER = com.yourname.brewlog

@@ -1,0 +1,9 @@
+// Shared build settings (committed).
+// Personal settings such as your Apple Developer Team ID go into Local.xcconfig, which is git-ignored.
+PRODUCT_BUNDLE_IDENTIFIER = com.brewlog.app
+
+// URL of the online recipe list (recipes.json). Empty = online recipe updates are off.
+// CI passes it on the command line, because "//" would start a comment here.
+RECIPE_FEED_URL =
+
+#include? "Local.xcconfig"

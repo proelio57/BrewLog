@@ -1,0 +1,100 @@
+# Builds BrewLog for iOS on every push to main, runs the unit tests and publishes the unsigned .ipa
+# for SideStore (a GitHub release + source.json). SideStore signs the app with your Apple ID when installing.
+# Setup: docs/sidestore.md
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "BrewLog/**"
+      - "BrewLogWidgets/**"
+      - "ActivityShared/**"
+      - "BrewLogTests/**"
+      - "Shared/**"
+      - "Config/**"
+      - "project.yml"
+      - "scripts/build-ipa.sh"
+      - "scripts/sidestore*"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    paths:
+      - "BrewLog/**"
+      - "BrewLogWidgets/**"
+      - "ActivityShared/**"
+      - "BrewLogTests/**"
+      - "Shared/**"
+      - "Config/**"
+      - "project.yml"
+      - "scripts/build-ipa.sh"
+      - "scripts/sidestore*"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  # Public repository that hosts the .ipa, source.json and recipes.json. Default: this repository.
+  RELEASE_REPO: ${{ vars.RELEASE_REPO || github.repository }}
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Version
+        id: version
+        run: |
+          base=$(sed -n 's/^ *MARKETING_VERSION: *"\{0,1\}\([0-9.]*\)"\{0,1\} *$/\1/p' project.yml | head -1)
+          echo "version=${base:-1.0}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          xcodebuild -version
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Unit tests
+        if: vars.SKIP_TESTS != 'true'
+        run: |
+          set -o pipefail
+          device=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          runtimes = sorted((k for k in devices if ".iOS-" in k), key=lambda k: [int(x) for x in k.split(".iOS-")[1].split("-")], reverse=True)
+          print(next(d["udid"] for k in runtimes for d in devices[k] if d["name"].startswith("iPhone")))')
+          xcodebuild test -project BrewLog.xcodeproj -scheme BrewLog -destination "id=$device" -quiet
+
+      - name: Build unsigned IPA
+        run: |
+          scripts/build-ipa.sh \
+            MARKETING_VERSION=${{ steps.version.outputs.version }} \
+            CURRENT_PROJECT_VERSION=${{ steps.version.outputs.build }} \
+            "RECIPE_FEED_URL=https://raw.githubusercontent.com/${RELEASE_REPO}/sidestore/recipes.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BrewLog-${{ steps.version.outputs.version }}
+          path: build/BrewLog.ipa
+          retention-days: 14
+
+      - name: Publish for SideStore
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+        run: |
+          scripts/sidestore-publish.sh release build/BrewLog.ipa \
+            "${{ steps.version.outputs.version }}" "${{ steps.version.outputs.build }}"

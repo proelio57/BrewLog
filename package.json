@@ -1,0 +1,8 @@
+{
+  "name": "brewlog",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix web ci && npm --prefix web run build",
+    "test": "npm --prefix web test"
+  }
+}

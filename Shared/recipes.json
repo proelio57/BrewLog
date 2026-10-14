@@ -1,0 +1,231 @@
+[
+  {
+    "id": "hoffmann-ultimate-v60",
+    "name": "Ultimate V60",
+    "author": "James Hoffmann",
+    "method": "v60",
+    "summary": "Hoffmann's well-known high-extraction V60. A big bloom, two main pours and a gentle stir and swirl to get a flat bed and an even drawdown.",
+    "tasteNotes": "Balanced and sweet with good clarity. Expect a juicy, clean cup with ripe fruit and a long, sweet finish. Not thin and not harsh.",
+    "taste": { "acidity": 3, "sweetness": 4, "body": 3, "clarity": 4 },
+    "dose": 30,
+    "water": 500,
+    "temperature": 98,
+    "grind": "Medium-fine (roughly 600–750 µm, e.g. Comandante 22–25 clicks)",
+    "targetTime": 210,
+    "flowMin": 5,
+    "flowMax": 10,
+    "steps": [
+      { "kind": "bloom", "time": 0, "target": 60, "note": "Pour 2× the dose and swirl gently until everything is wet." },
+      { "kind": "pour", "time": 45, "target": 300, "note": "Pour to 60% of the water within about 30 s." },
+      { "kind": "pour", "time": 75, "target": 500, "note": "Pour to 100% a bit more gently. Finish by about 1:45." },
+      { "kind": "stir", "time": 105, "note": "Stir lightly once each way with a spoon, then give it a gentle swirl to flatten the bed." }
+    ],
+    "tips": [
+      "Use water just off the boil for light roasts.",
+      "Drawdown should finish around 3:30. If it runs longer, grind coarser. If it's faster, grind finer.",
+      "Rinse the paper well with hot water to remove paper taste and preheat the brewer."
+    ]
+  },
+  {
+    "id": "hoffmann-1cup-v60",
+    "name": "Better 1-Cup V60",
+    "author": "Based on James Hoffmann",
+    "method": "v60",
+    "summary": "A single-cup method that splits the water into small, regular pulses. This keeps the bed temperature and agitation consistent with a small dose.",
+    "tasteNotes": "Sweet and clean with lively but rounded acidity. Medium body and a clear, transparent flavour that shows off the origin.",
+    "taste": { "acidity": 3, "sweetness": 4, "body": 3, "clarity": 4 },
+    "dose": 15,
+    "water": 250,
+    "temperature": 98,
+    "grind": "Medium-fine, slightly finer than a big batch (about 550–700 µm)",
+    "targetTime": 180,
+    "flowMin": 3,
+    "flowMax": 7,
+    "steps": [
+      { "kind": "bloom", "time": 0, "target": 50, "note": "Swirl gently so every ground is wet." },
+      { "kind": "pour", "time": 45, "target": 100, "note": "Gentle pour in small circles." },
+      { "kind": "pour", "time": 60, "target": 150 },
+      { "kind": "pour", "time": 75, "target": 200 },
+      { "kind": "pour", "time": 90, "target": 250, "note": "Last pour, then let it drain." },
+      { "kind": "swirl", "time": 105, "note": "One gentle swirl to flatten the bed." }
+    ],
+    "tips": [
+      "Small doses lose heat quickly, so use very hot water.",
+      "Aim for a drawdown that finishes around 3:00."
+    ]
+  },
+  {
+    "id": "kasuya-46",
+    "name": "4:6 Method",
+    "author": "Tetsu Kasuya (WBrC 2016)",
+    "method": "v60",
+    "summary": "Five equal pours of 60 g every 45 s with a coarse grind. The first 40% of the water controls the acidity–sweetness balance. The last 60% controls strength.",
+    "tasteNotes": "Very sweet, round and balanced with soft acidity and a clean, easy finish. Very forgiving thanks to the coarse grind.",
+    "taste": { "acidity": 3, "sweetness": 5, "body": 3, "clarity": 3 },
+    "dose": 20,
+    "water": 300,
+    "temperature": 92,
+    "grind": "Coarse, like coarse sea salt (about 900–1100 µm)",
+    "targetTime": 210,
+    "flowMin": 3,
+    "flowMax": 7,
+    "steps": [
+      { "kind": "bloom", "time": 0, "target": 60, "note": "Pour 1 of 5. Part of the first 40% (balance)." },
+      { "kind": "pour", "time": 45, "target": 120, "note": "Pour 2: completes the 40% phase." },
+      { "kind": "pour", "time": 90, "target": 180, "note": "Pour 3: strength phase begins." },
+      { "kind": "pour", "time": 135, "target": 240, "note": "Pour 4" },
+      { "kind": "pour", "time": 180, "target": 300, "note": "Pour 5, the last pour." },
+      { "kind": "remove", "time": 210, "note": "Remove the dripper at 3:30 even if some water is left." }
+    ],
+    "tips": [
+      "For more sweetness, make the first pour smaller (e.g. 50 g then 70 g).",
+      "For more acidity, make the first pour larger (e.g. 70 g then 50 g).",
+      "For a stronger cup, split the last 60% into 3 pours. For a lighter cup, use 2 pours.",
+      "Light roasts: 93 °C. Medium: 88 °C. Dark: 83 °C."
+    ]
+  },
+  {
+    "id": "kasuya-46-sweet",
+    "name": "4:6 Sweet",
+    "author": "Tetsu Kasuya, sweetness variant",
+    "method": "v60",
+    "summary": "The 4:6 method with a smaller first pour and a larger second pour. This shifts the balance toward sweetness.",
+    "tasteNotes": "Extra sweet and syrupy with softer, rounder acidity than the standard 4:6. Great for bright, acidic washed coffees.",
+    "taste": { "acidity": 2, "sweetness": 5, "body": 3, "clarity": 3 },
+    "dose": 20,
+    "water": 300,
+    "temperature": 92,
+    "grind": "Coarse, like coarse sea salt (about 900–1100 µm)",
+    "targetTime": 210,
+    "flowMin": 3,
+    "flowMax": 7,
+    "steps": [
+      { "kind": "bloom", "time": 0, "target": 50, "note": "Smaller first pour = more sweetness." },
+      { "kind": "pour", "time": 45, "target": 120, "note": "Larger second pour (70 g)." },
+      { "kind": "pour", "time": 90, "target": 180 },
+      { "kind": "pour", "time": 135, "target": 240 },
+      { "kind": "pour", "time": 180, "target": 300 },
+      { "kind": "remove", "time": 210, "note": "Remove the dripper at 3:30." }
+    ],
+    "tips": ["If it's still too sharp, go to 40 g / 80 g for the first two pours."]
+  },
+  {
+    "id": "rao-v60",
+    "name": "Rao V60",
+    "author": "Scott Rao",
+    "method": "v60",
+    "summary": "A large 3× bloom, then a steady high pour that keeps the slurry level high. Finished with the famous 'Rao spin' for a perfectly flat bed.",
+    "tasteNotes": "Very clean and transparent with high clarity and sweetness. Delicate florals and fruit come through. Light-to-medium body.",
+    "taste": { "acidity": 3, "sweetness": 4, "body": 2, "clarity": 5 },
+    "dose": 22,
+    "water": 360,
+    "temperature": 98,
+    "grind": "Medium-fine (about 600–750 µm)",
+    "targetTime": 210,
+    "flowMin": 4,
+    "flowMax": 8,
+    "steps": [
+      { "kind": "bloom", "time": 0, "target": 66, "note": "Bloom with 3× the dose. Gently dig or stir so there are no dry clumps." },
+      { "kind": "pour", "time": 45, "target": 200, "note": "Pour steadily in spirals and keep the slurry level high." },
+      { "kind": "pour", "time": 75, "target": 360, "note": "Continue to the full weight." },
+      { "kind": "swirl", "time": 105, "note": "Rao spin: one firm swirl to flatten the bed." }
+    ],
+    "tips": [
+      "A flat bed at the end means even extraction.",
+      "Use a fast-flowing paper (e.g. Hario tabbed or Sibarist)."
+    ]
+  },
+  {
+    "id": "everyday-3-pour",
+    "name": "Everyday 3-Pour",
+    "author": "Classic",
+    "method": "v60",
+    "summary": "A simple, quick daily V60: a short bloom, a small second pour and one big final pour.",
+    "tasteNotes": "Balanced and approachable with medium body, gentle acidity and caramel sweetness. A reliable daily cup.",
+    "taste": { "acidity": 3, "sweetness": 3, "body": 3, "clarity": 3 },
+    "dose": 15,
+    "water": 250,
+    "temperature": 94,
+    "grind": "Medium-fine (about 600–750 µm)",
+    "targetTime": 165,
+    "flowMin": 3,
+    "flowMax": 8,
+    "steps": [
+      { "kind": "bloom", "time": 0, "target": 50, "note": "Wet all the grounds evenly." },
+      { "kind": "pour", "time": 30, "target": 100, "note": "Pour 50 g." },
+      { "kind": "pour", "time": 60, "target": 250, "note": "Pour the final 150 g in slow spirals." }
+    ],
+    "tips": ["Aim to finish drawdown between 2:30 and 3:00."]
+  },
+  {
+    "id": "kasuya-switch-hybrid",
+    "name": "Switch Hybrid",
+    "author": "Tetsu Kasuya",
+    "method": "switch",
+    "summary": "Starts as a percolation with hot water and finishes as an immersion with cooler water. Hot water brings clarity and acidity. Cool water brings sweetness and body.",
+    "tasteNotes": "Very sweet with a rounded, syrupy body and soft, gentle acidity. A dessert-like cup with almost no bitterness.",
+    "taste": { "acidity": 3, "sweetness": 5, "body": 4, "clarity": 3 },
+    "dose": 20,
+    "water": 280,
+    "temperature": 90,
+    "grind": "Medium-coarse (about 800–1000 µm)",
+    "targetTime": 180,
+    "flowMin": 3,
+    "flowMax": 7,
+    "steps": [
+      { "kind": "bloom", "time": 0, "target": 60, "valve": "open", "note": "Valve OPEN. Pour with 90 °C water." },
+      { "kind": "pour", "time": 30, "target": 120, "valve": "open", "note": "Still open, hot water." },
+      { "kind": "pour", "time": 75, "target": 280, "valve": "closed", "note": "CLOSE the valve. Pour to the full weight with about 70 °C water." },
+      { "kind": "openValve", "time": 105, "note": "OPEN the valve and let it drain." }
+    ],
+    "tips": [
+      "Prepare a second kettle or let the water cool to about 70 °C for the immersion stage.",
+      "Use the 03 size Switch or a V60 02 paper in the Switch 02."
+    ]
+  },
+  {
+    "id": "switch-immersion",
+    "name": "Switch Full Immersion",
+    "author": "Classic",
+    "method": "switch",
+    "summary": "Close the valve, add all the water, steep, then release. Very consistent and forgiving, like a clean French press.",
+    "tasteNotes": "Round, sweet and comforting with fuller body and muted acidity. Very easy to repeat, rarely harsh.",
+    "taste": { "acidity": 2, "sweetness": 4, "body": 4, "clarity": 3 },
+    "dose": 15,
+    "water": 240,
+    "temperature": 96,
+    "grind": "Medium (about 700–900 µm)",
+    "targetTime": 180,
+    "flowMin": 3,
+    "flowMax": 10,
+    "steps": [
+      { "kind": "pour", "time": 0, "target": 240, "valve": "closed", "note": "Valve CLOSED. Pour all water gently, wetting all grounds." },
+      { "kind": "stir", "time": 30, "note": "Gently stir to break up any dry clumps." },
+      { "kind": "openValve", "time": 120, "note": "OPEN the valve and let it drain." }
+    ],
+    "tips": ["Steep longer for more strength. Grind finer for more extraction."]
+  },
+  {
+    "id": "flat-bottom-pulse",
+    "name": "Flat-Bottom Pulse",
+    "author": "Classic Kalita Wave",
+    "method": "kalita",
+    "summary": "Steady pulses into a flat-bottom dripper (Kalita Wave, Orea, April). The flat bed gives an even, forgiving extraction.",
+    "tasteNotes": "Even and sweet with a bit more body than a V60. Balanced acidity and a smooth finish.",
+    "taste": { "acidity": 3, "sweetness": 4, "body": 4, "clarity": 3 },
+    "dose": 20,
+    "water": 320,
+    "temperature": 94,
+    "grind": "Medium (about 700–850 µm)",
+    "targetTime": 210,
+    "flowMin": 3,
+    "flowMax": 7,
+    "steps": [
+      { "kind": "bloom", "time": 0, "target": 50, "note": "Wet all the grounds evenly and let it degas." },
+      { "kind": "pour", "time": 40, "target": 150 },
+      { "kind": "pour", "time": 70, "target": 250 },
+      { "kind": "pour", "time": 100, "target": 320, "note": "Last pour, then let it drain." }
+    ],
+    "tips": ["Pour in the centre and avoid hitting the walls."]
+  }
+]
