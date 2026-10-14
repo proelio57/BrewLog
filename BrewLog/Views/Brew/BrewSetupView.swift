@@ -39,47 +39,56 @@ struct BrewSetupView: View {
         GrindRecommender.recommend(beanID: setup.beanID, grinder: selectedGrinder, recipeID: setup.recipe.id, brews: brews)
     }
 
+    // Split into parts: as one expression the body is too complex for the type checker.
     var body: some View {
-        @Bindable var setup = setup
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 18) {
-                    if equipment.isEmpty && !setupBannerDismissed { setupBanner }
-                    ScaleStatusCard()
-                    recipeCard
-                    doseCard
-                    VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader(title: "Coffee")
-                        beanCard
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader(title: "Gear & grind")
-                        gearCard
-                    }
-                    Color.clear.frame(height: 80)
+            observingSetup(presentingSheets(screen))
+        }
+    }
+
+    private var screen: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                if equipment.isEmpty && !setupBannerDismissed { setupBanner }
+                ScaleStatusCard()
+                recipeCard
+                doseCard
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionHeader(title: "Coffee")
+                    beanCard
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionHeader(title: "Gear & grind")
+                    gearCard
+                }
+                Color.clear.frame(height: 80)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Brew")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { router.present(.quickWeigh) } label: {
-                        Label("Weigh", systemImage: "scalemass")
-                    }
-                    .accessibilityIdentifier("brew.quickWeigh")
+            .padding(.horizontal)
+            .padding(.top, 8)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Brew")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { router.present(.quickWeigh) } label: {
+                    Label("Weigh", systemImage: "scalemass")
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showSettings = true } label: { Image(systemName: "gearshape") }
-                        .accessibilityLabel("Settings")
-                }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { grindFocused = false }
-                }
+                .accessibilityIdentifier("brew.quickWeigh")
             }
-            .safeAreaInset(edge: .bottom) { startButton }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showSettings = true } label: { Image(systemName: "gearshape") }
+                    .accessibilityLabel("Settings")
+            }
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { grindFocused = false }
+            }
+        }
+        .safeAreaInset(edge: .bottom) { startButton }
+    }
+
+    private func presentingSheets(_ content: some View) -> some View {
+        content
             .sheet(isPresented: $showNewBean) {
                 NavigationStack {
                     BeanEditorView(bean: nil) { bean in setup.beanID = bean.id }
@@ -94,6 +103,10 @@ struct BrewSetupView: View {
             .fullScreenCover(item: $activeBrew) { config in
                 BrewSessionView(config: config)
             }
+    }
+
+    private func observingSetup(_ content: some View) -> some View {
+        content
             .onChange(of: grinders.map(\.id)) { old, new in reconcile(&setup.grinderID, ids: new, previous: old) }
             .onChange(of: brewers.map(\.id)) { old, new in reconcile(&setup.brewerID, ids: new, previous: old) }
             .onChange(of: filters.map(\.id)) { old, new in reconcile(&setup.filterID, ids: new, previous: old) }
@@ -103,7 +116,6 @@ struct BrewSetupView: View {
             .onAppear {
                 if setup.grindValue == nil { applyRecommendation() }
             }
-        }
     }
 
     // MARK: Cards
