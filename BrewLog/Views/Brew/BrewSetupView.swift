@@ -106,16 +106,33 @@ struct BrewSetupView: View {
     }
 
     private func observingSetup(_ content: some View) -> some View {
+        observingSelection(observingGear(content))
+    }
+
+    /// Keeps the selected brewer, grinder and filter valid when gear is added or deleted.
+    private func observingGear(_ content: some View) -> some View {
         content
-            .onChange(of: grinders.map(\.id)) { old, new in reconcile(&setup.grinderID, ids: new, previous: old) }
-            .onChange(of: brewers.map(\.id)) { old, new in reconcile(&setup.brewerID, ids: new, previous: old) }
-            .onChange(of: filters.map(\.id)) { old, new in reconcile(&setup.filterID, ids: new, previous: old) }
-            .onChange(of: setup.beanID) { applyRecommendation() }
-            .onChange(of: setup.grinderID) { applyRecommendation() }
-            .onChange(of: setup.recipe.id) { applyRecommendation() }
+            .onChange(of: grinders.map(\.id), reconciler(\.grinderID))
+            .onChange(of: brewers.map(\.id), reconciler(\.brewerID))
+            .onChange(of: filters.map(\.id), reconciler(\.filterID))
+    }
+
+    private func observingSelection(_ content: some View) -> some View {
+        content
+            .onChange(of: setup.beanID, applyRecommendation)
+            .onChange(of: setup.grinderID, applyRecommendation)
+            .onChange(of: setup.recipe.id, applyRecommendation)
             .onAppear {
                 if setup.grindValue == nil { applyRecommendation() }
             }
+    }
+
+    private func reconciler(_ keyPath: ReferenceWritableKeyPath<BrewSetup, UUID?>) -> ([UUID], [UUID]) -> Void {
+        { previous, ids in
+            var selection = setup[keyPath: keyPath]
+            reconcile(&selection, ids: ids, previous: previous)
+            if selection != setup[keyPath: keyPath] { setup[keyPath: keyPath] = selection }
+        }
     }
 
     // MARK: Cards
