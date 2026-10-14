@@ -103,7 +103,7 @@ fun BrewSetupScreen(nav: NavHostController) {
     val recommendation = GrindRecommender.recommend(setup.beanId, selectedGrinder, setup.recipe.id, data.brews)
 
     LaunchedEffect(brewers.map { it.id }) { setup.reconcileGear(EquipmentType.BREWER, brewers.map { it.id }) }
-    LaunchedEffect(grinders.map { it.id }) { setup.reconcileGear(EquipmentType.GRINDER, grinders.map { it.id }) }
+    LaunchedEffect(grinders.map { it.id }) { setup.reconcileGear(EquipmentType.GRINDER, grinders.map { it.id }, grinders, data.brews) }
     LaunchedEffect(filters.map { it.id }) { setup.reconcileGear(EquipmentType.FILTER, filters.map { it.id }) }
 
     // Apply the history-based grind when bean, grinder or recipe change (unless the grind was set explicitly).
@@ -111,7 +111,13 @@ fun BrewSetupScreen(nav: NavHostController) {
     LaunchedEffect(recommendationKey, recommendation) {
         if (setup.lastRecommendationContext != recommendationKey || setup.grindValue == null) {
             setup.lastRecommendationContext = recommendationKey
-            if (!setup.isGrindPinned) recommendation?.let { setup.grindValue = it.value }
+            if (!setup.isGrindPinned) {
+                if (recommendation != null) {
+                    setup.grindValue = recommendation.value
+                } else if (setup.grindValue == null && selectedGrinder != null) {
+                    setup.grindValue = setup.lastGrindFor(selectedGrinder.id) ?: selectedGrinder.grinder.defaultStartingValue()
+                }
+            }
         }
     }
 
@@ -182,9 +188,12 @@ fun BrewSetupScreen(nav: NavHostController) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
                     }
                     HorizontalDivider(Modifier.padding(vertical = 10.dp))
-                    GearRow("Grinder", Icons.Filled.Build, grinders, setup.grinderId, { setup.grinderId = it }) { nav.navigate(Routes.PRESETS) }
+                    GearRow("Grinder", Icons.Filled.Build, grinders, setup.grinderId, onSelect = { id ->
+                        val g = grinders.firstOrNull { it.id == id }
+                        setup.selectGrinder(id, g, data.brews)
+                    }, onAdd = { nav.navigate(Routes.PRESETS) })
                     Spacer(Modifier.height(10.dp))
-                    GrindInput(selectedGrinder?.grinder, setup.grindValue, { setup.grindValue = it }, setup.grindText, { setup.grindText = it }, recommendation)
+                    GrindInput(selectedGrinder?.grinder, setup.grindValue, { setup.setGrind(it) }, setup.grindText, { setup.grindText = it }, recommendation)
                 }
             }
         }

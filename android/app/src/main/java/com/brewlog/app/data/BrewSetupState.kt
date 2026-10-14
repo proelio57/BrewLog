@@ -5,6 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.brewlog.app.analysis.GrindRecommender
+import com.brewlog.app.domain.Brew
+import com.brewlog.app.domain.Equipment
 import com.brewlog.app.domain.EquipmentType
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.RecipeLibrary
@@ -17,12 +20,21 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
         private set
     var dose: Double by mutableDoubleStateOf(recipe.dose)
     var waterTemp: Double by mutableDoubleStateOf(recipe.temperature)
-    var grindValue: Double? by mutableStateOf(null)
+
+    private val lastGrindByGrinder = mutableMapOf<String, Double>()
+
+    private val initialGrinderId = prefs.getString(KEY_GRINDER, null)
+    var grindValue: Double? by mutableStateOf(
+        initialGrinderId?.let { gid ->
+            val key = KEY_GRIND_PREFIX + gid
+            if (prefs.contains(key)) prefs.getFloat(key, 0f).toDouble() else null
+        }
+    )
     var grindText: String by mutableStateOf("")
 
     private val beanState = mutableStateOf(prefs.getString(KEY_BEAN, null))
     private val brewerState = mutableStateOf(prefs.getString(KEY_BREWER, null))
-    private val grinderState = mutableStateOf(prefs.getString(KEY_GRINDER, null))
+    private val grinderState = mutableStateOf(initialGrinderId)
     private val filterState = mutableStateOf(prefs.getString(KEY_FILTER, null))
 
     var beanId: String?
@@ -47,6 +59,71 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
     fun pinGrind(value: Double?) {
         grindValue = value
         pinnedGrindContext = grindContextKey
+        val gid = grinderId
+        if (gid != null && value != null) {
+            lastGrindByGrinder[gid] = value
+            prefs.edit().putFloat(KEY_GRIND_PREFIX + gid, value.toFloat()).apply()
+        }
+    }
+
+    /** Explicitly sets and remembers the grind value for the active grinder. */
+    fun setGrind(value: Double?) {
+        pinGrind(value)
+    }
+
+    /** Returns the last grind explicitly set on [id], or null if none was set yet. */
+    fun lastGrindFor(id: String): Double? {
+        lastGrindByGrinder[id]?.let { return it }
+        val key = KEY_GRIND_PREFIX + id
+        if (prefs.contains(key)) {
+            val v = prefs.getFloat(key, 0f).toDouble()
+            lastGrindByGrinder[id] = v
+            return v
+        }
+        return null
+    }
+
+    /**
+     * Switches to a grinder without carrying over the numeric grind from the previous grinder.
+     * Restores the last set grind for [newId], or historical recommendation, or the grinder's default value.
+     */
+    fun selectGrinder(
+        newId: String?,
+        grinder: Equipment?,
+        brews: List<Brew> = emptyList(),
+    ) {
+        val cleanId = newId?.ifEmpty { null }
+        if (grinderId == cleanId && grindValue != null) return
+        grinderId = cleanId
+        if (cleanId == null || grinder == null) {
+            grindValue = null
+            pinnedGrindContext = null
+            lastRecommendationContext = null
+            return
+        }
+
+        // 1. Remembered grind previously set for this specific grinder
+        val remembered = lastGrindFor(cleanId)
+        if (remembered != null) {
+            grindValue = remembered
+            pinnedGrindContext = grindContextKey
+            lastRecommendationContext = "${beanId ?: "-"}|$cleanId|${recipe.id}"
+            return
+        }
+
+        // 2. Recommendation / history for this grinder
+        val rec = GrindRecommender.recommend(beanId, grinder, recipe.id, brews)
+        if (rec != null) {
+            grindValue = rec.value
+            pinnedGrindContext = null
+            lastRecommendationContext = "${beanId ?: "-"}|$cleanId|${recipe.id}"
+            return
+        }
+
+        // 3. Fallback: default starting value for this grinder
+        grindValue = grinder.grinder.defaultStartingValue()
+        pinnedGrindContext = null
+        lastRecommendationContext = "${beanId ?: "-"}|$cleanId|${recipe.id}"
     }
 
     val isGrindPinned: Boolean get() = pinnedGrindContext == grindContextKey
@@ -59,7 +136,12 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
     private val knownGear = mutableMapOf<EquipmentType, Set<String>>()
 
     /** Clears selections of deleted gear and auto-selects newly added gear when nothing is selected. */
-    fun reconcileGear(type: EquipmentType, ids: List<String>) {
+    fun reconcileGear(
+        type: EquipmentType,
+        ids: List<String>,
+        grinders: List<Equipment> = emptyList(),
+        brews: List<Brew> = emptyList(),
+    ) {
         val previous = knownGear[type]
         val current = when (type) {
             EquipmentType.BREWER -> brewerId
@@ -73,9 +155,15 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
         if (next != current) {
             when (type) {
                 EquipmentType.BREWER -> brewerId = next
-                EquipmentType.GRINDER -> grinderId = next
+                EquipmentType.GRINDER -> {
+                    val g = grinders.firstOrNull { it.id == next }
+                    selectGrinder(next, g, brews)
+                }
                 else -> filterId = next
             }
+        } else if (type == EquipmentType.GRINDER && next != null && grindValue == null) {
+            val g = grinders.firstOrNull { it.id == next }
+            selectGrinder(next, g, brews)
         }
         knownGear[type] = ids.toSet()
     }
@@ -104,5 +192,6 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
         private const val KEY_BREWER = "setup.brewerID"
         private const val KEY_GRINDER = "setup.grinderID"
         private const val KEY_FILTER = "setup.filterID"
+        private const val KEY_GRIND_PREFIX = "setup.lastGrind."
     }
 }

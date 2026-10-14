@@ -71,6 +71,8 @@ data class GrinderSpec(
     val finerIsLower: Boolean = true,
     /** Typical pour-over range, e.g. "20–30 clicks" (informational). */
     val rangeNote: String = "",
+    /** Sensible starting default for pour-over / filter brew. */
+    val defaultGrind: Double? = null,
 ) {
     private val decimals: Int get() = if (step < 1) (if (step < 0.1) 2 else 1) else 0
 
@@ -94,6 +96,26 @@ data class GrinderSpec(
         val signed = if (coarser == finerIsLower) delta else -delta
         val snapped = roundHalfAway((value + signed) / step) * step
         return max(0.0, snapped)
+    }
+
+    /** Default starting grind for this grinder (explicit default, parsed range midpoint, or unit fallback). */
+    fun defaultStartingValue(): Double {
+        if (defaultGrind != null) return defaultGrind
+        val match = Regex("(\\d+(?:\\.\\d+)?)[–-](\\d+(?:\\.\\d+)?)").find(rangeNote)
+        if (match != null) {
+            val low = match.groupValues[1].toDoubleOrNull()
+            val high = match.groupValues[2].toDoubleOrNull()
+            if (low != null && high != null && high >= low) {
+                val mid = (low + high) / 2.0
+                return roundHalfAway(mid / step) * step
+            }
+        }
+        return when (unit) {
+            GrindUnit.CLICKS -> 20.0
+            GrindUnit.NUMBERS -> if (step < 1.0) 6.0 else 15.0
+            GrindUnit.DIAL -> if (step < 1.0) 5.0 else 5.0
+            GrindUnit.MICRONS -> 600.0
+        }
     }
 }
 
