@@ -15,6 +15,7 @@ on:
       - "Config/**"
       - "project.yml"
       - "scripts/build-ipa.sh"
+      - "scripts/ci-annotate.sh"
       - "scripts/sidestore*"
       - ".github/workflows/ios.yml"
   pull_request:
@@ -27,6 +28,7 @@ on:
       - "Config/**"
       - "project.yml"
       - "scripts/build-ipa.sh"
+      - "scripts/ci-annotate.sh"
       - "scripts/sidestore*"
       - ".github/workflows/ios.yml"
   workflow_dispatch:
@@ -76,14 +78,23 @@ jobs:
           devices = json.load(sys.stdin)["devices"]
           runtimes = sorted((k for k in devices if ".iOS-" in k), key=lambda k: [int(x) for x in k.split(".iOS-")[1].split("-")], reverse=True)
           print(next(d["udid"] for k in runtimes for d in devices[k] if d["name"].startswith("iPhone")))')
-          xcodebuild test -project BrewLog.xcodeproj -scheme BrewLog -destination "id=$device" -quiet
+          status=0
+          xcodebuild test -project BrewLog.xcodeproj -scheme BrewLog -destination "id=$device" > test.log 2>&1 || status=$?
+          tail -n 50 test.log
+          scripts/ci-annotate.sh test.log
+          exit $status
 
       - name: Build unsigned IPA
         run: |
+          status=0
           scripts/build-ipa.sh \
             MARKETING_VERSION=${{ steps.version.outputs.version }} \
             CURRENT_PROJECT_VERSION=${{ steps.version.outputs.build }} \
-            "RECIPE_FEED_URL=https://raw.githubusercontent.com/${RELEASE_REPO}/sidestore/recipes.json"
+            "RECIPE_FEED_URL=https://raw.githubusercontent.com/${RELEASE_REPO}/sidestore/recipes.json" \
+            > build.log 2>&1 || status=$?
+          tail -n 30 build.log
+          scripts/ci-annotate.sh build.log
+          exit $status
 
       - uses: actions/upload-artifact@v4
         with:
