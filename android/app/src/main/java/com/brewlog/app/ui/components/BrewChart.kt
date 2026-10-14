@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brewlog.app.LocalContainer
 import com.brewlog.app.analysis.BrewAnalyzer
+import com.brewlog.app.domain.PressureSample
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.WeightSample
 import com.brewlog.app.domain.fmt1
@@ -54,21 +55,31 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 
+val PressureAmber = Color(0xFFFF9800)
+
 /** Precomputed series and axis scaling. Port of BrewChartModel (BrewChart.swift). */
-private class ChartModel(samples: List<WeightSample>, recipe: Recipe?, currentTime: Double?) {
+private class ChartModel(
+    samples: List<WeightSample>,
+    recipe: Recipe?,
+    currentTime: Double?,
+    pressureSamples: List<PressureSample> = emptyList(),
+) {
     val weight: List<Pair<Double, Double>>
     val flow: List<Pair<Double, Double>>
+    val pressure: List<Pair<Double, Double>>
     val target: List<Pair<Double, Double>> = recipe?.targetCurve() ?: emptyList()
     val stepTimes: List<Double> = recipe?.steps?.map { it.time } ?: emptyList()
     val maxT: Double
     val maxW: Double
     val maxFlow: Double
+    val maxPressure: Double = 12.0
     val flowTicks: List<Double>
     val weightTicks: List<Double>
+    val pressureTicks: List<Double> = listOf(3.0, 6.0, 9.0, 12.0)
 
     init {
         val flows = BrewAnalyzer.centeredFlows(samples)
-        val lastT = samples.lastOrNull()?.t ?: 0.0
+        val lastT = maxOf(samples.lastOrNull()?.t ?: 0.0, pressureSamples.lastOrNull()?.t ?: 0.0)
         maxT = maxOf((recipe?.targetTime ?: 0.0) + 15, lastT + 5, currentTime ?: 0.0, 30.0)
         maxW = maxOf((recipe?.water ?: 0.0) * 1.08, (samples.maxOfOrNull { it.w } ?: 0.0) * 1.05, 10.0)
 
@@ -89,6 +100,11 @@ private class ChartModel(samples: List<WeightSample>, recipe: Recipe?, currentTi
         if (samples.isNotEmpty() && indices.lastOrNull() != samples.lastIndex) indices.add(samples.lastIndex)
         weight = indices.map { samples[it].t to max(samples[it].w, 0.0) }
         flow = indices.map { samples[it].t to flows[it].coerceIn(0.0, maxFlow) }
+
+        val pStride = max(pressureSamples.size / 400, 1)
+        val pIndices = (pressureSamples.indices step pStride).toMutableList()
+        if (pressureSamples.isNotEmpty() && pIndices.lastOrNull() != pressureSamples.lastIndex) pIndices.add(pressureSamples.lastIndex)
+        pressure = pIndices.map { pressureSamples[it].t to pressureSamples[it].bar.coerceIn(0.0, maxPressure) }
     }
 
     companion object {
@@ -109,7 +125,7 @@ private class ChartModel(samples: List<WeightSample>, recipe: Recipe?, currentTi
 }
 
 /**
- * Weight (left axis) and flow in g/s (right axis) on one chart, with the recipe's ideal curve and step markers.
+ * Weight (left axis) and flow in g/s (right axis) on one chart, with optional pressure profiling (bar).
  * Tap "Flow" in the legend to show or hide the flow overlay (remembered app-wide).
  */
 @Composable
@@ -120,11 +136,15 @@ fun BrewChart(
     currentTime: Double? = null,
     height: Dp = 200.dp,
     showFlowRange: Boolean = false,
+    pressureSamples: List<PressureSample> = emptyList(),
 ) {
     val container = LocalContainer.current
     val settings by container.settings.settings.collectAsStateWithLifecycle()
     val flowVisible = settings.chartShowsFlow
-    val model = remember(samples, recipe, currentTime) { ChartModel(samples, recipe, currentTime) }
+    val hasPressure = pressureSamples.isNotEmpty()
+    val model = remember(samples, recipe, currentTime, pressureSamples) {
+        ChartModel(samples, recipe, currentTime, pressureSamples)
+    }
     val measurer = rememberTextMeasurer()
     val accent = MaterialTheme.colorScheme.primary
     val grid = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)
@@ -135,7 +155,7 @@ fun BrewChart(
         Canvas(Modifier.fillMaxWidth().height(height)) {
             val labelStyle = TextStyle(fontSize = 10.sp, color = labelColor)
             val left = 30.dp.toPx()
-            val right = if (flowVisible) 24.dp.toPx() else 6.dp.toPx()
+            val right = if (flowVisible || hasPressure) 26.dp.toPx() else 6.dp.toPx()
             val top = 6.dp.toPx()
             val bottom = 18.dp.toPx()
             val x0 = left
@@ -145,6 +165,7 @@ fun BrewChart(
             fun x(t: Double) = (x0 + (t / model.maxT) * (x1 - x0)).toFloat()
             fun yW(w: Double) = (y1 - (w / model.maxW) * (y1 - y0)).toFloat()
             fun yF(f: Double) = (y1 - (f / model.maxFlow) * (y1 - y0)).toFloat()
+            fun yP(p: Double) = (y1 - (p / model.maxPressure) * (y1 - y0)).toFloat()
 
             // Weight grid + labels (left)
             model.weightTicks.forEach { w ->
@@ -180,6 +201,20 @@ fun BrewChart(
                 }
             }
 
+            // Pressure curve (bar)
+            if (hasPressure) {
+                drawSeries(
+                    model.pressure, ::x, ::yP, y1, PressureAmber, 2.dp.toPx(),
+                    Brush.verticalGradient(listOf(PressureAmber.copy(alpha = 0.22f), PressureAmber.copy(alpha = 0.04f)), startY = y0, endY = y1)
+                )
+                if (!flowVisible) {
+                    model.pressureTicks.forEach { p ->
+                        val layout = measurer.measure("${p.toInt()} bar", labelStyle.copy(color = PressureAmber))
+                        drawText(layout, topLeft = Offset(x1 + 4.dp.toPx(), yP(p) - layout.size.height / 2f))
+                    }
+                }
+            }
+
             // Recipe curve (dashed)
             if (model.target.size > 1) {
                 val path = Path()
@@ -197,7 +232,7 @@ fun BrewChart(
             }
         }
         Spacer(Modifier.height(6.dp))
-        Legend(hasRecipe = recipe != null, flowVisible = flowVisible, accent = accent, recipeColor = recipeColor) {
+        Legend(hasRecipe = recipe != null, flowVisible = flowVisible, hasPressure = hasPressure, accent = accent, recipeColor = recipeColor) {
             container.settings.update { it.copy(chartShowsFlow = !it.chartShowsFlow) }
             container.haptics.tap()
         }
@@ -241,7 +276,14 @@ private fun DrawScope.drawSeries(
 }
 
 @Composable
-private fun Legend(hasRecipe: Boolean, flowVisible: Boolean, accent: Color, recipeColor: Color, onToggleFlow: () -> Unit) {
+private fun Legend(
+    hasRecipe: Boolean,
+    flowVisible: Boolean,
+    hasPressure: Boolean,
+    accent: Color,
+    recipeColor: Color,
+    onToggleFlow: () -> Unit,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         LegendItem("Weight g") { Box(Modifier.width(14.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(accent)) }
         if (hasRecipe) {
@@ -252,6 +294,10 @@ private fun Legend(hasRecipe: Boolean, flowVisible: Boolean, accent: Color, reci
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f)))
                 }
             }
+        }
+        if (hasPressure) {
+            Spacer(Modifier.width(14.dp))
+            LegendItem("Pressure bar") { Box(Modifier.width(14.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(PressureAmber)) }
         }
         Spacer(Modifier.width(14.dp))
         Row(

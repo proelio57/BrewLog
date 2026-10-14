@@ -93,6 +93,7 @@ fun BrewSetupScreen(nav: NavHostController) {
     val settings by container.settings.settings.collectAsStateWithLifecycle()
     val ready by container.scale.ready.collectAsStateWithLifecycle()
     var showScale by rememberSaveable { mutableStateOf(false) }
+    var showPressure by rememberSaveable { mutableStateOf(false) }
 
     val beans = data.beans.filter { !it.isArchived }.sortedByDescending { it.createdAt }
     val brewers = data.equipment.filter { it.type == EquipmentType.BREWER }.sortedBy { it.name }
@@ -152,6 +153,9 @@ fun BrewSetupScreen(nav: NavHostController) {
                 item { SetupBanner(onStart = { nav.navigate(Routes.ONBOARDING) }, onDismiss = { container.settings.update { it.copy(setupBannerDismissed = true) } }) }
             }
             item { ScaleStatusCard { showScale = true } }
+            if (settings.espressoPressureEnabled) {
+                item { PressureStatusCard { showPressure = true } }
+            }
             item { RecipeCard(onClick = { nav.navigate(Routes.RECIPE_PICKER) }) }
             item { DoseCard() }
             item {
@@ -199,6 +203,7 @@ fun BrewSetupScreen(nav: NavHostController) {
         }
     }
     if (showScale) ScaleSheet { showScale = false }
+    if (showPressure) PressureMonitorSheet { showPressure = false }
 }
 
 @Composable

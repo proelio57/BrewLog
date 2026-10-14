@@ -128,6 +128,14 @@ data class WeightSample(
 )
 
 @Serializable
+data class PressureSample(
+    /** Seconds since brew/shot start. */
+    val t: Double,
+    /** Extraction pressure in bar. */
+    val bar: Double,
+)
+
+@Serializable
 enum class TasteFeedback(val title: String, val subtitle: String) {
     @SerialName("perfect") PERFECT("Perfect", "Sweet, balanced, would brew again"),
     @SerialName("sour") SOUR("Too sour", "Sharp, salty, thin, short finish"),
@@ -230,6 +238,8 @@ data class Brew(
     val externalId: String? = null,
     /** Weight curve. Stored in a separate file per brew (see BrewRepository), not in the main data file. */
     @Transient val samples: List<WeightSample> = emptyList(),
+    /** Pressure curve in bar (if pressure monitor was connected). */
+    @Transient val pressureSamples: List<PressureSample> = emptyList(),
 ) {
     val ratio: Double get() = if (dose > 0) finalWeight / dose else 0.0
     val isReviewed: Boolean get() = rating > 0 || feedback.isNotEmpty()
@@ -271,4 +281,5 @@ data class AppSettings(
     val quickWeighAutoStart: Boolean = true,
     val chartShowsFlow: Boolean = true,
     val onlineRecipes: Boolean = true,
+    val espressoPressureEnabled: Boolean = false,
 )

@@ -53,6 +53,7 @@ class AppContainer(context: Context) {
     val presets: List<Recipe> get() = recipeFeed.presets.value
     val repository = BrewRepository(context.filesDir, scope)
     val scale = ScaleManager(context.applicationContext, prefs, scope)
+    val pressure = com.brewlog.app.scale.PressureManager(context.applicationContext, prefs, scope)
     val sound = SoundPlayer { settings.current }
     val haptics = Haptics(context.applicationContext) { settings.current }
     val setup = BrewSetupState(prefs, presets).also { it.restoreCustom(repository.data.value.customRecipes) }

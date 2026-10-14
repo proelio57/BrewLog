@@ -121,7 +121,7 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
                 item {
                     SectionHeader("Pour curve")
                     Spacer(Modifier.height(8.dp))
-                    BrewCard { BrewChart(samples, brew.recipe, height = 230.dp, showFlowRange = true) }
+                    BrewCard { BrewChart(samples, brew.recipe, height = 230.dp, showFlowRange = true, pressureSamples = brew.pressureSamples) }
                 }
             }
             item { TasteCard(brew) }

@@ -336,6 +336,7 @@ fun SettingsScreen(nav: NavHostController) {
     val isDemo by container.scale.isDemo.collectAsStateWithLifecycle()
     val state by container.scale.state.collectAsStateWithLifecycle()
     var showScale by remember { mutableStateOf(false) }
+    var showPressure by remember { mutableStateOf(false) }
     fun update(transform: (com.brewlog.app.domain.AppSettings) -> com.brewlog.app.domain.AppSettings) = container.settings.update(transform)
 
     BrewScreen(title = "Settings", onBack = { nav.popBackStack() }) { padding ->
@@ -349,6 +350,35 @@ fun SettingsScreen(nav: NavHostController) {
                         Text(if (isDemo) "Demo" else state.label, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     SwitchRow("Demo scale (simulated pours)", isDemo) { container.scale.setDemo(it) }
+                }
+            }
+            item {
+                SectionHeader("Espresso pressure monitor")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    SwitchRow("Enable pressure monitoring", settings.espressoPressureEnabled) { v ->
+                        update { it.copy(espressoPressureEnabled = v) }
+                        if (!v) {
+                            container.pressure.disconnect()
+                        }
+                    }
+                    if (settings.espressoPressureEnabled) {
+                        val pressureState by container.pressure.state.collectAsStateWithLifecycle()
+                        val isPressureDemo by container.pressure.isDemo.collectAsStateWithLifecycle()
+                        val pressureName by container.pressure.connectedName.collectAsStateWithLifecycle()
+                        HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                        Row(Modifier.fillMaxWidth().clickable { showPressure = true }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("BOOKOO espresso monitor", Modifier.weight(1f))
+                            Text(if (isPressureDemo) "Demo" else (pressureName ?: pressureState.label), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        SwitchRow("Demo pressure (simulated shot)", isPressureDemo) { container.pressure.toggleDemo(it) }
+                    }
+                    Text(
+                        "Connect a BOOKOO Espresso Monitor via Bluetooth to log and graph real-time extraction pressure (up to 12 bar) alongside weight and flow.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
             }
             item {
@@ -494,6 +524,7 @@ fun SettingsScreen(nav: NavHostController) {
         }
     }
     if (showScale) ScaleSheet { showScale = false }
+    if (showPressure) PressureMonitorSheet { showPressure = false }
 }
 
 @Composable
