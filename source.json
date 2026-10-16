@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.9",
+          "buildVersion": "9",
+          "date": "2026-10-16T10:09:07Z",
+          "localizedDescription": "Merge pull request #2 from proelio57/feature/pressure-monitor\n\nFeature/pressure monitor",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.9/BrewLog.ipa",
+          "size": 1665316,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.6",
           "buildVersion": "6",
           "date": "2026-10-14T18:32:51Z",
@@ -31,11 +40,11 @@
           "NSBluetoothAlwaysUsageDescription": "BrewLog connects to your Bluetooth coffee scale to read the weight live while you brew."
         }
       },
-      "version": "0.1.6",
-      "versionDate": "2026-10-14T18:32:51Z",
-      "versionDescription": "chore: version 0.1.x\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.6/BrewLog.ipa",
-      "size": 1662310
+      "version": "0.1.9",
+      "versionDate": "2026-10-16T10:09:07Z",
+      "versionDescription": "Merge pull request #2 from proelio57/feature/pressure-monitor\n\nFeature/pressure monitor",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.9/BrewLog.ipa",
+      "size": 1665316
     }
   ],
   "news": []
