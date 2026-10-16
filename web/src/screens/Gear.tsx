@@ -1,11 +1,11 @@
 import {
-  CircleCheck, CirclePlus, Coffee, Download, FileText, Flame, LayoutGrid, Scale, Search, Settings, SlidersHorizontal, Sparkles, Trash2, Upload,
+  CircleCheck, CirclePlus, Coffee, Download, FileText, Flame, LayoutGrid, Scale, Search, Settings, SlidersHorizontal, Sparkles, Trash2,
   Droplet, type LucideIcon,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
-import { cue, goBack, navigate, repository, scale, settings, setup } from '../app'
+import { useState } from 'react'
+import { cue, goBack, navigate, recipeFeed, repository, scale, settings } from '../app'
 import { useStore } from '../data/store'
-import { fmt1 } from '../domain/format'
+import { fmt1, formatDate } from '../domain/format'
 import { ALL_PRESETS, makeEquipment } from '../domain/library'
 import {
   EQUIPMENT_NAMES, EQUIPMENT_TYPES, FILTER_FLOWS, FLOW_NAMES, GRIND_UNITS, GRIND_UNIT_NAMES, ROAST_LEVELS, ROAST_NAMES,
@@ -16,7 +16,9 @@ import { LIMITS, clamped, sanitized } from '../domain/validation'
 import { newId } from '../domain/format'
 import { CONNECTION_LABELS } from '../scale/scaleManager'
 import { Card, Chip, Field, NumberInput, SectionHeader, Stepper, TextInput, Toggle, TopBar } from '../ui/components'
+import { ImportButton, shareOrDownload } from '../ui/files'
 import { ScaleSheet } from './BrewSetup'
+import { EspressoSettings } from './Machine'
 
 export const EQUIPMENT_ICONS: Record<EquipmentType, LucideIcon> = {
   brewer: Coffee, grinder: SlidersHorizontal, kettle: Flame, filter: FileText, scale: Scale, water: Droplet,
@@ -187,29 +189,12 @@ export function SettingsScreen() {
   const scaleState = useStore(scale.state)
   const [showScale, setShowScale] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
-  const fileInput = useRef<HTMLInputElement>(null)
+  const feed = useStore(recipeFeed.status)
   const change = (patch: Partial<typeof s>) => settings.change((x) => ({ ...x, ...patch }))
 
   const exportBackup = async () => {
-    const blob = new Blob([await repository.exportBackup()], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `brewlog-backup-${new Date().toISOString().slice(0, 10)}.json`
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1_000)
+    await shareOrDownload(`brewlog-backup-${new Date().toISOString().slice(0, 10)}.json`, await repository.exportBackup())
     setMessage('Backup saved.')
-  }
-
-  const importBackup = async (file: File) => {
-    if (!window.confirm('Replace all brews, beans, gear and custom recipes on this device with the backup?')) return
-    try {
-      const result = await repository.importBackup(await file.text())
-      setup.adopt(repository.data.get())
-      setMessage(`Backup restored: ${result.brews} brews, ${result.beans} beans.`)
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not read the backup.')
-    }
   }
 
   return (
@@ -224,6 +209,8 @@ export function SettingsScreen() {
           </button>
           <Toggle label="Demo scale (simulated pours)" checked={scaleState.isDemo} onChange={(v) => scale.setDemo(v)} />
         </Card>
+
+        <EspressoSettings />
 
         <SectionHeader title="Brew assistant" />
         <Card>
@@ -267,22 +254,34 @@ export function SettingsScreen() {
           </div>
         </Card>
 
-        <SectionHeader title="Backup" />
+        <SectionHeader title="Recipes" />
         <Card>
-          <div className="small muted">Your data lives only in this browser. Save a backup now and then. You can also use it to move your journal to another device.</div>
+          <Toggle label="Online recipe updates" checked={s.onlineRecipes} onChange={(v) => change({ onlineRecipes: v })}
+            detail="BrewLog checks for new and updated recipes every few hours. Your own recipes are never changed." />
+          {s.onlineRecipes && (
+            <>
+              <div className="row"><span className="grow">Last checked</span><span className="muted">{feed.lastSync ? formatDate(feed.lastSync, true) : 'Never'}</span></div>
+              <button className="btn" disabled={feed.syncing} onClick={() => void recipeFeed.syncIfNeeded(true)}>{feed.syncing ? 'Checking…' : 'Check now'}</button>
+              {feed.error && <div className="small muted">{feed.error}</div>}
+            </>
+          )}
+        </Card>
+
+        <SectionHeader title="Backup & import" />
+        <Card>
+          <div className="small muted">Your data lives only in this browser. Save a backup now and then. The backup works in the iOS and Android app too, so you can move your journal between devices. Importing adds what's new and never deletes anything.</div>
           <div className="row">
             <button className="btn tinted" onClick={() => void exportBackup()}><Download size={16} />Export backup</button>
-            <button className="btn" onClick={() => fileInput.current?.click()}><Upload size={16} />Import</button>
-            <input ref={fileInput} type="file" accept="application/json,.json" style={{ display: 'none' }}
-              onChange={(e) => { const file = e.target.files?.[0]; if (file) void importBackup(file); e.target.value = '' }} />
+            <ImportButton className="btn" label="Import" />
           </div>
+          <div className="small muted">Import also reads recipe files and Beanconqueror backups (.zip or .json).</div>
           {message && <div className="small accent">{message}</div>}
         </Card>
 
         <SectionHeader title="About" />
         <Card>
-          <div className="row"><span className="grow">Version</span><span className="muted">1.0</span></div>
-          <div className="small muted">BrewLog has no account, no analytics and no server. Everything stays in this browser on this device.</div>
+          <div className="row"><span className="grow">Version</span><span className="muted">{__APP_VERSION__}</span></div>
+          <div className="small muted">BrewLog has no account, no analytics and no server. The only network access is downloading the public recipe list (can be turned off) and, if you set one up, your espresso machine in your Wi-Fi. Everything else stays in this browser on this device.</div>
         </Card>
       </div>
       {showScale && <ScaleSheet onClose={() => setShowScale(false)} />}

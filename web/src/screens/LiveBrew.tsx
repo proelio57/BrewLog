@@ -1,12 +1,12 @@
-import { CircleCheck, Droplet, Play, Scale, Square, TriangleAlert, X } from 'lucide-react'
+import { CircleCheck, Droplet, Gauge, Play, Scale, Square, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { goBack, live, navigate, repository, scale, settings, wakeLock, type BrewConfig } from '../app'
+import { goBack, live, machine, navigate, pressure, repository, scale, settings, wakeLock, type BrewConfig } from '../app'
 import type { BrewSession, BrewSnapshot } from '../brewing/brewSession'
 import { useStore } from '../data/store'
 import { fmt1, grams, grams1, mmss, newId, scaleReadout } from '../domain/format'
 import { formatGrind, type Brew } from '../domain/models'
 import { STEP_TITLES, isPour, stepHeadline, type RecipeStep } from '../domain/recipe'
-import { BrewChart } from '../ui/chart'
+import { BrewChart, MachineChart } from '../ui/chart'
 import { Card, STEP_ICONS } from '../ui/components'
 
 export function LiveBrew() {
@@ -21,7 +21,11 @@ export function LiveBrew() {
 function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewSession }) {
   const snapshot = useStore(session.state)
   const scaleState = useStore(scale.state)
+  const machineState = useStore(machine.state)
+  const pressureState = useStore(pressure.state)
   const keepAwake = useStore(settings).keepAwake
+  const espresso = session.isEspresso
+  const showMachine = session.hasPressure || (espresso && machineState.connection === 'connected')
 
   const close = () => {
     session.discard()
@@ -41,9 +45,9 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
       grinderId: config.grinder?.id ?? null, grinderName: config.grinder?.name ?? '', grinderSpec: config.grinder?.grinder ?? null,
       filterId: config.filter?.id ?? null, filterName: config.filter?.name ?? '', filterFlow: config.filter?.filterFlow ?? null,
       filterIdealRoast: config.filter?.idealRoast ?? null, beanId: config.beanId, usedScale: session.usesScale,
-      rating: 0, feedback: [], notes: '',
+      rating: 0, feedback: [], notes: '', externalId: null,
     }
-    repository.saveNewBrew(brew, session.usesScale ? session.recordedSamples() : [])
+    repository.saveNewBrew(brew, session.usesScale ? session.recordedSamples() : [], session.recordedMachineSamples())
     live.brew = null
     navigate(`/brews/${brew.id}?new=1`, true)
   }
@@ -51,12 +55,21 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
   useEffect(() => {
     session.onAutoFinish = () => finishRef.current()
     const unsubscribe = scale.onReading((grams, time) => session.ingest(grams, time))
+    const detach = session.attach()
     const timer = setInterval(() => session.tick(), 50)
     return () => {
       unsubscribe()
+      detach()
       clearInterval(timer)
     }
   }, [session])
+
+  // GaggiMate refused to start because of a warning (e.g. low water): ask whether to start anyway.
+  useEffect(() => {
+    if (!machineState.startBlockedBy.length) return
+    if (window.confirm(`GaggiMate didn't start the shot (${machineState.startBlockedBy.join(', ')}). Start anyway?`)) machine.startShot(true)
+    else machine.dismissStartWarning()
+  }, [machineState.startBlockedBy])
 
   useEffect(() => {
     if (keepAwake) void wakeLock.request()
@@ -107,15 +120,26 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
         </div>
       </div>
 
+      {showMachine && (
+        <div className="row small tnum" style={{ fontWeight: 600, gap: 12 }}>
+          <Gauge size={18} className="accent" />
+          <span>{pressure.isReady ? `${fmt1(pressureState.pressure)} bar` : machineState.status.pressure != null ? `${fmt1(machineState.status.pressure)} bar` : '–'}</span>
+          {machineState.connection === 'connected' && <>
+            <span>{machineState.status.temperature != null ? `${fmt1(machineState.status.temperature)} °C` : '–'}</span>
+            <span>{machineState.status.flow != null ? `${fmt1(machineState.status.flow)} ml/s` : '–'}</span>
+          </>}
+          <span className="grow" />
+          <span className="tiny muted">{machineState.connection === 'connected' ? machine.displayName : pressure.displayName}</span>
+        </div>
+      )}
+
       {snapshot.phase === 'preparing' && (
         <Card>
           <div className="row">
             <Scale size={32} className="accent" />
             <div>
-              <div className="title">Put the brewer with coffee on the scale</div>
-              <div className="small muted">{snapshot.usesScale
-                ? 'Press Ready to tare. The timer starts by itself when you start pouring.'
-                : 'No scale connected. Press Ready, then start the timer when you pour.'}</div>
+              <div className="title">{espresso ? 'Lock in the portafilter, cup on the scale' : 'Put the brewer with coffee on the scale'}</div>
+              <div className="small muted">{preparingHint(session, snapshot.usesScale)}</div>
             </div>
           </div>
         </Card>
@@ -128,9 +152,9 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
               <Droplet size={30} className="accent" fill="var(--accent)" />
             </span>
             <div>
-              <div className="headline">{snapshot.usesScale ? 'Start pouring' : 'Ready when you are'}</div>
+              <div className="headline">{espresso ? (session.followsMachine ? 'Start the shot' : 'Ready for the shot') : snapshot.usesScale ? 'Start pouring' : 'Ready when you are'}</div>
               {first && <div className="small muted">{stepHeadline(first)}{first.note ? `. ${first.note}` : ''}</div>}
-              {snapshot.usesScale && <div className="small accent" style={{ fontWeight: 600 }}>{snapshot.zeroConfirmed ? 'Timer starts automatically' : 'Taring…'}</div>}
+              {snapshot.usesScale && <div className="small accent" style={{ fontWeight: 600 }}>{snapshot.zeroConfirmed ? (session.followsMachine ? 'Timer starts with the pump' : 'Timer starts automatically') : 'Taring…'}</div>}
             </div>
           </div>
         </Card>
@@ -138,7 +162,10 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
       {(snapshot.phase === 'brewing' || snapshot.phase === 'finished') && <ActiveStep snapshot={snapshot} session={session} />}
 
       {snapshot.phase === 'brewing' || snapshot.phase === 'finished'
-        ? <BrewChart samples={snapshot.samples} recipe={config.recipe} currentTime={snapshot.elapsed} height={160} />
+        ? <>
+          <BrewChart samples={snapshot.samples} recipe={config.recipe} currentTime={snapshot.elapsed} height={showMachine ? 120 : 160} />
+          {session.hasPressure && <MachineChart samples={snapshot.machineSamples} targetPressure={config.recipe.pressure} currentTime={snapshot.elapsed} height={90} />}
+        </>
         : <Preparation config={config} />}
 
       <div className="steps-strip">
@@ -162,11 +189,13 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
 
       <div className="grow" />
       {snapshot.phase === 'preparing' && <button className="btn-primary" onClick={() => session.ready()}><CircleCheck size={20} />Ready</button>}
-      {snapshot.phase === 'armed' && (snapshot.usesScale
-        ? <button className="link" style={{ alignSelf: 'center', padding: 12 }} onClick={() => session.startManually()}>Start timer manually</button>
-        : <button className="btn-primary" onClick={() => session.startManually()}><Play size={20} />Start timer</button>)}
+      {snapshot.phase === 'armed' && (espresso
+        ? <button className="btn-primary" onClick={() => session.startShot()}><Play size={20} />{session.followsMachine ? `Start shot on ${machine.displayName}` : 'Start shot'}</button>
+        : snapshot.usesScale
+          ? <button className="link" style={{ alignSelf: 'center', padding: 12 }} onClick={() => session.startManually()}>Start timer manually</button>
+          : <button className="btn-primary" onClick={() => session.startManually()}><Play size={20} />Start timer</button>)}
       {snapshot.phase === 'brewing' && (
-        <button className="btn-primary green" onClick={() => finishRef.current()}><Square size={18} fill="#fff" />Finish · drawdown done</button>
+        <button className="btn-primary green" onClick={() => finishRef.current()}><Square size={18} fill="#fff" />{espresso ? 'Stop · shot done' : 'Finish · drawdown done'}</button>
       )}
     </div>
   )
@@ -251,10 +280,25 @@ function CountdownRing({ progress, remaining, overtime, label }: { progress: num
   )
 }
 
+function preparingHint(session: BrewSession, usesScale: boolean): string {
+  if (session.isEspresso) {
+    if (session.followsMachine) return 'Press Ready to tare. BrewLog follows the machine: the timer starts and stops with the pump.'
+    return usesScale ? 'Press Ready to tare, then start the shot. The timer starts with the first drops or when you tap Start.'
+      : 'No scale connected. Press Ready, then tap Start when you start the shot.'
+  }
+  return usesScale ? 'Press Ready to tare. The timer starts by itself when you start pouring.'
+    : 'No scale connected. Press Ready, then start the timer when you pour.'
+}
+
 function Preparation({ config }: { config: BrewConfig }) {
   const grind = config.grindValue != null && config.grinder ? `, ground at ${formatGrind(config.grinder.grinder, config.grindValue)}`
     : config.grindText ? `, ground ${config.grindText}` : ''
-  const items = [
+  const items = config.recipe.method === 'espresso' ? [
+    `Grind ${grams1(config.dose)} of coffee${grind}`,
+    'Distribute (WDT) and tamp level',
+    'Flush the group head, lock in the portafilter',
+    `Brew at ${Math.round(config.waterTemp)} °C, stop at ${grams(config.recipe.water)}`,
+  ] : [
     'Rinse the paper with hot water and discard it',
     `Add ${grams1(config.dose)} of coffee${grind}`,
     'Shake or swirl to level the bed',

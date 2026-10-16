@@ -1,11 +1,14 @@
-import { type AppData, type Bean, type Brew, type Equipment, type WeightSample, emptyAppData } from '../domain/models'
+import { type AppData, type Bean, type Brew, type Equipment, type MachineSample, type WeightSample, emptyAppData } from '../domain/models'
 import type { Recipe } from '../domain/recipe'
-import { LIMITS, parseAppData, parseSamples, validatedRecipe } from '../domain/validation'
+import { LIMITS, parseAppData, parseMachineSamples, parseSamples, validatedRecipe } from '../domain/validation'
+import { type ImportSummary, type ParsedImport, importBeanconqueror, importRecipes, mergeAppData } from '../import/importer'
 import { dbDelete, dbGet, dbKeys, dbSet } from './db'
 import { Store } from './store'
 
 const DATA_KEY = 'appdata'
 const SAMPLES_PREFIX = 'samples:'
+/** Espresso: pressure/temperature/flow curve per brew. */
+const MACHINE_PREFIX = 'machine:'
 const SAFE_ID = /^[A-Za-z0-9_-]{1,120}$/
 
 /** All app data in IndexedDB. Weight curves are stored per brew so the main record stays small. */
@@ -40,9 +43,10 @@ export class Repository {
 
   // Brews
 
-  saveNewBrew(brew: Brew, samples: WeightSample[]): void {
+  saveNewBrew(brew: Brew, samples: WeightSample[], machineSamples: MachineSample[] = []): void {
     this.cacheSamples(brew.id, samples)
     if (SAFE_ID.test(brew.id)) void dbSet(SAMPLES_PREFIX + brew.id, samples)
+    if (SAFE_ID.test(brew.id) && machineSamples.length) void dbSet(MACHINE_PREFIX + brew.id, machineSamples)
     this.update((d) => ({
       ...d,
       brews: [...d.brews, brew],
@@ -72,7 +76,16 @@ export class Repository {
   deleteBrew(id: string): void {
     this.update((d) => ({ ...d, brews: d.brews.filter((b) => b.id !== id) }))
     this.samplesCache.delete(id)
-    if (SAFE_ID.test(id)) void dbDelete(SAMPLES_PREFIX + id)
+    if (SAFE_ID.test(id)) {
+      void dbDelete(SAMPLES_PREFIX + id)
+      void dbDelete(MACHINE_PREFIX + id)
+    }
+  }
+
+  /** Espresso: the machine/pressure curve of a brew (empty for most brews). */
+  async machineSamples(brewId: string): Promise<MachineSample[]> {
+    if (!SAFE_ID.test(brewId)) return []
+    return parseMachineSamples(await dbGet(MACHINE_PREFIX + brewId))
   }
 
   async samples(brewId: string): Promise<WeightSample[]> {
@@ -129,7 +142,10 @@ export class Repository {
 
   // Backup
 
-  /** Everything as one JSON document (app data + weight curves). */
+  /**
+   * Everything as one JSON document, the BrewLog backup format shared by iOS, Android and web (docs/data-formats.md):
+   * `{ app: "BrewLog", format: 1, exportedAt, data, samples: {brewId: [[t, w], …]}, machine: {brewId: [{t, p, c, f}, …]} }`.
+   */
   async exportBackup(): Promise<string> {
     this.flush()
     const samples: Record<string, [number, number][]> = {}
@@ -137,34 +153,46 @@ export class Repository {
       const id = key.slice(SAMPLES_PREFIX.length)
       samples[id] = parseSamples(await dbGet(key)).map((s) => [s.t, s.w])
     }
-    return JSON.stringify({ app: 'BrewLog', format: 1, exportedAt: new Date().toISOString(), data: this.data.get(), samples })
+    const machine: Record<string, MachineSample[]> = {}
+    for (const key of await dbKeys(MACHINE_PREFIX)) {
+      machine[key.slice(MACHINE_PREFIX.length)] = parseMachineSamples(await dbGet(key))
+    }
+    return JSON.stringify({ app: 'BrewLog', format: 1, exportedAt: new Date().toISOString(), data: this.data.get(), samples, machine })
   }
 
-  /** Replaces all data with a backup. The file is untrusted: everything is parsed, validated and limited. */
-  async importBackup(text: string): Promise<{ brews: number; beans: number }> {
-    if (text.length > 50_000_000) throw new Error('This file is too large to be a BrewLog backup.')
-    let raw: unknown
-    try {
-      raw = JSON.parse(text)
-    } catch {
-      throw new Error('This file is not a valid BrewLog backup.')
+  /**
+   * Applies an imported file. BrewLog backups are merged: what isn't there yet (by id) is added, nothing is replaced.
+   * The file is untrusted: everything is parsed, validated and limited.
+   */
+  async applyImport(parsed: ParsedImport, presetIds: Set<string>): Promise<ImportSummary> {
+    this.flush()
+    const current = this.data.get()
+    if (parsed.kind === 'recipes') {
+      const result = importRecipes(current, parsed.recipes.map(validatedRecipe), presetIds)
+      this.data.set(result.data)
+      await dbSet(DATA_KEY, result.data)
+      return result.summary
     }
-    if (typeof raw !== 'object' || raw === null || (raw as { app?: unknown }).app !== 'BrewLog') {
-      throw new Error('This file is not a BrewLog backup.')
+    if (parsed.kind === 'beanconqueror') {
+      const result = importBeanconqueror(current, parsed.backup)
+      this.data.set(parseAppData(result.data))
+      await dbSet(DATA_KEY, this.data.get())
+      return result.summary
     }
-    const backup = raw as { data?: unknown; samples?: unknown }
-    const data = parseAppData(backup.data)
-    for (const key of await dbKeys(SAMPLES_PREFIX)) await dbDelete(key)
-    this.samplesCache.clear()
-    const brewIds = new Set(data.brews.map((b) => b.id))
-    if (typeof backup.samples === 'object' && backup.samples !== null) {
-      for (const [id, value] of Object.entries(backup.samples as Record<string, unknown>).slice(0, LIMITS.maxBrews)) {
-        if (SAFE_ID.test(id) && brewIds.has(id)) await dbSet(SAMPLES_PREFIX + id, parseSamples(value))
+    const raw = parsed.backup as { app?: unknown; data?: unknown; samples?: unknown; machine?: unknown }
+    const incoming = parseAppData(raw.app === 'BrewLog' ? raw.data : raw)
+    const result = mergeAppData(current, incoming, presetIds)
+    const store = async (prefix: string, map: unknown, parse: (v: unknown) => unknown[]) => {
+      if (typeof map !== 'object' || map === null) return
+      for (const [id, value] of Object.entries(map as Record<string, unknown>).slice(0, LIMITS.maxBrews)) {
+        if (SAFE_ID.test(id) && result.newBrewIds.has(id)) await dbSet(prefix + id, parse(value))
       }
     }
-    this.data.set(data)
-    await dbSet(DATA_KEY, data)
-    return { brews: data.brews.length, beans: data.beans.length }
+    await store(SAMPLES_PREFIX, raw.samples, parseSamples)
+    await store(MACHINE_PREFIX, raw.machine, parseMachineSamples)
+    this.data.set(result.data)
+    await dbSet(DATA_KEY, result.data)
+    return result.summary
   }
 }
 

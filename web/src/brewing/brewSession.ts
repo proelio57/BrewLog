@@ -1,8 +1,11 @@
 import { Store } from '../data/store'
 import { roundHalfAway } from '../domain/format'
-import type { AppSettings, WeightSample } from '../domain/models'
+import type { AppSettings, MachineSample, WeightSample } from '../domain/models'
 import { isPour, type Recipe } from '../domain/recipe'
 import { LIMITS } from '../domain/validation'
+import { type GaggiMateStatus, hasWeight, isBrewing } from '../machine/gaggimate'
+import type { MachineManager } from '../machine/machineManager'
+import type { PressureMonitor } from '../scale/pressure'
 import { type ScaleCommands, monotonicMillis } from '../scale/scaleManager'
 
 // 1:1 port of BrewSession.swift / BrewSession.kt.
@@ -28,6 +31,8 @@ export interface BrewSnapshot {
   overpour: number | null
   pingLead: number
   flash: BrewCue | null
+  /** Espresso: pressure/temperature/flow recorded during the shot. */
+  machineSamples: MachineSample[]
 }
 
 /** Hard limits so a forgotten brew or a misbehaving device can't grow memory without bound. */
@@ -77,6 +82,10 @@ export class BrewSession {
   private flash: BrewCue | null = null
   private flashUntil = 0
   private readonly pourIndices: number[]
+  private machineSamples: MachineSample[] = []
+  private lastMachineSampleT = -1
+  /** The weight comes from the scale connected to the espresso machine instead of BrewLog's own connection. */
+  private weighsViaMachine = false
   readonly state: Store<BrewSnapshot>
 
   constructor(
@@ -85,8 +94,10 @@ export class BrewSession {
     private readonly settings: () => AppSettings,
     private readonly onCue: (cue: BrewCue) => void,
     private readonly clock: () => number = monotonicMillis,
+    private readonly machine: MachineManager | null = null,
+    private readonly monitor: PressureMonitor | null = null,
   ) {
-    this.usesScale = scale.isReady
+    this.usesScale = scale.isReady || (this.isEspresso && !!machine?.isConnected && hasWeight(machine.status))
     this.pourIndices = recipe.steps.map((s, i) => (isPour(s.kind) && s.target != null ? i : -1)).filter((i) => i >= 0)
     this.state = new Store(this.snapshot())
   }
@@ -100,16 +111,94 @@ export class BrewSession {
     return [...this.samples]
   }
 
+  recordedMachineSamples(): MachineSample[] {
+    return [...this.machineSamples]
+  }
+
+  get isEspresso(): boolean {
+    return this.recipe.method === 'espresso'
+  }
+
+  /** Espresso with a connected machine: the shot timer starts and stops with the machine's pump. */
+  get followsMachine(): boolean {
+    return this.isEspresso && !!this.machine?.isConnected
+  }
+
+  /** Espresso with live pressure, from the BOOKOO Espresso Monitor or the machine. */
+  get hasPressure(): boolean {
+    return this.isEspresso && (!!this.monitor?.isReady || (!!this.machine?.isConnected && this.machine.status.hasPressure !== false))
+  }
+
+  /** Listens to the machine and the pressure sensor (espresso only). Returns the cleanup. */
+  attach(): () => void {
+    if (!this.isEspresso) return () => undefined
+    const cleanups = [
+      this.machine?.onShot((started, at) => this.machineShot(started, at)),
+      this.machine?.onReading((status, at) => this.machineReading(status, at)),
+      this.monitor?.onPressure((bar, at) => this.monitorReading(bar, at)),
+    ]
+    return () => cleanups.forEach((cleanup) => cleanup?.())
+  }
+
   /** "Ready": tare the scale and wait for the first pour. */
   ready(): void {
-    this.usesScale = this.scale.isReady
+    this.weighsViaMachine = !this.scale.isReady && this.isEspresso && !!this.machine?.isConnected && hasWeight(this.machine.status)
+    this.usesScale = this.scale.isReady || this.weighsViaMachine
     this.phase = 'armed'
     this.armMs = this.clock()
     this.zeroConfirmed = false
     this.retareSent = false
     this.recent = []
-    if (this.usesScale) this.scale.prepareForBrew(this.recipe)
+    if (this.weighsViaMachine) this.machine?.tareScale()
+    else if (this.usesScale) this.scale.prepareForBrew(this.recipe)
+    if (this.followsMachine) this.machine?.prepareForShot(this.recipe)
+    if (this.isEspresso) this.monitor?.prepareForShot(this.recipe)
     this.publish()
+  }
+
+  /** Espresso: starts the shot on the machine if it can be controlled, otherwise just the timer. */
+  startShot(): void {
+    if (this.followsMachine) this.machine?.startShot()
+    else this.startManually()
+  }
+
+  private machineShot(started: boolean, atMs: number): void {
+    if (started) {
+      if (this.phase === 'preparing') {
+        this.ready()
+        this.begin(atMs)
+      } else if (this.phase === 'armed') {
+        this.begin(atMs)
+      }
+    } else if (this.phase === 'brewing') {
+      // The pump stopped. Give the last drops a few seconds, then finish.
+      setTimeout(() => { if (this.phase === 'brewing') this.onAutoFinish?.() }, 3_000)
+    }
+  }
+
+  private machineReading(status: GaggiMateStatus, atMs: number): void {
+    if (this.weighsViaMachine && status.weight != null) this.ingest(status.weight, atMs)
+    // With the pressure sensor connected, its (faster, group-head) readings make the curve.
+    if (this.monitor?.isReady) return
+    this.recordPressure(status.pressure ?? 0, status.temperature, status.flow, atMs)
+  }
+
+  private monitorReading(bar: number, atMs: number): void {
+    // Without a machine connection, rising pressure means the pump started: start the shot timer.
+    if (this.phase === 'armed' && !this.followsMachine && bar >= 1) this.begin(atMs)
+    const status = this.machine?.isConnected ? this.machine.status : null
+    this.recordPressure(bar, status?.temperature ?? null, status?.flow ?? null, atMs)
+  }
+
+  private recordPressure(bar: number, temperature: number | null, flow: number | null, atMs: number): void {
+    if (this.phase !== 'brewing' || this.startMs == null || this.machineSamples.length >= MAX_SAMPLES) return
+    const t = (atMs - this.startMs) / 1000
+    if (t - this.lastMachineSampleT < 0.2) return
+    this.lastMachineSampleT = t
+    this.machineSamples.push({
+      t: roundHalfAway(t * 100) / 100, p: roundHalfAway(bar * 100) / 100,
+      c: temperature != null ? roundHalfAway(temperature * 10) / 10 : null, f: flow != null ? roundHalfAway(flow * 100) / 100 : null,
+    })
   }
 
   startManually(): void {
@@ -122,14 +211,21 @@ export class BrewSession {
     this.phase = 'finished'
     if (this.usesScale) {
       this.appendSample(this.elapsed, this.weight, true)
-      this.scale.brewFinished()
+      if (!this.weighsViaMachine) this.scale.brewFinished()
     }
+    // Ending the brew by hand also stops the pump if the machine is still pulling the shot.
+    if (this.followsMachine && this.machine && isBrewing(this.machine.status)) this.machine.stopShot()
+    this.monitor?.shotFinished()
     this.publish()
   }
 
   /** Brew discarded mid-way: stop the scale timer / demo simulation too. */
   discard(): void {
-    if (this.usesScale && (this.phase === 'armed' || this.phase === 'brewing')) this.scale.brewFinished()
+    if (this.usesScale && !this.weighsViaMachine && (this.phase === 'armed' || this.phase === 'brewing')) this.scale.brewFinished()
+    if (this.isEspresso) {
+      this.machine?.cancelShot()
+      this.monitor?.shotFinished()
+    }
   }
 
   ingest(grams: number, atMs: number): void {
@@ -146,10 +242,11 @@ export class BrewSession {
         if (Math.abs(grams) < 1 && atMs - this.armMs > 250) {
           this.zeroConfirmed = true
         } else if (atMs - this.armMs > 3_000 && !this.retareSent) {
-          this.scale.tare()
+          if (this.weighsViaMachine) this.machine?.tareScale()
+          else this.scale.tare()
           this.retareSent = true
         }
-      } else if (grams >= this.settings().autoStartThreshold) {
+      } else if (grams >= this.settings().autoStartThreshold && !this.followsMachine) {
         // Backdate the start to when the weight first left zero.
         let onset = atMs
         for (let i = this.recent.length - 1; i >= 0; i--) {
@@ -187,7 +284,9 @@ export class BrewSession {
     this.phase = 'brewing'
     this.samples = [{ t: 0, w: 0 }]
     this.lastSampleT = 0
-    if (this.usesScale) this.scale.brewStarted()
+    this.machineSamples = []
+    this.lastMachineSampleT = -1
+    if (this.usesScale && !this.weighsViaMachine) this.scale.brewStarted()
     // The first step at 0:00 is silent; just mark it as started.
     this.recipe.steps.forEach((step, index) => {
       if (step.time <= 0) this.startPinged.add(index)
@@ -330,6 +429,7 @@ export class BrewSession {
       overpour: this.overpour(),
       pingLead: this.pingLead(),
       flash: this.flash,
+      machineSamples: this.machineSamples.slice(),
     }
   }
 

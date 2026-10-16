@@ -34,6 +34,11 @@ export function loadSettings(): AppSettings {
     quickWeighAutoStart: bool('quickWeighAutoStart'),
     chartShowsFlow: bool('chartShowsFlow'),
     demoScale: bool('demoScale'),
+    onlineRecipes: bool('onlineRecipes'),
+    machineKind: raw.machineKind === 'gaggimate' || raw.machineKind === 'demo' ? raw.machineKind : 'none',
+    machineHost: typeof raw.machineHost === 'string' && raw.machineHost.length <= 253 ? raw.machineHost : d.machineHost,
+    pressureEnabled: bool('pressureEnabled'),
+    pressureDemo: bool('pressureDemo'),
   }
 }
 

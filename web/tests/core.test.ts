@@ -13,7 +13,7 @@ import { pourSteps, scaled, targetCurve, type Recipe } from '../src/domain/recip
 import { LIMITS, clamped, parseAppData, parseRecipe, parseSamples, sanitized, validatedRecipe } from '../src/domain/validation'
 import { PacketValidator, checksum, commandPacket, parseReading } from '../src/scale/bookoo'
 import type { ScaleCommands } from '../src/scale/scaleManager'
-import recipesJson from '../src/domain/recipes.json'
+import recipesJson from '../../Shared/recipes.json'
 
 // Same scenarios and numbers as the iOS (XCTest) and Android (JUnit) tests, so all platforms agree.
 
@@ -105,11 +105,8 @@ describe('recipes & validation', () => {
     }
   })
 
-  it('keeps the bundled JSON identical to the shared iOS/Android file', () => {
-    const shared = import.meta.glob('../../Shared/recipes.json', { eager: true, import: 'default' })
-    const sharedJson = Object.values(shared)[0]
-    expect(sharedJson).toBeDefined()
-    expect(recipesJson).toEqual(sharedJson)
+  it('loads every recipe of the shared iOS/Android file', () => {
+    expect(PRESET_RECIPES.map((r) => r.id)).toEqual((recipesJson as Recipe[]).map((r) => r.id))
   })
 
   it('bundled JSON is already valid', () => {
@@ -374,7 +371,7 @@ describe('grind recommender', () => {
     id: `b${Math.random().toString(36).slice(2)}`, date: Date.now() - daysAgo * 86_400_000, recipeId: 'kasuya-46', recipeName: '4:6', recipe: null,
     dose: 20, targetWater: 300, finalWeight: 300, totalTime: 210, waterTemp: 92, grindSetting: '', grindValue: grind, suggestedGrind: null,
     brewerId: null, brewerName: '', grinderId: 'g1', grinderName: 'Comandante C40', grinderSpec: grinderItem.grinder, filterId: null, filterName: '',
-    filterFlow: null, filterIdealRoast: null, beanId, usedScale: true, rating: 0, feedback: [], notes: '', ...extra,
+    filterFlow: null, filterIdealRoast: null, beanId, usedScale: true, rating: 0, feedback: [], notes: '', externalId: null, ...extra,
   })
 
   it('works through its preference order', () => {

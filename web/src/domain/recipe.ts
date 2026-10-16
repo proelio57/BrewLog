@@ -2,17 +2,18 @@ import { fmt1, roundHalfAway } from './format'
 
 // Port of Recipe.swift / Recipe.kt. JSON field names are identical, so recipes.json is shared by all platforms.
 
-export type BrewMethod = 'v60' | 'switch' | 'kalita' | 'universal'
-export const BREW_METHODS: BrewMethod[] = ['v60', 'switch', 'kalita', 'universal']
+export type BrewMethod = 'v60' | 'switch' | 'kalita' | 'universal' | 'espresso'
+export const BREW_METHODS: BrewMethod[] = ['v60', 'switch', 'kalita', 'universal', 'espresso']
 export const METHOD_NAMES: Record<BrewMethod, string> = {
   v60: 'V60',
   switch: 'Hario Switch',
   kalita: 'Flat bottom',
   universal: 'Any pour-over',
+  espresso: 'Espresso',
 }
 
-export type StepKind = 'bloom' | 'pour' | 'swirl' | 'stir' | 'closeValve' | 'openValve' | 'remove'
-export const STEP_KINDS: StepKind[] = ['bloom', 'pour', 'swirl', 'stir', 'closeValve', 'openValve', 'remove']
+export type StepKind = 'bloom' | 'pour' | 'swirl' | 'stir' | 'closeValve' | 'openValve' | 'remove' | 'preinfuse' | 'extract'
+export const STEP_KINDS: StepKind[] = ['bloom', 'pour', 'swirl', 'stir', 'closeValve', 'openValve', 'remove', 'preinfuse', 'extract']
 export const STEP_TITLES: Record<StepKind, string> = {
   bloom: 'Bloom',
   pour: 'Pour',
@@ -21,8 +22,12 @@ export const STEP_TITLES: Record<StepKind, string> = {
   closeValve: 'Close valve',
   openValve: 'Open valve',
   remove: 'Remove dripper',
+  preinfuse: 'Pre-infusion',
+  extract: 'Extract',
 }
-export const isPour = (kind: StepKind): boolean => kind === 'bloom' || kind === 'pour'
+/** Steps with a cumulative weight target on the scale. */
+export const isPour = (kind: StepKind): boolean => kind === 'bloom' || kind === 'pour' || kind === 'extract'
+export const isEspresso = (recipe: { method: BrewMethod } | null | undefined): boolean => recipe?.method === 'espresso'
 
 export type ValveState = 'open' | 'closed'
 
@@ -64,6 +69,8 @@ export interface Recipe {
   steps: RecipeStep[]
   tips: string[]
   isCustom?: boolean | null
+  /** Espresso: peak brew pressure in bar the recipe is designed for (e.g. 9, or 6 for turbo shots). */
+  pressure?: number | null
 }
 
 export const ratio = (recipe: Recipe): number => (recipe.dose > 0 ? recipe.water / recipe.dose : 0)
@@ -72,7 +79,8 @@ export const pourSteps = (recipe: Recipe): RecipeStep[] => recipe.steps.filter((
 
 export function stepHeadline(step: RecipeStep): string {
   if (isPour(step.kind) && step.target != null) {
-    return `${step.kind === 'bloom' ? 'Bloom to' : 'Pour to'} ${roundHalfAway(step.target)} g`
+    const verb = step.kind === 'bloom' ? 'Bloom to' : step.kind === 'extract' ? 'Extract to' : 'Pour to'
+    return `${verb} ${roundHalfAway(step.target)} g`
   }
   return STEP_TITLES[step.kind]
 }

@@ -1,9 +1,10 @@
 import { BookOpen, Droplet, Leaf, List, Wrench } from 'lucide-react'
 import { useEffect, useLayoutEffect, useState } from 'react'
-import { navigate, repository, restoredScrollY, settings, setup, useRoute } from './app'
+import { machine, navigate, recipeFeed, repository, restoredScrollY, settings, setup, useRoute } from './app'
 import { requestPersistentStorage } from './data/db'
 import { BeanEditor, BeanList } from './screens/Beans'
 import { BrewDetail } from './screens/BrewDetail'
+import { BrewEditor } from './screens/BrewEditor'
 import { BrewSetupScreen } from './screens/BrewSetup'
 import { EquipmentEditor, GearScreen, PresetPicker, SettingsScreen } from './screens/Gear'
 import { Journal } from './screens/Journal'
@@ -31,7 +32,13 @@ export function Shell() {
       setLoaded(true)
       void requestPersistentStorage()
       if (!settings.get().onboardingDone && !window.location.hash.startsWith('#/onboarding')) navigate('/onboarding', true)
+      machine.start()
+      void recipeFeed.syncIfNeeded()
     })
+    // Check the online recipe list again when the app comes back to the foreground (at most every 6 hours).
+    const onVisible = () => { if (document.visibilityState === 'visible') void recipeFeed.syncIfNeeded() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
   // Each screen starts at the top; Back returns to where you were.
@@ -56,6 +63,7 @@ export function Shell() {
     case 'presets': screen = <PresetPicker />; break
     case 'settings': screen = <SettingsScreen />; break
     case 'brews': screen = <BrewDetail key={second} brewId={second ?? ''} isNew={route.query.get('new') === '1'} />; break
+    case 'brew-edit': screen = <BrewEditor key={second} brewId={second ?? ''} />; break
     case 'recipe': screen = <RecipeDetail key={second} recipeId={second ?? ''} />; break
     case 'recipe-edit': screen = <RecipeEditor key={second} recipeId={second ?? 'new'} duplicate={route.query.get('dup') === '1'} />; break
     case 'bean': screen = <BeanEditor key={second} beanId={second ?? 'new'} />; break

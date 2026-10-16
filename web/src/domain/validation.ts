@@ -1,6 +1,6 @@
 import { newId } from './format'
 import {
-  type AppData, type Bean, type Brew, type Equipment, type GrinderSpec, type WeightSample,
+  type AppData, type Bean, type Brew, type Equipment, type GrinderSpec, type MachineSample, type WeightSample,
   EQUIPMENT_TYPES, FILTER_FLOWS, GRIND_UNITS, PROCESS_METHODS, ROAST_LEVELS, TASTE_FEEDBACK, defaultGrinderSpec,
 } from './models'
 import { BREW_METHODS, STEP_KINDS, isPour, type Recipe, type RecipeStep } from './recipe'
@@ -93,6 +93,7 @@ export function validatedRecipe(recipe: Recipe): Recipe {
     steps,
     targetTime,
     tips: recipe.tips.slice(0, LIMITS.maxTips).map((tip) => sanitized(tip, LIMITS.maxShortText)).filter(Boolean),
+    pressure: recipe.pressure != null ? clamped(recipe.pressure, 1, 15) : null,
   }
 }
 
@@ -116,22 +117,31 @@ function optOneOf<T extends string>(v: unknown, allowed: readonly T[]): T | null
 const id = (v: unknown): string => (typeof v === 'string' && /^[A-Za-z0-9_-]{1,120}$/.test(v) ? v : newId())
 const optId = (v: unknown): string | null => (typeof v === 'string' && /^[A-Za-z0-9_-]{1,120}$/.test(v) ? v : null)
 const time = (v: unknown): number => num(v, 0, 4_102_444_800_000, Date.now())
+const externalId = (v: unknown): string | null => (typeof v === 'string' ? sanitized(v, 200) || null : null)
 
+/**
+ * Lenient, like iOS and Android: only `name` and `steps` are required, everything else gets the defaults of a new
+ * recipe. A recipe with a step kind from a newer app version is skipped (null), so a list still yields the others.
+ */
 export function parseRecipe(raw: unknown): Recipe | null {
-  if (!isObj(raw) || !Array.isArray(raw.steps)) return null
+  if (!isObj(raw) || !Array.isArray(raw.steps) || typeof raw.name !== 'string') return null
   const taste = isObj(raw.taste) ? raw.taste : {}
-  const steps: RecipeStep[] = raw.steps.slice(0, LIMITS.maxSteps).filter(isObj).map((s) => ({
+  const rawSteps = raw.steps.slice(0, LIMITS.maxSteps).filter(isObj)
+  if (rawSteps.some((s) => !STEP_KINDS.includes(s.kind as never))) return null
+  const steps: RecipeStep[] = rawSteps.map((s) => ({
     kind: oneOf(s.kind, STEP_KINDS, 'pour'),
     time: num(s.time, 0, LIMITS.maxBrewSeconds, 0),
     target: optNum(s.target, 0, LIMITS.maxWater * 1.5),
     valve: optOneOf(s.valve, ['open', 'closed'] as const),
     note: typeof s.note === 'string' ? s.note : null,
   }))
+  const lastTarget = Math.max(0, ...steps.map((s) => s.target ?? 0))
+  const lastTime = Math.max(0, ...steps.map((s) => s.time))
   return validatedRecipe({
     id: typeof raw.id === 'string' ? raw.id : 'custom-' + newId(),
     name: str(raw.name, LIMITS.maxNameLength),
     author: str(raw.author, LIMITS.maxNameLength),
-    method: oneOf(raw.method, BREW_METHODS, 'v60'),
+    method: oneOf(raw.method, BREW_METHODS, 'universal'),
     summary: str(raw.summary, LIMITS.maxLongText),
     tasteNotes: str(raw.tasteNotes, LIMITS.maxLongText),
     taste: {
@@ -139,15 +149,16 @@ export function parseRecipe(raw: unknown): Recipe | null {
       body: num(taste.body, 1, 5, 3), clarity: num(taste.clarity, 1, 5, 3),
     },
     dose: num(raw.dose, 1, LIMITS.maxDose, 15),
-    water: num(raw.water, 10, LIMITS.maxWater, 250),
+    water: num(raw.water, 10, LIMITS.maxWater, lastTarget > 0 ? lastTarget : 250),
     temperature: num(raw.temperature, 0, 100, 94),
     grind: str(raw.grind, LIMITS.maxShortText),
-    targetTime: num(raw.targetTime, 10, LIMITS.maxBrewSeconds, 180),
+    targetTime: num(raw.targetTime, 10, LIMITS.maxBrewSeconds, lastTime + 60),
     flowMin: num(raw.flowMin, 0.5, 30, 3),
     flowMax: num(raw.flowMax, 1, 40, 8),
     steps,
     tips: Array.isArray(raw.tips) ? raw.tips.filter((t): t is string => typeof t === 'string') : [],
     isCustom: typeof raw.isCustom === 'boolean' ? raw.isCustom : null,
+    pressure: optNum(raw.pressure, 1, 15),
   })
 }
 
@@ -181,6 +192,7 @@ export function parseBean(raw: unknown): Bean | null {
     remaining: num(raw.remaining, 0, LIMITS.maxBagWeight, 250),
     isArchived: bool(raw.isArchived, false),
     createdAt: time(raw.createdAt),
+    externalId: externalId(raw.externalId),
   }
 }
 
@@ -197,6 +209,7 @@ export function parseEquipment(raw: unknown): Equipment | null {
     idealRoast: optOneOf(raw.idealRoast, ROAST_LEVELS),
     grinder: parseGrinderSpec(raw.grinder),
     createdAt: time(raw.createdAt),
+    externalId: externalId(raw.externalId),
   }
 }
 
@@ -232,7 +245,21 @@ export function parseBrew(raw: unknown): Brew | null {
       ? [...new Set(raw.feedback.filter((f): f is (typeof TASTE_FEEDBACK)[number] => TASTE_FEEDBACK.includes(f as never)))]
       : [],
     notes: str(raw.notes, LIMITS.maxLongText),
+    externalId: externalId(raw.externalId),
   }
+}
+
+/** Machine/pressure curves: arrays of {t, p, c?, f?}, capped and clamped. */
+export function parseMachineSamples(raw: unknown): MachineSample[] {
+  if (!Array.isArray(raw)) return []
+  const out: MachineSample[] = []
+  for (const entry of raw.slice(0, LIMITS.maxSamples)) {
+    if (!isObj(entry) || typeof entry.t !== 'number' || typeof entry.p !== 'number') continue
+    if (!Number.isFinite(entry.t) || !Number.isFinite(entry.p)) continue
+    out.push({ t: clamped(entry.t, 0, LIMITS.maxBrewSeconds), p: clamped(entry.p, 0, 20),
+      c: optNum(entry.c, 0, 200), f: optNum(entry.f, 0, 30) })
+  }
+  return out
 }
 
 /** Parses and limits stored or imported app data. Unknown fields are dropped. */

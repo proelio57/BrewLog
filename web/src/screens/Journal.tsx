@@ -5,6 +5,7 @@ import { useStore } from '../data/store'
 import { fmt1, formatDate, mmss } from '../domain/format'
 import { beanDisplayName, grindDisplay, isReviewed } from '../domain/models'
 import { Card, EmptyState, FEEDBACK_ICONS, Stars, Stat, TopBar } from '../ui/components'
+import { ImportButton } from '../ui/files'
 
 export function Journal() {
   const data = useStore(repository.data)
@@ -21,9 +22,10 @@ export function Journal() {
 
   return (
     <div className="screen with-tabs">
-      <TopBar title="Journal" />
+      <TopBar title="Journal" actions={<ImportButton className="icon-btn" label="Import a Beanconqueror or BrewLog backup" />} />
       {brews.length === 0 ? (
-        <EmptyState icon={Coffee} title="No brews yet" message="Every brew you finish is saved here with its pour curve, rating and suggestions." />
+        <EmptyState icon={Coffee} title="No brews yet" message="Every brew you finish is saved here with its pour curve, rating and suggestions."
+          action={<ImportButton className="btn tinted" label="Import from Beanconqueror" />} />
       ) : (
         <div className="content">
           <div className="card search-bar">

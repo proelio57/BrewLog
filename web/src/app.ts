@@ -4,9 +4,11 @@ import type { BrewCue, BrewSession } from './brewing/brewSession'
 import { Repository } from './data/repository'
 import { SettingsStore } from './data/settings'
 import { BrewSetup } from './data/setup'
-import { PRESET_RECIPES } from './domain/library'
+import { RecipeFeed } from './data/recipeFeed'
 import type { Equipment } from './domain/models'
 import type { Recipe } from './domain/recipe'
+import { MachineManager } from './machine/machineManager'
+import { PressureMonitor } from './scale/pressure'
 import { ScaleManager } from './scale/scaleManager'
 
 /** Everything the brew needs, frozen when "Start brew" is pressed. */
@@ -26,9 +28,16 @@ export interface BrewConfig {
 export const settings = new SettingsStore()
 export const repository = new Repository()
 export const scale = new ScaleManager(settings.get().demoScale, (enabled) => settings.change((s) => ({ ...s, demoScale: enabled })))
+export const machine = new MachineManager(settings.get().machineKind, settings.get().machineHost,
+  (machineKind, machineHost) => settings.change((s) => ({ ...s, machineKind, machineHost })))
+export const pressure = new PressureMonitor(settings.get().pressureEnabled, settings.get().pressureDemo,
+  (pressureEnabled, pressureDemo) => settings.change((s) => ({ ...s, pressureEnabled, pressureDemo })))
 export const sound = new SoundPlayer(() => settings.get())
 export const wakeLock = new WakeLock()
-export const allRecipes = (): Recipe[] => [...repository.data.get().customRecipes, ...PRESET_RECIPES]
+/** Built-in recipes, kept up to date by the online recipe list. */
+export const recipeFeed = new RecipeFeed(() => settings.get().onlineRecipes)
+export const presetRecipes = (): Recipe[] => recipeFeed.presets.get()
+export const allRecipes = (): Recipe[] => [...repository.data.get().customRecipes, ...presetRecipes()]
 export const setup = new BrewSetup(allRecipes)
 
 /** The live brew survives re-renders and navigation because it lives here. */

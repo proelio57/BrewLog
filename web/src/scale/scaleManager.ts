@@ -242,11 +242,13 @@ class DemoScale {
 
   simulate(recipe: Recipe, delaySeconds = 2.5): void {
     this.weight = 0
-    const low = Math.max(recipe.flowMin, 2)
+    const espresso = recipe.method === 'espresso'
+    const low = espresso ? Math.max(recipe.flowMin, 1) : Math.max(recipe.flowMin, 2)
     const high = Math.max(recipe.flowMax, low + 0.5)
     const random = (a: number, b: number) => a + Math.random() * (b - a)
+    // Pour-over: the first pour starts right away. Espresso: the first drops come after the pre-infusion.
     this.plan = pourSteps(recipe).map((step, index) => ({
-      start: index === 0 ? 0 : step.time + random(-1, 2.5),
+      start: index === 0 && !espresso ? 0 : step.time + random(-1, 2.5),
       goal: (step.target ?? 0) + random(-1.5, 2.5),
       rate: random(low, high),
     }))

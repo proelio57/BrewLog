@@ -1,14 +1,14 @@
-import { ChartLine, Coffee, FileText, Leaf, PlusCircle, RotateCcw, Sparkles, Thermometer, Timer, Droplet, SlidersHorizontal, Wrench } from 'lucide-react'
+import { ChartLine, Coffee, FileText, Leaf, Pencil, PlusCircle, RotateCcw, Sparkles, Thermometer, Timer, Droplet, SlidersHorizontal, Wrench } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { allRecipes, goBack, navigate, repository, setup } from '../app'
 import { LEAN_TITLES, weightDelta, type BrewAnalysis } from '../analysis/analyzer'
 import { analyzeBrew } from '../analysis/recommender'
 import { useStore } from '../data/store'
 import { fmt1, formatDate, grams, grams1, mmss, roundHalfAway } from '../domain/format'
-import { FEEDBACK_INFO, TASTE_FEEDBACK, type Brew, type TasteFeedback, type WeightSample, beanDisplayName, brewRatio, formatGrind, grindDisplay } from '../domain/models'
+import { FEEDBACK_INFO, TASTE_FEEDBACK, type Brew, type MachineSample, type TasteFeedback, type WeightSample, beanDisplayName, brewRatio, formatGrind, grindDisplay } from '../domain/models'
 import { METHOD_NAMES } from '../domain/recipe'
 import { sanitized } from '../domain/validation'
-import { BrewChart } from '../ui/chart'
+import { BrewChart, MachineChart } from '../ui/chart'
 import {
   Card, Chip, FEEDBACK_ICONS, FINDING_STYLE, IconCircle, NumberInput, SectionHeader, SelectRow, StarRating, Stat, TopBar, suggestionIcon,
 } from '../ui/components'
@@ -18,16 +18,19 @@ export function BrewDetail({ brewId, isNew }: { brewId: string; isNew: boolean }
   const data = useStore(repository.data)
   const brew = data.brews.find((b) => b.id === brewId)
   const [samples, setSamples] = useState<WeightSample[]>(() => repository.peekSamples(brewId) ?? [])
+  const [machineSamples, setMachineSamples] = useState<MachineSample[]>([])
 
   useEffect(() => {
     void repository.samples(brewId).then(setSamples)
+    void repository.machineSamples(brewId).then(setMachineSamples)
   }, [brewId])
   useEffect(() => {
     if (!brew) navigate('/journal', true)
   }, [brew])
 
   const bean = brew ? data.beans.find((b) => b.id === brew.beanId) ?? null : null
-  const analysis = brew ? analyzeBrew(brew, data.brews, bean, samples) : null
+  const analysis = brew ? analyzeBrew(brew, data.brews, bean, samples, machineSamples) : null
+  const espresso = brew?.recipe?.method === 'espresso'
 
   // Remember the grind the analysis suggests, so the next brew of this bean starts there.
   useEffect(() => {
@@ -41,7 +44,8 @@ export function BrewDetail({ brewId, isNew }: { brewId: string; isNew: boolean }
   return (
     <div className="screen">
       <TopBar title={isNew ? 'How was it?' : brew.recipeName} onBack={isNew ? undefined : () => goBack('/journal')}
-        actions={isNew ? <button className="link" style={{ padding: 8 }} onClick={() => navigate('/journal', true)}>Save</button> : undefined} />
+        actions={isNew ? <button className="link" style={{ padding: 8 }} onClick={() => navigate('/journal', true)}>Save</button>
+          : <button className="icon-btn" aria-label="Edit" onClick={() => navigate(`/brew-edit/${brew.id}`)}><Pencil size={20} /></button>} />
       <div className="content">
         <Card>
           <div className="row top">
@@ -53,7 +57,7 @@ export function BrewDetail({ brewId, isNew }: { brewId: string; isNew: boolean }
           </div>
           <div className="stats">
             <Stat value={mmss(brew.totalTime)} label="Time" icon={Timer} />
-            <Stat value={grams(brew.finalWeight)} label="Water" icon={Droplet} />
+            <Stat value={grams(brew.finalWeight)} label={espresso ? 'Yield' : 'Water'} icon={Droplet} />
             <Stat value={`1:${fmt1(brewRatio(brew))}`} label="Ratio" />
             <Stat value={grindDisplay(brew) || '–'} label="Grind" icon={SlidersHorizontal} />
           </div>
@@ -63,6 +67,12 @@ export function BrewDetail({ brewId, isNew }: { brewId: string; isNew: boolean }
           <>
             <SectionHeader title="Pour curve" />
             <Card><BrewChart samples={samples} recipe={brew.recipe} height={230} showFlowRange /></Card>
+          </>
+        )}
+        {machineSamples.length > 0 && (
+          <>
+            <SectionHeader title="Pressure & flow" />
+            <Card><MachineChart samples={machineSamples} targetPressure={brew.recipe?.pressure} height={160} /></Card>
           </>
         )}
 
@@ -241,7 +251,7 @@ function Details({ brew }: { brew: Brew }) {
         )}
         <div className="divider" />
         <DetailRow icon={Coffee} label="Brewer" value={brew.brewerName} />
-        <DetailRow icon={FileText} label="Filter" value={brew.filterName} />
+        {(brew.recipe?.method !== 'espresso' || brew.filterName) && <DetailRow icon={FileText} label="Filter" value={brew.filterName} />}
         <DetailRow icon={Droplet} label="Dose" value={grams1(brew.dose)} />
         <DetailRow icon={Thermometer} label="Water temp" value={`${Math.round(brew.waterTemp)} °C`} />
         <textarea className="input" aria-label="Notes" placeholder="Notes: aroma, flavours, what you changed…" value={notes}

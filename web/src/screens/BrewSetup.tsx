@@ -2,7 +2,7 @@ import {
   Bluetooth, ChevronRight, Coffee, FileText, Leaf, Minus, Plus, PlusCircle, Scale, Settings, SlidersHorizontal, Sparkles, Thermometer, Timer, Wrench, X,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { cue, live, navigate, repository, scale, settings, setup } from '../app'
+import { cue, live, machine, navigate, pressure, repository, scale, settings, setup } from '../app'
 import { recommendGrind, type GrindRecommendation } from '../analysis/recommender'
 import { BrewSession } from '../brewing/brewSession'
 import { useStore } from '../data/store'
@@ -13,6 +13,7 @@ import {
 import { METHOD_NAMES, ratioText } from '../domain/recipe'
 import { CONNECTION_LABELS, bluetoothSupported, insecureAddress } from '../scale/scaleManager'
 import { Card, IconCircle, NumberInput, SectionHeader, SelectRow, Sheet, Stat, Stepper, TasteBars, Toggle, TopBar } from '../ui/components'
+import { MachineCard } from './Machine'
 
 export function BrewSetupScreen() {
   const data = useStore(repository.data)
@@ -32,6 +33,7 @@ export function BrewSetupScreen() {
   const filter = filters.find((f) => f.id === s.filterId) ?? null
   const recommendation = recommendGrind(s.beanId, grinder, s.recipe.id, data.brews)
   const recipe = setup.scaledRecipe
+  const espresso = s.recipe.method === 'espresso'
 
   const ids = (items: Equipment[]) => items.map((e) => e.id).join(',')
   useEffect(() => setup.reconcileGear('brewer', brewers.map((e) => e.id)), [ids(brewers)]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -50,10 +52,10 @@ export function BrewSetupScreen() {
   const startBrew = () => {
     const config = {
       recipe, dose: s.dose, waterTemp: s.waterTemp, beanId: bean?.id ?? null,
-      brewer: brewers.find((b) => b.id === s.brewerId) ?? null, grinder, filter,
+      brewer: brewers.find((b) => b.id === s.brewerId) ?? null, grinder, filter: espresso ? null : filter,
       grindValue: grinder ? s.grindValue : null, grindText: s.grindText,
     }
-    live.brew = { config, session: new BrewSession(config.recipe, scale, () => settings.get(), cue) }
+    live.brew = { config, session: new BrewSession(config.recipe, scale, () => settings.get(), cue, undefined, machine, pressure) }
     navigate('/live')
   }
 
@@ -93,17 +95,18 @@ export function BrewSetupScreen() {
         <Card>
           <div className="stats">
             <Stat value={grams1(s.dose)} label="Coffee" />
-            <Stat value={grams(recipe.water)} label="Water" />
+            <Stat value={grams(recipe.water)} label={espresso ? 'Yield' : 'Water'} />
             <Stat value={ratioText(recipe)} label="Ratio" />
             <Stat value={`${Math.round(s.waterTemp)}°`} label="Temp" icon={Thermometer} />
           </div>
           <div className="divider" />
           <Stepper label="Coffee dose" value={grams1(s.dose)} icon={Scale}
             onMinus={() => setup.patch({ dose: Math.max(5, s.dose - 0.5) })} onPlus={() => setup.patch({ dose: Math.min(60, s.dose + 0.5) })} />
-          <Stepper label="Water temperature" value={`${Math.round(s.waterTemp)} °C`} icon={Thermometer}
+          <Stepper label={espresso ? 'Brew temperature' : 'Water temperature'} value={`${Math.round(s.waterTemp)} °C`} icon={Thermometer}
             onMinus={() => setup.patch({ waterTemp: Math.max(70, s.waterTemp - 1) })} onPlus={() => setup.patch({ waterTemp: Math.min(100, s.waterTemp + 1) })} />
           <div className="row small muted"><SlidersHorizontal size={16} /><span>Grind</span><span className="grow" style={{ textAlign: 'right' }}>{s.recipe.grind}</span></div>
         </Card>
+        {espresso && <MachineCard recipe={recipe} dose={s.dose} temperature={s.waterTemp} />}
 
         <SectionHeader title="Coffee" />
         <Card>
@@ -122,11 +125,13 @@ export function BrewSetupScreen() {
 
         <SectionHeader title="Gear & grind" />
         <Card>
-          <GearRow label="Brewer" icon={Coffee} items={brewers} value={s.brewerId} onChange={(id) => setup.patch({ brewerId: id })} />
+          <GearRow label={espresso ? 'Machine' : 'Brewer'} icon={Coffee} items={brewers} value={s.brewerId} onChange={(id) => setup.patch({ brewerId: id })} />
           <div className="divider" />
-          <GearRow label="Filter" icon={FileText} items={filters} value={s.filterId} onChange={(id) => setup.patch({ filterId: id })} />
-          {filter && equipmentSubtitle(filter) && <div className="small muted" style={{ textAlign: 'right' }}>{equipmentSubtitle(filter)}</div>}
-          <div className="divider" />
+          {!espresso && <>
+            <GearRow label="Filter" icon={FileText} items={filters} value={s.filterId} onChange={(id) => setup.patch({ filterId: id })} />
+            {filter && equipmentSubtitle(filter) && <div className="small muted" style={{ textAlign: 'right' }}>{equipmentSubtitle(filter)}</div>}
+            <div className="divider" />
+          </>}
           <GearRow label="Grinder" icon={Wrench} items={grinders} value={s.grinderId} onChange={(id) => setup.patch({ grinderId: id })} />
           <GrindInput spec={grinder?.grinder ?? null} value={s.grindValue} onValue={(v) => setup.patch({ grindValue: v })}
             text={s.grindText} onText={(t) => setup.patch({ grindText: t })} recommendation={recommendation} />

@@ -1,9 +1,10 @@
 import { fmt1, formatDate, mmss, roundHalfAway } from '../domain/format'
 import {
-  type FilterFlow, type GrinderSpec, type RoastLevel, type TasteFeedback, type WeightSample,
+  type FilterFlow, type GrinderSpec, type MachineSample, type RoastLevel, type TasteFeedback, type WeightSample,
   adjustGrind, formatGrind, formatGrindDelta, roastIndex as indexOfRoast,
 } from '../domain/models'
 import { pourSteps, ratio as recipeRatio, ratioText, isPour, type Recipe, type RecipeStep } from '../domain/recipe'
+import { analyzeEspresso } from './espresso'
 
 // Rule-based (no AI) brew analysis. 1:1 port of BrewAnalyzer.swift / BrewAnalyzer.kt.
 // Keep keys, thresholds and priorities identical across platforms (the tests share the same scenarios).
@@ -37,6 +38,8 @@ export interface AnalysisInput {
   feedback: TasteFeedback[]
   /** Earlier brews with the same bean and grinder, newest first. */
   history: PastBrew[]
+  /** Espresso: pressure, temperature and flow from the machine or pressure sensor. */
+  machine?: MachineSample[]
 }
 
 export type FindingLevel = 'good' | 'info' | 'warning'
@@ -254,6 +257,7 @@ export function matchPours(recipe: Recipe, segments: Segment[]): PourResult[] {
 // MARK: - Main analysis
 
 export function analyze(input: AnalysisInput): BrewAnalysis {
+  if (input.recipe.method === 'espresso') return analyzeEspresso(input)
   const recipe = input.recipe
   const samples = input.samples
   const hasCurve = input.usedScale && samples.length > 10

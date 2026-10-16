@@ -1,9 +1,11 @@
-import { CircleCheck, Copy, Droplet, Lightbulb, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { CircleCheck, Copy, Droplet, Lightbulb, Pencil, Plus, Share2, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { allRecipes, goBack, navigate, repository, setup } from '../app'
+import { allRecipes, goBack, navigate, recipeFeed, repository, setup } from '../app'
 import { useStore } from '../data/store'
 import { grams, mmss, newId } from '../domain/format'
-import { PRESET_RECIPES, blankRecipe } from '../domain/library'
+import { blankRecipe } from '../domain/library'
+import { encodeRecipes, recipeFileName } from '../import/recipeFile'
+import { ImportButton, shareOrDownload } from '../ui/files'
 import {
   BREW_METHODS, METHOD_NAMES, STEP_KINDS, STEP_TITLES, isPour, ratioText, stepHeadline, type BrewMethod, type Recipe, type RecipeStep,
 } from '../domain/recipe'
@@ -11,12 +13,13 @@ import { validatedRecipe } from '../domain/validation'
 import { Card, Chip, Field, NumberInput, STEP_ICONS, SectionHeader, Stat, Stepper, TasteBars, TextInput, TopBar } from '../ui/components'
 
 function RecipeSections({ custom, onPick, selectedId }: { custom: Recipe[]; onPick: (r: Recipe) => void; selectedId?: string }) {
+  const presets = useStore(recipeFeed.presets)
   return (
     <>
       {custom.length > 0 && <SectionHeader title="My recipes" />}
       {custom.map((r) => <RecipeRow key={'c' + r.id} recipe={r} onClick={() => onPick(r)} selected={r.id === selectedId} />)}
       {BREW_METHODS.map((method) => {
-        const recipes = PRESET_RECIPES.filter((r) => r.method === method)
+        const recipes = presets.filter((r) => r.method === method)
         if (!recipes.length) return null
         return (
           <div key={method} style={{ display: 'contents' }}>
@@ -48,7 +51,14 @@ export function RecipeList() {
   const data = useStore(repository.data)
   return (
     <div className="screen with-tabs">
-      <TopBar title="Recipes" actions={<button className="icon-btn" aria-label="New recipe" onClick={() => navigate('/recipe-edit/new')}><Plus size={24} /></button>} />
+      <TopBar title="Recipes" actions={<>
+        <ImportButton className="icon-btn" label="Import recipes or a backup" />
+        {data.customRecipes.length > 0 && (
+          <button className="icon-btn" aria-label="Share my recipes"
+            onClick={() => void shareOrDownload(recipeFileName(data.customRecipes), encodeRecipes(data.customRecipes))}><Share2 size={20} /></button>
+        )}
+        <button className="icon-btn" aria-label="New recipe" onClick={() => navigate('/recipe-edit/new')}><Plus size={24} /></button>
+      </>} />
       <div className="content"><RecipeSections custom={data.customRecipes} onPick={(r) => navigate(`/recipe/${encodeURIComponent(r.id)}`)} /></div>
     </div>
   )
@@ -78,6 +88,7 @@ export function RecipeDetail({ recipeId }: { recipeId: string }) {
       <TopBar title={recipe.name} onBack={() => goBack('/recipes')} actions={<>
         {isCustom && <button className="icon-btn" aria-label="Edit" onClick={() => navigate(`/recipe-edit/${id}`)}><Pencil size={20} /></button>}
         <button className="icon-btn" aria-label="Duplicate and edit" onClick={() => navigate(`/recipe-edit/${id}?dup=1`)}><Copy size={20} /></button>
+        <button className="icon-btn" aria-label="Share as file" onClick={() => void shareOrDownload(recipeFileName([recipe]), encodeRecipes([recipe]))}><Share2 size={20} /></button>
         {isCustom && <button className="icon-btn" aria-label="Delete" onClick={() => {
           if (window.confirm('Delete this recipe?')) { repository.deleteRecipe(recipe.id); goBack('/recipes') }
         }}><Trash2 size={20} /></button>}

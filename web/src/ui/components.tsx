@@ -1,5 +1,5 @@
 import {
-  ArrowUp, BadgeCheck, CalendarDays, ChartLine, ChevronLeft, CircleCheck, CircleMinus, Coffee, Crosshair, Droplet, FileText, Flame,
+  ArrowUp, BadgeCheck, CalendarDays, ChartLine, ChevronLeft, CircleCheck, CircleMinus, Coffee, Crosshair, Droplet, Droplets, FileText, Flame,
   FlaskConical, Grip, Hourglass, Info, Leaf, Lock, LockOpen, Minus, Plus, RefreshCw, SlidersHorizontal, Sparkles, Star, Thermometer,
   Timer, TriangleAlert, Wind, Zap, type LucideIcon,
 } from 'lucide-react'
@@ -215,6 +215,7 @@ export const FEEDBACK_ICONS: Record<TasteFeedback, LucideIcon> = {
 
 export const STEP_ICONS: Record<StepKind, LucideIcon> = {
   bloom: Sparkles, pour: Droplet, swirl: RefreshCw, stir: Wind, closeValve: Lock, openValve: LockOpen, remove: ArrowUp,
+  preinfuse: Droplets, extract: Coffee,
 }
 
 export const FINDING_STYLE: Record<FindingLevel, { icon: LucideIcon; color: string }> = {
@@ -228,7 +229,8 @@ export function suggestionIcon(key: string): LucideIcon {
   if (key.startsWith('temp')) return Thermometer
   if (key === 'bloom') return Sparkles
   if (key.startsWith('ratio') || key === 'dose-up') return Droplet
-  if (key === 'evenness' || key === 'walls') return Crosshair
+  if (key === 'evenness' || key === 'walls' || key === 'puck') return Crosshair
+  if (key === 'strength') return Droplet
   if (key === 'fines') return Grip
   if (key.startsWith('filter')) return FileText
   if (key === 'drawdown') return Hourglass

@@ -115,6 +115,8 @@ export interface Bean {
   remaining: number
   isArchived: boolean
   createdAt: number
+  /** Where an imported bean came from, e.g. "beanconqueror:<uuid>". */
+  externalId?: string | null
 }
 
 export const newBean = (fields: Partial<Bean> = {}): Bean => ({
@@ -141,6 +143,8 @@ export interface Equipment {
   /** Grinders only: adjustment scale. */
   grinder: GrinderSpec
   createdAt: number
+  /** Where imported gear came from, e.g. "beanconqueror:<uuid>". */
+  externalId?: string | null
 }
 
 export function equipmentSubtitle(item: Equipment): string {
@@ -152,7 +156,7 @@ export function equipmentSubtitle(item: Equipment): string {
       return `Adjust in steps of ${formatGrindDelta(item.grinder, item.grinder.adjustStep)}` +
         (item.grinder.rangeNote ? ` · pour-over ${item.grinder.rangeNote}` : '')
     case 'brewer': {
-      const names: Record<string, string> = { v60: 'V60', switch: 'Hario Switch', kalita: 'Flat bottom', universal: 'Any pour-over' }
+      const names: Record<string, string> = { v60: 'V60', switch: 'Hario Switch', kalita: 'Flat bottom', universal: 'Any pour-over', espresso: 'Espresso' }
       return item.method ? names[item.method] : ''
     }
     default:
@@ -192,6 +196,20 @@ export interface Brew {
   rating: number
   feedback: TasteFeedback[]
   notes: string
+  /** Where an imported brew came from, e.g. "beanconqueror:<uuid>". Prevents duplicates on re-import. */
+  externalId: string | null
+}
+
+/** Espresso: one reading from the machine or pressure sensor during a shot (stored per brew, like the weight curve). */
+export interface MachineSample {
+  /** Seconds since the shot started. */
+  t: number
+  /** Pressure in bar. */
+  p: number
+  /** Brew temperature in °C. */
+  c?: number | null
+  /** Pump flow in ml/s. */
+  f?: number | null
 }
 
 export const brewRatio = (brew: Brew): number => (brew.dose > 0 ? brew.finalWeight / brew.dose : 0)
@@ -229,6 +247,12 @@ export interface AppSettings {
   quickWeighAutoStart: boolean
   chartShowsFlow: boolean
   demoScale: boolean
+  /** Download new and updated recipes every few hours. */
+  onlineRecipes: boolean
+  machineKind: 'none' | 'gaggimate' | 'demo'
+  machineHost: string
+  pressureEnabled: boolean
+  pressureDemo: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -248,4 +272,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   quickWeighAutoStart: true,
   chartShowsFlow: true,
   demoScale: false,
+  onlineRecipes: true,
+  machineKind: 'none',
+  machineHost: 'gaggimate.local',
+  pressureEnabled: false,
+  pressureDemo: false,
 }

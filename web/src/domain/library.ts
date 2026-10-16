@@ -2,11 +2,11 @@ import { newId } from './format'
 import { type Equipment, type EquipmentType, type FilterFlow, type GrindUnit, type GrinderSpec, type PaperShape, type RoastLevel, defaultGrinderSpec } from './models'
 import type { BrewMethod, Recipe } from './recipe'
 import { parseRecipe } from './validation'
-import recipesJson from './recipes.json'
+import recipesJson from '../../../Shared/recipes.json'
 
 // Port of RecipeLibrary.swift / Library.kt.
 
-/** Built-in recipes from the shared recipes.json (validated). */
+/** Built-in recipes: the same Shared/recipes.json as iOS and Android (validated). Kept up to date by the online list. */
 export const PRESET_RECIPES: Recipe[] = (recipesJson as unknown[]).map(parseRecipe).filter((r): r is Recipe => r !== null)
 
 export function blankRecipe(): Recipe {
@@ -95,6 +95,16 @@ export const BREWER_PRESETS: EquipmentPreset[] = [
   { name: 'April Brewer', type: 'brewer', method: 'kalita', shape: 'flat' },
   { name: 'Chemex 6-cup', type: 'brewer', method: 'universal', shape: 'chemex' },
   { name: 'Clever Dripper', type: 'brewer', method: 'switch', shape: 'cone' },
+  // Espresso machines
+  { name: 'Gaggia Classic (GaggiMate)', type: 'brewer', method: 'espresso', notes: 'Connect it in Settings → Espresso machine for pressure curves and shot control.' },
+  { name: 'Gaggia Classic', type: 'brewer', method: 'espresso' },
+  { name: 'Rancilio Silvia', type: 'brewer', method: 'espresso' },
+  { name: 'Lelit Bianca', type: 'brewer', method: 'espresso' },
+  { name: 'La Marzocco Linea Micra', type: 'brewer', method: 'espresso' },
+  { name: 'La Marzocco Linea Mini', type: 'brewer', method: 'espresso' },
+  { name: 'Breville / Sage Barista', type: 'brewer', method: 'espresso' },
+  { name: 'Decent DE1', type: 'brewer', method: 'espresso' },
+  { name: 'Flair 58', type: 'brewer', method: 'espresso' },
 ]
 
 const OTHER_PRESETS: EquipmentPreset[] = [

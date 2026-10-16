@@ -1,4 +1,4 @@
-import { type Bean, type Brew, type Equipment, type WeightSample, formatGrind } from '../domain/models'
+import { type Bean, type Brew, type Equipment, type MachineSample, type WeightSample, formatGrind } from '../domain/models'
 import { type AnalysisInput, type BrewAnalysis, type GrinderContext, analyze } from './analyzer'
 
 // Port of BrewAnalysis+Brew.swift / GrindRecommender.kt.
@@ -15,7 +15,7 @@ export function relatedHistory(brew: Brew, brews: Brew[]): Brew[] {
 export const brewDaysOffRoast = (brew: Brew, bean: Bean | null): number | null =>
   bean?.roastDate != null ? Math.floor((brew.date - bean.roastDate) / 86_400_000) : null
 
-export function analysisInput(brew: Brew, allBrews: Brew[], bean: Bean | null, samples: WeightSample[]): AnalysisInput | null {
+export function analysisInput(brew: Brew, allBrews: Brew[], bean: Bean | null, samples: WeightSample[], machine: MachineSample[] = []): AnalysisInput | null {
   if (!brew.recipe) return null
   const grinder: GrinderContext | null = brew.grinderSpec
     ? { name: brew.grinderName || 'grinder', spec: brew.grinderSpec, currentValue: brew.grindValue }
@@ -28,11 +28,12 @@ export function analysisInput(brew: Brew, allBrews: Brew[], bean: Bean | null, s
     history: relatedHistory(brew, allBrews).map((b) => ({
       date: b.date, recipeId: b.recipeId, grindValue: b.grindValue, rating: b.rating, feedback: b.feedback, totalTime: b.totalTime,
     })),
+    machine,
   }
 }
 
-export function analyzeBrew(brew: Brew, allBrews: Brew[], bean: Bean | null, samples: WeightSample[]): BrewAnalysis | null {
-  const input = analysisInput(brew, allBrews, bean, samples)
+export function analyzeBrew(brew: Brew, allBrews: Brew[], bean: Bean | null, samples: WeightSample[], machine: MachineSample[] = []): BrewAnalysis | null {
+  const input = analysisInput(brew, allBrews, bean, samples, machine)
   return input ? analyze(input) : null
 }
 

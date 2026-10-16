@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { centeredFlows } from '../analysis/analyzer'
 import { useStore } from '../data/store'
 import { fmt1, mmss } from '../domain/format'
-import type { WeightSample } from '../domain/models'
+import type { MachineSample, WeightSample } from '../domain/models'
 import { targetCurve, type Recipe } from '../domain/recipe'
 import { settings } from '../app'
 
@@ -139,6 +139,60 @@ export function BrewChart({ samples, recipe, currentTime = null, height = 200, s
       {flowVisible && showFlowRange && recipe && (
         <div className="tiny muted" style={{ marginTop: 2 }}>Shaded band: the recipe's target pour rate ({flowLabel(recipe.flowMin)}–{flowLabel(recipe.flowMax)} g/s)</div>
       )}
+    </div>
+  )
+}
+
+/** Espresso: pressure (bar) and pump flow (ml/s) on one 0–12 axis. Port of MachineChart.swift. */
+export function MachineChart({ samples, targetPressure = null, currentTime = null, height = 140 }:
+  { samples: MachineSample[]; targetPressure?: number | null; currentTime?: number | null; height?: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(320)
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(entry.contentRect.width, 100)))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  const maxT = Math.max(samples.length ? samples[samples.length - 1].t : 0, currentTime ?? 0, 25) + 2
+  const left = 24
+  const top = 6
+  const bottom = 18
+  const x1 = width - 6
+  const y1 = height - bottom
+  const x = (t: number) => left + (t / maxT) * (x1 - left)
+  const y = (v: number) => y1 - (Math.min(Math.max(v, 0), 12) / 12) * (y1 - top)
+  const path = (points: [number, number][]) => points.map(([t, v], i) => `${i ? 'L' : 'M'}${x(t).toFixed(1)},${y(v).toFixed(1)}`).join('')
+  const pressureLine = path(samples.map((s) => [s.t, s.p]))
+  const flowLine = path(samples.filter((s) => s.f != null).map((s) => [s.t, s.f as number]))
+  const temps = samples.map((s) => s.c).filter((c): c is number => c != null)
+  const avgTemp = temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : null
+  const peak = samples.reduce((m, s) => Math.max(m, s.p), 0)
+  const timeTicks: number[] = []
+  for (let t = 0; t <= maxT; t += 10) timeTicks.push(t)
+  return (
+    <div ref={ref}>
+      <svg width={width} height={height} role="img" aria-label={`Pressure curve, peak ${fmt1(peak)} bar`} style={{ display: 'block' }}>
+        {[0, 3, 6, 9, 12].map((v) => (
+          <g key={`p${v}`}>
+            <line x1={left} x2={x1} y1={y(v)} y2={y(v)} stroke="var(--muted)" strokeOpacity={0.15} />
+            <text x={left - 4} y={y(v) + 3} fontSize={10} textAnchor="end" fill="var(--muted)">{v}</text>
+          </g>
+        ))}
+        {timeTicks.map((t) => <text key={`t${t}`} x={x(t)} y={height - 4} fontSize={10} textAnchor="middle" fill="var(--muted)">{mmss(t)}</text>)}
+        {targetPressure != null && (
+          <line x1={left} x2={x1} y1={y(targetPressure)} y2={y(targetPressure)} stroke="var(--accent)" strokeOpacity={0.35} strokeDasharray="4 4" />
+        )}
+        {flowLine && <path d={flowLine} fill="none" stroke="var(--flow)" strokeWidth={1.5} strokeLinejoin="round" />}
+        {pressureLine && <path d={pressureLine} fill="none" stroke="var(--accent)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />}
+        {currentTime != null && <line x1={x(currentTime)} x2={x(currentTime)} y1={top} y2={y1} stroke="var(--accent)" strokeOpacity={0.5} strokeDasharray="2 3" />}
+      </svg>
+      <div className="legend" style={{ marginTop: 6 }}>
+        <span className="item"><span style={{ width: 14, height: 3, borderRadius: 2, background: 'var(--accent)' }} />Pressure bar</span>
+        {flowLine && <span className="item"><span style={{ width: 14, height: 3, borderRadius: 2, background: 'var(--flow)' }} />Pump flow ml/s</span>}
+        {avgTemp != null && <span className="item tnum">Ø {fmt1(avgTemp)} °C</span>}
+      </div>
     </div>
   )
 }
