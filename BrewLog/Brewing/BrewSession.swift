@@ -34,6 +34,7 @@ final class BrewSession {
     @ObservationIgnored private let scale: ScaleManager
     @ObservationIgnored private let sound: SoundPlayer
     @ObservationIgnored private let machine: MachineManager
+    @ObservationIgnored private let monitor: PressureMonitor
     /// The weight comes from the scale connected to the espresso machine instead of BrewLog's own scale connection.
     @ObservationIgnored private var weighsViaMachine = false
     @ObservationIgnored private var lastMachineSampleT: Double = -1
@@ -48,11 +49,13 @@ final class BrewSession {
     @ObservationIgnored private let pourIndices: [Int]
     @ObservationIgnored private let liveActivity = BrewLiveActivity()
 
-    init(recipe: Recipe, scale: ScaleManager = .shared, sound: SoundPlayer = .shared, machine: MachineManager = .shared) {
+    init(recipe: Recipe, scale: ScaleManager = .shared, sound: SoundPlayer = .shared, machine: MachineManager = .shared,
+         monitor: PressureMonitor = .shared) {
         self.recipe = recipe
         self.scale = scale
         self.sound = sound
         self.machine = machine
+        self.monitor = monitor
         self.usesScale = scale.isReady || (recipe.method.isEspresso && machine.isConnected && machine.status.hasWeight)
         self.pourIndices = recipe.steps.indices.filter { recipe.steps[$0].kind.isPour && recipe.steps[$0].target != nil }
     }
@@ -68,6 +71,7 @@ final class BrewSession {
         if isEspresso {
             machine.onShot = { [weak self] started, date in self?.machineShot(started: started, at: date) }
             machine.onReading = { [weak self] status, date in self?.machineReading(status, at: date) }
+            monitor.onPressure = { [weak self] bar, date in self?.monitorReading(bar, at: date) }
         }
         let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(timer, forMode: .common)
@@ -83,6 +87,8 @@ final class BrewSession {
             machine.onShot = nil
             machine.onReading = nil
             machine.cancelShot()
+            monitor.onPressure = nil
+            monitor.shotFinished()
         }
         // Brew discarded mid-way: stop the scale timer / demo simulation too.
         if usesScale && !weighsViaMachine && (phase == .armed || phase == .brewing) { scale.brewFinished() }
@@ -106,6 +112,7 @@ final class BrewSession {
             scale.prepareForBrew(recipe: recipe)
         }
         if followsMachine { machine.prepareForShot(recipe: recipe) }
+        if isEspresso { monitor.prepareForShot(recipe: recipe) }
         Haptics.tap()
     }
 
@@ -115,6 +122,9 @@ final class BrewSession {
 
     /// Espresso with a connected machine: the shot timer starts and stops with the machine's pump.
     var followsMachine: Bool { isEspresso && machine.isConnected }
+
+    /// Espresso with live pressure, from the BOOKOO Espresso Monitor or the machine.
+    var hasPressure: Bool { isEspresso && (monitor.isReady || (machine.isConnected && machine.status.hasPressure != false)) }
 
     private func machineShot(started: Bool, at date: Date) {
         if started {
@@ -138,14 +148,27 @@ final class BrewSession {
 
     private func machineReading(_ status: GaggiMateStatus, at date: Date) {
         if weighsViaMachine, let grams = status.weight { ingest(grams, at: date) }
+        // With the pressure sensor connected, its (faster, group-head) readings make the curve.
+        guard !monitor.isReady else { return }
+        recordPressure(status.pressure ?? 0, temperature: status.temperature, flow: status.flow, at: date)
+    }
+
+    private func monitorReading(_ bar: Double, at date: Date) {
+        // Without a machine connection, rising pressure means the pump started: start the shot timer.
+        if phase == .armed && !followsMachine && bar >= 1 { begin(at: date) }
+        let status = machine.isConnected ? machine.status : nil
+        recordPressure(bar, temperature: status?.temperature, flow: status?.flow, at: date)
+    }
+
+    private func recordPressure(_ bar: Double, temperature: Double?, flow: Double?, at date: Date) {
         guard phase == .brewing, let startDate, machineSamples.count < Self.maxSamples else { return }
         let t = date.timeIntervalSince(startDate)
         guard t - lastMachineSampleT >= 0.2 else { return }
         lastMachineSampleT = t
         machineSamples.append(MachineSample(t: (t * 100).rounded() / 100,
-                                            p: ((status.pressure ?? 0) * 100).rounded() / 100,
-                                            c: status.temperature.map { ($0 * 10).rounded() / 10 },
-                                            f: status.flow.map { ($0 * 100).rounded() / 100 }))
+                                            p: (bar * 100).rounded() / 100,
+                                            c: temperature.map { ($0 * 10).rounded() / 10 },
+                                            f: flow.map { ($0 * 100).rounded() / 100 }))
     }
 
     func startManually() {

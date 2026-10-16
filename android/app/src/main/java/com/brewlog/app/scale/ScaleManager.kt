@@ -278,6 +278,8 @@ class ScaleManager(
     }
 
     private fun isScale(name: String?, result: ScanResult): Boolean {
+        // The BOOKOO Espresso Monitor is a pressure sensor, not a scale.
+        if (BookooPressureProtocol.isMonitorName(name)) return false
         if (name?.contains(BookooProtocol.NAME_PREFIX, ignoreCase = true) == true) return true
         return result.scanRecord?.serviceUuids?.contains(ParcelUuid(BookooProtocol.SERVICE_UUID)) == true
     }

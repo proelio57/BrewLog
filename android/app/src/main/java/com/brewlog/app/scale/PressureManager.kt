@@ -233,7 +233,7 @@ class PressureManager(
             demo.tare()
             return
         }
-        send(BookooPressureProtocol.Command.TARE_PRESSURE)
+        // The sensor has no tare command in BOOKOO's public protocol; it reads 0 bar when the pump is off.
     }
 
     override fun prepareForBrew(recipe: com.brewlog.app.domain.Recipe) {
@@ -315,7 +315,7 @@ class PressureManager(
     }
 
     private fun isPressureDevice(name: String?, result: ScanResult): Boolean {
-        if (name != null && BookooPressureProtocol.NAME_PREFIXES.any { name.contains(it, ignoreCase = true) }) return true
+        if (BookooPressureProtocol.isMonitorName(name)) return true
         return result.scanRecord?.serviceUuids?.contains(ParcelUuid(BookooPressureProtocol.SERVICE_UUID)) == true
     }
 
@@ -373,6 +373,8 @@ class PressureManager(
         override fun onDescriptorWrite(g: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS && !_isDemo.value) {
                 _state.value = PressureConnectionState.CONNECTED
+                // The sensor only streams after the start command.
+                main.post { send(BookooPressureProtocol.Command.START_MONITOR) }
             }
         }
 

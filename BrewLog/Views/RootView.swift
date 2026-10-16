@@ -42,6 +42,7 @@ struct RootView: View {
             BrewLiveActivity.endAll()
             ScaleManager.shared.start()
             MachineManager.shared.start()
+            PressureMonitor.shared.start()
             if !UserDefaults.standard.bool(forKey: SettingsKey.onboardingDone) {
                 router.cover = .onboarding
             }

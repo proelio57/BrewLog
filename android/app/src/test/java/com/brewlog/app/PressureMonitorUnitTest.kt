@@ -22,110 +22,70 @@ import kotlin.math.roundToInt
 class PressureMonitorUnitTest {
 
     companion object {
-        /** Builds a 20-byte pressure monitor packet conforming to BOOKOO specification. */
-        fun packet(
-            bar: Double,
-            negative: Boolean = false,
-            battery: Int = 92,
-            validChecksum: Boolean = true,
-            header: Int = 0x0B,
-        ): ByteArray {
-            val raw = (abs(bar) * 100).roundToInt()
-            val b = intArrayOf(
-                0x03, header, 0x00, 0x05, 0x10, 0x01, if (negative) 0x2D else 0x2B,
-                (raw shr 16) and 0xFF, (raw shr 8) and 0xFF, raw and 0xFF,
-                0x2B, 0x00, 0x00,
-                battery, 0x00, 0x20, 0x01, 0x00, 0x00,
-            )
-            val sum = b.fold(0) { acc, v -> acc xor v }
-            return (b + (if (validChecksum) sum else sum xor 0xFF)).map { it.toByte() }.toByteArray()
+        /** Builds a 10-byte extraction data packet as the BOOKOO Espresso Monitor sends it. */
+        fun packet(bar: Double, battery: Int = 92, header: Int = 0x1B): ByteArray {
+            val raw = (bar * 100).roundToInt()
+            return intArrayOf(0x02, header, 0x00, 0x00, (raw shr 8) and 0xFF, raw and 0xFF, battery, 0x00, 0x00, 0x00)
+                .map { it.toByte() }.toByteArray()
         }
     }
 
     @Test
-    fun parsesPressureBatteryAndMilliseconds() {
+    fun parsesPressureAndBattery() {
         val reading = BookooPressureProtocol.parse(packet(9.25, battery = 88))
         assertNotNull(reading)
         assertEquals(9.25, reading!!.bar, 0.001)
         assertEquals(88, reading.batteryPercent)
-        assertEquals(0x000510, reading.milliseconds)
-        assertTrue(reading.checksumValid)
-    }
-
-    @Test
-    fun parsesNegativePressureZeroDrift() {
-        val reading = BookooPressureProtocol.parse(packet(0.35, negative = true))
-        assertNotNull(reading)
-        assertEquals(-0.35, reading!!.bar, 0.001)
-    }
-
-    @Test
-    fun parsesExtractionHeader() {
-        val reading = BookooPressureProtocol.parse(packet(8.5, header = 0x0C))
-        assertNotNull(reading)
-        assertEquals(8.5, reading!!.bar, 0.001)
+        // Same bytes as the iOS test: 02 1B 00 00 03 84 50 … → 9.00 bar, 80 %
+        val ios = intArrayOf(0x02, 0x1B, 0x00, 0x00, 0x03, 0x84, 0x50, 0x00, 0x00, 0x00).map { it.toByte() }.toByteArray()
+        assertEquals(BookooPressureProtocol.Reading(9.0, 80), BookooPressureProtocol.parse(ios))
     }
 
     @Test
     fun rejectsMalformedAndOutOfBoundsPackets() {
         assertNull(BookooPressureProtocol.parse(ByteArray(0)))
-        assertNull(BookooPressureProtocol.parse(ByteArray(19)))
-        assertNull(BookooPressureProtocol.parse(ByteArray(65)))
-        // Wrong starting magic byte
-        assertNull(BookooPressureProtocol.parse(ByteArray(20) { 0x01 }))
-        // Wrong header byte
-        assertNull(BookooPressureProtocol.parse(packet(5.0, header = 0x0A)))
-        // Pressure beyond plausible espresso transducer limit (> 20 bar)
+        assertNull(BookooPressureProtocol.parse(ByteArray(6)))
+        assertNull(BookooPressureProtocol.parse(ByteArray(21)))
+        assertNull(BookooPressureProtocol.parse(packet(5.0, header = 0x0B)))
         assertNull(BookooPressureProtocol.parse(packet(25.0)))
-        // Pressure negative beyond calibration drift (< -1.0 bar)
-        assertNull(BookooPressureProtocol.parse(packet(2.0, negative = true)))
+        // A scale packet (03 0B …) is not a pressure packet.
+        assertNull(BookooPressureProtocol.parse(byteArrayOf(0x03, 0x0B, 0, 0, 3, 0x84.toByte(), 50, 0, 0, 0)))
     }
 
     @Test
-    fun clampsBatteryAndFlagsInvalidChecksum() {
-        val reading = BookooPressureProtocol.parse(packet(9.0, battery = 150, validChecksum = false))
-        assertNotNull(reading)
-        assertEquals(100, reading!!.batteryPercent)
-        assertFalse(reading.checksumValid)
+    fun clampsBattery() {
+        assertEquals(100, BookooPressureProtocol.parse(packet(9.0, battery = 150))!!.batteryPercent)
     }
 
     @Test
-    fun commandsAreStrictlyAllowlistedAndDefensiveCopies() {
+    fun commandsMatchTheSpecAndAreDefensiveCopies() {
         fun bytes(vararg v: Int) = v.map { it.toByte() }.toByteArray()
-        assertArrayEquals(bytes(0x03, 0x0A, 0x01, 0x00, 0x00, 0x08), BookooPressureProtocol.Command.TARE_PRESSURE.packet())
-        assertArrayEquals(bytes(0x03, 0x0A, 0x04, 0x00, 0x00, 0x0A), BookooPressureProtocol.Command.START_MONITOR.packet())
-        assertArrayEquals(bytes(0x03, 0x0A, 0x05, 0x00, 0x00, 0x0D), BookooPressureProtocol.Command.STOP_MONITOR.packet())
-        assertArrayEquals(bytes(0x03, 0x0A, 0x07, 0x00, 0x00, 0x0E), BookooPressureProtocol.Command.ZERO_CALIBRATE.packet())
-
-        // Ensure returned packets are defensive copies
-        val copy = BookooPressureProtocol.Command.TARE_PRESSURE.packet()
-        copy[0] = 0xFF.toByte()
-        assertEquals(0x03.toByte(), BookooPressureProtocol.Command.TARE_PRESSURE.packet()[0])
+        assertArrayEquals(bytes(0x02, 0x0C, 0x01, 0x00, 0x00, 0x00, 0x0F), BookooPressureProtocol.Command.START_MONITOR.packet())
+        assertArrayEquals(bytes(0x02, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x0E), BookooPressureProtocol.Command.STOP_MONITOR.packet())
+        for (command in BookooPressureProtocol.Command.entries) {
+            val packet = command.packet()
+            assertEquals(packet.last().toInt() and 0xFF, BookooPressureProtocol.checksum(packet))
+        }
+        val copy = BookooPressureProtocol.Command.START_MONITOR.packet()
+        copy[0] = 0x7F
+        assertEquals(0x02.toByte(), BookooPressureProtocol.Command.START_MONITOR.packet()[0])
     }
 
     @Test
-    fun validatorLearnsAndEnforcesValidChecksums() {
-        val validator = BookooPressurePacketValidator(learningPackets = 10)
-        repeat(10) {
-            assertNotNull(validator.accept(packet(9.0, validChecksum = true)))
-        }
-        assertEquals(BookooPressurePacketValidator.Policy.ENFORCED, validator.policy)
-        assertEquals(0, validator.rejected)
+    fun monitorNamesDontMatchTheScale() {
+        assertTrue(BookooPressureProtocol.isMonitorName("BOOKOO_EM 0A12"))
+        assertFalse(BookooPressureProtocol.isMonitorName("BOOKOO_SC 77F1"))
+        assertFalse(BookooPressureProtocol.isMonitorName(null))
+    }
 
-        // Once enforced, corrupt checksum is rejected
-        assertNull(validator.accept(packet(9.0, validChecksum = false)))
+    @Test
+    fun validatorCountsRejectedPackets() {
+        val validator = BookooPressurePacketValidator()
+        assertNotNull(validator.accept(packet(9.0)))
+        assertNull(validator.accept(ByteArray(3)))
         assertEquals(1, validator.rejected)
-    }
-
-    @Test
-    fun validatorFallsBackGracefullyIfChecksumsAreOmitted() {
-        val validator = BookooPressurePacketValidator(learningPackets = 10)
-        repeat(10) {
-            assertNotNull(validator.accept(packet(9.0, validChecksum = false)))
-        }
-        assertEquals(BookooPressurePacketValidator.Policy.IGNORED, validator.policy)
-        // Accepts subsequent packets even with invalid checksum
-        assertNotNull(validator.accept(packet(8.5, validChecksum = false)))
+        validator.reset()
+        assertEquals(0, validator.rejected)
     }
 
     @Test

@@ -41,7 +41,7 @@ struct BrewSessionView: View {
         VStack(spacing: 14) {
             header
             readouts
-            if session.isEspresso && machine.isConnected { MachineReadout() }
+            if session.hasPressure || (session.isEspresso && machine.isConnected) { MachineReadout() }
             stepCard
             if session.phase == .brewing || session.phase == .finished {
                 liveCharts
@@ -65,7 +65,7 @@ struct BrewSessionView: View {
 
     @ViewBuilder
     private var liveCharts: some View {
-        let withMachine = session.isEspresso && machine.isConnected
+        let withMachine = session.hasPressure
         BrewChart(samples: session.samples, recipe: config.recipe, currentTime: session.elapsed,
                   height: withMachine ? 120 : 160)
             .padding(.horizontal, 4)

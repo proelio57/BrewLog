@@ -20,6 +20,8 @@ enum SettingsKey {
     static let onlineRecipes = "onlineRecipes"
     static let machineKind = "machine.kind"
     static let machineHost = "machine.host"
+    static let pressureEnabled = "pressure.enabled"
+    static let pressureDemo = "pressure.demo"
 
     // Last used setup
     static let lastRecipeID = "setup.recipeID"

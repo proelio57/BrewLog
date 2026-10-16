@@ -171,6 +171,30 @@ final class EspressoTests: XCTestCase {
         XCTAssertNil(gaggiMateURL(host: "a b"))
     }
 
+    // MARK: BOOKOO Espresso Monitor
+
+    func testMonitorPacket() {
+        let packet: [UInt8] = [0x02, 0x1B, 0x00, 0x00, 0x03, 0x84, 0x50, 0x00, 0x00, 0x00]
+        XCTAssertEqual(BookooMonitorProtocol.parse(packet), .init(bar: 9, batteryPercent: 80))
+        XCTAssertEqual(BookooMonitorProtocol.parse([0x02, 0x1B, 0, 0, 0x00, 0x0C, 0xFF, 0, 0, 0])?.bar, 0.12)
+        XCTAssertEqual(BookooMonitorProtocol.parse([0x02, 0x1B, 0, 0, 0x00, 0x0C, 0xFF, 0, 0, 0])?.batteryPercent, 100)
+    }
+
+    func testMonitorRejectsOtherPackets() {
+        XCTAssertNil(BookooMonitorProtocol.parse([0x03, 0x0B, 0, 0, 0x03, 0x84, 0x50, 0, 0, 0]), "scale packet")
+        XCTAssertNil(BookooMonitorProtocol.parse([0x02, 0x1B, 0, 0, 0xFF, 0xFF, 0x50, 0, 0, 0]), "655 bar")
+        XCTAssertNil(BookooMonitorProtocol.parse([0x02, 0x1B, 0, 0]), "too short")
+        XCTAssertNil(BookooMonitorProtocol.parse(Array(repeating: 0x02, count: 64)), "too long")
+    }
+
+    func testMonitorCommandsAndNames() {
+        XCTAssertEqual(BookooMonitorProtocol.checksum(BookooMonitorProtocol.startCommand), BookooMonitorProtocol.startCommand.last)
+        XCTAssertEqual(BookooMonitorProtocol.checksum(BookooMonitorProtocol.stopCommand), BookooMonitorProtocol.stopCommand.last)
+        XCTAssertTrue(BookooMonitorProtocol.isMonitor(name: "BOOKOO_EM 0A12"))
+        XCTAssertFalse(BookooMonitorProtocol.isMonitor(name: "BOOKOO_SC 77F1"), "the scale")
+        XCTAssertFalse(BookooMonitorProtocol.isMonitor(name: nil))
+    }
+
     func testProfileWithPressureAndScale() throws {
         let profile = GaggiMateProfile.make(recipe: try classic(), dose: 18, temperature: 93, hasPressure: true, hasScale: true)
         XCTAssertNoThrow(try JSONSerialization.data(withJSONObject: profile))

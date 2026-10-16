@@ -412,10 +412,11 @@ struct SettingsView: View {
             if machine.kind != .none {
                 LabeledContent("Status", value: machineStateText)
             }
+            PressureMonitorRow()
         } header: {
             Text("Espresso machine")
         } footer: {
-            Text("GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes and send recipes as profiles. Use the address from GaggiMate's web interface. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there.")
+            Text("Pressure sensor: BOOKOO Espresso Monitor over Bluetooth, works with any machine. GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes and send recipes as profiles. Use the address from GaggiMate's web interface. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there.")
         }
         .onDisappear { if machine.host != machineHost, gaggiMateURL(host: machineHost) != nil { machine.host = machineHost } }
     }

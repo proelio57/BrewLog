@@ -209,6 +209,8 @@ final class ScaleManager: NSObject {
     }
 
     private func isScale(name: String?, advertisement: [String: Any]) -> Bool {
+        // The BOOKOO Espresso Monitor is a pressure sensor, not a scale.
+        if BookooMonitorProtocol.isMonitor(name: name) { return false }
         if let name, name.lowercased().contains(BookooProtocol.namePrefix) { return true }
         if let services = advertisement[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID],
            services.contains(BookooProtocol.serviceUUID) { return true }

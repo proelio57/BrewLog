@@ -86,16 +86,21 @@ struct MachineChart: View {
 /// Live machine readings in one line, e.g. "9.1 bar · 93.2 °C · 2.0 ml/s".
 struct MachineReadout: View {
     @Environment(MachineManager.self) private var machine
+    @Environment(PressureMonitor.self) private var monitor
 
     var body: some View {
-        let status = machine.status
+        let status = machine.isConnected ? machine.status : GaggiMateStatus()
+        // The pressure sensor at the group head wins over the machine's own reading.
+        let pressure = monitor.isReady ? monitor.pressure : status.pressure
         HStack(spacing: 12) {
             Image(systemName: "gauge.with.dots.needle.67percent").foregroundStyle(Color.accentColor)
-            reading(status.pressure, "%.1f bar")
-            reading(status.temperature, "%.1f °C")
-            reading(status.flow, "%.1f ml/s")
+            reading(pressure, "%.1f bar")
+            if machine.isConnected {
+                reading(status.temperature, "%.1f °C")
+                reading(status.flow, "%.1f ml/s")
+            }
             Spacer(minLength: 0)
-            Text(machine.displayName).font(.caption2).foregroundStyle(.secondary)
+            Text(machine.isConnected ? machine.displayName : monitor.displayName).font(.caption2).foregroundStyle(.secondary)
         }
         .font(.subheadline.weight(.semibold))
         .monospacedDigit()
