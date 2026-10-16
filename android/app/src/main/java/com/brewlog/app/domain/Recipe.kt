@@ -14,6 +14,8 @@ enum class BrewMethod(val displayName: String) {
     @SerialName("switch") HYBRID("Hario Switch"),
     @SerialName("kalita") KALITA("Flat bottom"),
     @SerialName("universal") UNIVERSAL("Any pour-over"),
+    // Espresso recipes come with the shared recipes.json / online list (iOS has the full espresso mode).
+    @SerialName("espresso") ESPRESSO("Espresso"),
 }
 
 @Serializable
@@ -24,9 +26,11 @@ enum class StepKind(val title: String) {
     @SerialName("stir") STIR("Stir"),
     @SerialName("closeValve") CLOSE_VALVE("Close valve"),
     @SerialName("openValve") OPEN_VALVE("Open valve"),
-    @SerialName("remove") REMOVE("Remove dripper");
+    @SerialName("remove") REMOVE("Remove dripper"),
+    @SerialName("preinfuse") PREINFUSE("Pre-infusion"),
+    @SerialName("extract") EXTRACT("Extract");
 
-    val isPour: Boolean get() = this == BLOOM || this == POUR
+    val isPour: Boolean get() = this == BLOOM || this == POUR || this == EXTRACT
 }
 
 @Serializable
@@ -53,7 +57,11 @@ data class RecipeStep(
 
     val headline: String
         get() = if (kind.isPour && effectiveTarget != null) {
-            val verb = if (kind == StepKind.BLOOM) "Bloom to" else "Pour to"
+            val verb = when (kind) {
+                StepKind.BLOOM -> "Bloom to"
+                StepKind.EXTRACT -> "Extract to"
+                else -> "Pour to"
+            }
             "$verb ${roundHalfAway(effectiveTarget!!).toLong()} g"
         } else {
             kind.title

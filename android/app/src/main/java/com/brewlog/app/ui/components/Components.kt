@@ -279,6 +279,8 @@ val StepKind.icon: ImageVector
         StepKind.CLOSE_VALVE -> Icons.Filled.Lock
         StepKind.OPEN_VALVE -> Icons.Filled.LockOpen
         StepKind.REMOVE -> Icons.Filled.ArrowUpward
+        StepKind.PREINFUSE -> Icons.Filled.Opacity
+        StepKind.EXTRACT -> Icons.Filled.WaterDrop
     }
 
 val FindingLevel.icon: ImageVector
