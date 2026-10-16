@@ -11,6 +11,12 @@
 		<string>audio</string>
 		<string>bluetooth-central</string>
 	</array>
+	<!-- Plain ws:// to the espresso machine (GaggiMate) in the local network. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<!-- Where online recipe updates are downloaded from. Set by CI; empty = off. -->
 	<key>BrewLogRecipeFeedURL</key>
 	<string>$(RECIPE_FEED_URL)</string>

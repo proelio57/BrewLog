@@ -213,6 +213,8 @@ struct BeanconquerorBackup {
         case "HARIO_SWITCH", "CLEVER": return .hybrid
         case "KALITA_WAVE", "OREA", "APRIL_BREWER", "DECEMBER_DRIPPER", "BLUE_DRIPPER", "XBLOOM": return .kalita
         case "CHEMEX", "DRIPPER", "RATIO_SIX_COFFEE_BREWER", "MOCCA_MASTER": return .universal
+        case "PORTAFILTER", "GAGGIMATE", "GAGGIUINO", "METICULOUS", "XENIA", "SANREMO_YOU", "DECENT_ESPRESSO",
+             "MOVE2", "HAND_LEVER", "FLAIR", "CAFELAT", "ROK": return .espresso
         default: return nil
         }
     }

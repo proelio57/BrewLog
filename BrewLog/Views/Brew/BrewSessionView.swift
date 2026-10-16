@@ -7,6 +7,7 @@ struct BrewSessionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Environment(ScaleManager.self) private var scale
+    @Environment(MachineManager.self) private var machine
     @State private var session: BrewSession
     @State private var savedBrew: Brew?
     @State private var confirmDiscard = false
@@ -40,10 +41,10 @@ struct BrewSessionView: View {
         VStack(spacing: 14) {
             header
             readouts
+            if session.isEspresso && machine.isConnected { MachineReadout() }
             stepCard
             if session.phase == .brewing || session.phase == .finished {
-                BrewChart(samples: session.samples, recipe: config.recipe, currentTime: session.elapsed, height: 160)
-                    .padding(.horizontal, 4)
+                liveCharts
             } else {
                 preparationCard
             }
@@ -59,6 +60,20 @@ struct BrewSessionView: View {
             Button("Keep brewing", role: .cancel) {}
         }
         .animation(.easeInOut(duration: 0.25), value: session.phase)
+        .modifier(MachineWarningAlert())
+    }
+
+    @ViewBuilder
+    private var liveCharts: some View {
+        let withMachine = session.isEspresso && machine.isConnected
+        BrewChart(samples: session.samples, recipe: config.recipe, currentTime: session.elapsed,
+                  height: withMachine ? 120 : 160)
+            .padding(.horizontal, 4)
+        if withMachine {
+            MachineChart(samples: session.machineSamples, targetPressure: config.recipe.pressure,
+                         currentTime: session.elapsed, height: 90)
+                .padding(.horizontal, 4)
+        }
     }
 
     private var header: some View {
@@ -133,9 +148,9 @@ struct BrewSessionView: View {
                         .font(.title)
                         .foregroundStyle(Color.accentColor)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Put the brewer with coffee on the scale").font(.headline)
-                        Text(session.usesScale ? "Press Ready to tare. The timer starts by itself when you start pouring."
-                                               : "No scale connected. Press Ready, then start the timer when you pour.")
+                        Text(session.isEspresso ? "Lock in the portafilter, cup on the scale" : "Put the brewer with coffee on the scale")
+                            .font(.headline)
+                        Text(preparingHint)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -146,14 +161,14 @@ struct BrewSessionView: View {
                 HStack(spacing: 14) {
                     PulsingDrop()
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(session.usesScale ? "Start pouring" : "Ready when you are").font(.title3.bold())
+                        Text(armedTitle).font(.title3.bold())
                         if let first = config.recipe.steps.first {
                             Text(first.headline + (first.note.map { ". \($0)" } ?? ""))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
                         if session.usesScale {
-                            Text(session.zeroConfirmed ? "Timer starts automatically" : "Taring…")
+                            Text(session.zeroConfirmed ? (session.followsMachine ? "Timer starts with the pump" : "Timer starts automatically") : "Taring…")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(Color.accentColor)
                         }
@@ -165,7 +180,43 @@ struct BrewSessionView: View {
         }
     }
 
+    private var preparingHint: String {
+        if session.isEspresso {
+            if session.followsMachine {
+                return "Press Ready to tare. BrewLog follows the machine: the timer starts and stops with the pump."
+            }
+            return session.usesScale ? "Press Ready to tare, then start the shot. The timer starts with the first drops or when you tap Start."
+                                     : "No scale connected. Press Ready, then tap Start when you start the shot."
+        }
+        return session.usesScale ? "Press Ready to tare. The timer starts by itself when you start pouring."
+                                 : "No scale connected. Press Ready, then start the timer when you pour."
+    }
+
+    private var armedTitle: String {
+        if session.isEspresso { return session.followsMachine ? "Start the shot" : "Ready for the shot" }
+        return session.usesScale ? "Start pouring" : "Ready when you are"
+    }
+
+    @ViewBuilder
     private var preparationCard: some View {
+        if session.isEspresso {
+            Card {
+                VStack(alignment: .leading, spacing: 10) {
+                    Label("Grind \(config.dose.grams1) of coffee\(grindText)", systemImage: "1.circle.fill")
+                    Label("Distribute (WDT) and tamp level", systemImage: "2.circle.fill")
+                    Label("Flush the group head, lock in the portafilter", systemImage: "3.circle.fill")
+                    Label("Brew at \(Int(config.waterTemp)) °C, stop at \(config.recipe.water.grams)", systemImage: "4.circle.fill")
+                }
+                .font(.subheadline)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.primary)
+            }
+        } else {
+            pourOverPreparationCard
+        }
+    }
+
+    private var pourOverPreparationCard: some View {
         Card {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Rinse the paper with hot water and discard it", systemImage: "1.circle.fill")
@@ -220,7 +271,13 @@ struct BrewSessionView: View {
         case .preparing:
             primaryButton("Ready", symbol: "checkmark.circle.fill") { session.ready() }
         case .armed:
-            if session.usesScale {
+            if session.isEspresso {
+                if session.followsMachine && machine.canControl {
+                    primaryButton("Start shot on \(machine.displayName)", symbol: "play.fill") { machine.startShot() }
+                } else {
+                    primaryButton("Start shot", symbol: "play.fill") { session.startManually() }
+                }
+            } else if session.usesScale {
                 Button("Start timer manually") { session.startManually() }
                     .font(.subheadline.weight(.semibold))
                     .padding(.bottom, 4)
@@ -228,7 +285,11 @@ struct BrewSessionView: View {
                 primaryButton("Start timer", symbol: "play.fill") { session.startManually() }
             }
         case .brewing:
-            primaryButton("Finish · drawdown done", symbol: "stop.fill", tint: .green) { finish() }
+            if session.isEspresso {
+                primaryButton("Stop · shot done", symbol: "stop.fill", tint: .green) { finish() }
+            } else {
+                primaryButton("Finish · drawdown done", symbol: "stop.fill", tint: .green) { finish() }
+            }
         case .finished:
             ProgressView()
         }
@@ -271,6 +332,7 @@ struct BrewSessionView: View {
         brew.brewerName = config.brewer?.name ?? ""
         brew.usedScale = session.usesScale
         brew.samples = session.samples
+        brew.machineSamples = session.machineSamples
         if let bean = config.bean {
             brew.bean = bean
             bean.remaining = max(0, bean.remaining - config.dose)
@@ -471,5 +533,24 @@ private struct PulsingDrop: View {
         .onAppear {
             withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
         }
+    }
+}
+
+/// GaggiMate refused to start because of a warning (e.g. low water): ask whether to start anyway.
+private struct MachineWarningAlert: ViewModifier {
+    @Environment(MachineManager.self) private var machine
+
+    func body(content: Content) -> some View {
+        content.alert("The machine reports a warning", isPresented: isPresented) {
+            Button("Start anyway", role: .destructive) { machine.startShot(ignoreWarnings: true) }
+            Button("Cancel", role: .cancel) { machine.dismissStartWarning() }
+        } message: {
+            Text("GaggiMate didn't start the shot (\(machine.startBlockedBy.joined(separator: ", "))). Check the machine first.")
+        }
+    }
+
+    private var isPresented: Binding<Bool> {
+        Binding(get: { !machine.startBlockedBy.isEmpty },
+                set: { if !$0 && !machine.startBlockedBy.isEmpty { machine.dismissStartWarning() } })
     }
 }

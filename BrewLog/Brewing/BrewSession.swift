@@ -28,9 +28,15 @@ final class BrewSession {
     private(set) var zeroConfirmed = false
     /// Briefly set after a cue so the UI can flash.
     private(set) var flash: BrewCue?
+    /// Espresso: pressure, temperature and flow recorded from the machine during the shot.
+    private(set) var machineSamples: [MachineSample] = []
 
     @ObservationIgnored private let scale: ScaleManager
     @ObservationIgnored private let sound: SoundPlayer
+    @ObservationIgnored private let machine: MachineManager
+    /// The weight comes from the scale connected to the espresso machine instead of BrewLog's own scale connection.
+    @ObservationIgnored private var weighsViaMachine = false
+    @ObservationIgnored private var lastMachineSampleT: Double = -1
     @ObservationIgnored private var startDate: Date?
     @ObservationIgnored private var armDate: Date?
     @ObservationIgnored private var timer: Timer?
@@ -42,11 +48,12 @@ final class BrewSession {
     @ObservationIgnored private let pourIndices: [Int]
     @ObservationIgnored private let liveActivity = BrewLiveActivity()
 
-    init(recipe: Recipe, scale: ScaleManager = .shared, sound: SoundPlayer = .shared) {
+    init(recipe: Recipe, scale: ScaleManager = .shared, sound: SoundPlayer = .shared, machine: MachineManager = .shared) {
         self.recipe = recipe
         self.scale = scale
         self.sound = sound
-        self.usesScale = scale.isReady
+        self.machine = machine
+        self.usesScale = scale.isReady || (recipe.method.isEspresso && machine.isConnected && machine.status.hasWeight)
         self.pourIndices = recipe.steps.indices.filter { recipe.steps[$0].kind.isPour && recipe.steps[$0].target != nil }
     }
 
@@ -55,7 +62,12 @@ final class BrewSession {
     func activate() {
         sound.prepare()
         scale.onWeight = { [weak self] grams, date in
+            guard self?.weighsViaMachine == false else { return }
             self?.ingest(grams, at: date)
+        }
+        if isEspresso {
+            machine.onShot = { [weak self] started, date in self?.machineShot(started: started, at: date) }
+            machine.onReading = { [weak self] status, date in self?.machineReading(status, at: date) }
         }
         let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(timer, forMode: .common)
@@ -67,8 +79,13 @@ final class BrewSession {
         timer?.invalidate()
         timer = nil
         scale.onWeight = nil
+        if isEspresso {
+            machine.onShot = nil
+            machine.onReading = nil
+            machine.cancelShot()
+        }
         // Brew discarded mid-way: stop the scale timer / demo simulation too.
-        if usesScale && (phase == .armed || phase == .brewing) { scale.brewFinished() }
+        if usesScale && !weighsViaMachine && (phase == .armed || phase == .brewing) { scale.brewFinished() }
         liveActivity.end(nil)
         sound.stop()
         UIApplication.shared.isIdleTimerDisabled = false
@@ -76,14 +93,59 @@ final class BrewSession {
 
     /// "Ready": tare the scale and wait for the first pour.
     func ready() {
-        usesScale = scale.isReady
+        weighsViaMachine = !scale.isReady && isEspresso && machine.isConnected && machine.status.hasWeight
+        usesScale = scale.isReady || weighsViaMachine
         phase = .armed
         armDate = Date()
         zeroConfirmed = false
         retareSent = false
         recent.removeAll()
-        if usesScale { scale.prepareForBrew(recipe: recipe) }
+        if weighsViaMachine {
+            machine.tareScale()
+        } else if usesScale {
+            scale.prepareForBrew(recipe: recipe)
+        }
+        if followsMachine { machine.prepareForShot(recipe: recipe) }
         Haptics.tap()
+    }
+
+    // MARK: Espresso machine
+
+    var isEspresso: Bool { recipe.method.isEspresso }
+
+    /// Espresso with a connected machine: the shot timer starts and stops with the machine's pump.
+    var followsMachine: Bool { isEspresso && machine.isConnected }
+
+    private func machineShot(started: Bool, at date: Date) {
+        if started {
+            switch phase {
+            case .preparing:
+                ready()
+                begin(at: date)
+            case .armed:
+                begin(at: date)
+            default:
+                break
+            }
+        } else if phase == .brewing {
+            // The pump stopped. Give the last drops a few seconds, then finish.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                guard let self, self.phase == .brewing else { return }
+                self.onAutoFinish?()
+            }
+        }
+    }
+
+    private func machineReading(_ status: GaggiMateStatus, at date: Date) {
+        if weighsViaMachine, let grams = status.weight { ingest(grams, at: date) }
+        guard phase == .brewing, let startDate, machineSamples.count < Self.maxSamples else { return }
+        let t = date.timeIntervalSince(startDate)
+        guard t - lastMachineSampleT >= 0.2 else { return }
+        lastMachineSampleT = t
+        machineSamples.append(MachineSample(t: (t * 100).rounded() / 100,
+                                            p: ((status.pressure ?? 0) * 100).rounded() / 100,
+                                            c: status.temperature.map { ($0 * 10).rounded() / 10 },
+                                            f: status.flow.map { ($0 * 100).rounded() / 100 }))
     }
 
     func startManually() {
@@ -96,8 +158,10 @@ final class BrewSession {
         phase = .finished
         if usesScale {
             appendSample(t: elapsed, grams: weight, force: true)
-            scale.brewFinished()
+            if !weighsViaMachine { scale.brewFinished() }
         }
+        // Ending the session by hand also stops the pump if the machine is still pulling the shot.
+        if followsMachine && machine.status.isBrewing { machine.stopShot() }
         timer?.invalidate()
         timer = nil
         liveActivity.end(liveActivityState(), keepFor: 120)
@@ -199,10 +263,10 @@ final class BrewSession {
                 if abs(grams) < 1.0 && date.timeIntervalSince(armDate) > 0.25 {
                     zeroConfirmed = true
                 } else if date.timeIntervalSince(armDate) > 3, !retareSent {
-                    scale.tare()
+                    if weighsViaMachine { machine.tareScale() } else { scale.tare() }
                     retareSent = true
                 }
-            } else if grams >= AppSettings.autoStartThreshold {
+            } else if grams >= AppSettings.autoStartThreshold && !followsMachine {
                 // Backdate the start to when the weight first left zero.
                 var onset = date
                 for reading in recent.reversed() {
@@ -226,7 +290,9 @@ final class BrewSession {
         phase = .brewing
         samples = [WeightSample(t: 0, w: 0)]
         lastSampleT = 0
-        if usesScale { scale.brewStarted() }
+        if usesScale && !weighsViaMachine { scale.brewStarted() }
+        machineSamples = []
+        lastMachineSampleT = -1
         // The first step at 0:00 is silent; just mark it as started.
         for (index, step) in recipe.steps.enumerated() where step.time <= 0 {
             startPinged.insert(index)

@@ -15,20 +15,27 @@ enum RecipeFile {
         }
     }
 
+    /// Decodes one list entry without failing the whole list, so a file (or the online list) with a recipe
+    /// from a newer app version, e.g. an unknown step kind, still yields all the other recipes.
+    private struct Lossy: Decodable {
+        var recipe: Recipe?
+        init(from decoder: Decoder) throws { recipe = try? Recipe(from: decoder) }
+    }
+
     private struct Wrapper: Decodable {
-        var recipes: [Recipe]
+        var recipes: [Lossy]
     }
 
     /// Decodes and validates all recipes in a file.
     static func decode(_ data: Data) throws -> [Recipe] {
         let decoder = JSONDecoder()
         let recipes: [Recipe]
-        if let list = try? decoder.decode([Recipe].self, from: data) {
-            recipes = list
+        if let list = try? decoder.decode([Lossy].self, from: data) {
+            recipes = list.compactMap(\.recipe)
         } else if let single = try? decoder.decode(Recipe.self, from: data) {
             recipes = [single]
         } else if let wrapper = try? decoder.decode(Wrapper.self, from: data) {
-            recipes = wrapper.recipes
+            recipes = wrapper.recipes.compactMap(\.recipe)
         } else {
             throw ReadError.noRecipes
         }

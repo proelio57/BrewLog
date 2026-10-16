@@ -30,17 +30,46 @@ recipe. All values are validated and clamped on import (see `RecipeValidation.sw
 | Field | Default | Notes |
 |---|---|---|
 | `id` | new `custom-<uuid>` | A file can't replace a built-in recipe: a built-in id becomes a copy. Same id as one of your recipes = update it |
-| `method` | `universal` | `v60`, `switch`, `kalita`, `universal` |
+| `method` | `universal` | `v60`, `switch`, `kalita`, `universal`, `espresso` |
 | `dose`, `temperature` | 15 g, 94 °C | |
 | `water` | last pour target | |
 | `targetTime` | last step + 60 s | seconds |
 | `flowMin`, `flowMax` | 3, 8 | g/s |
-| `steps[].kind` | – | `bloom`, `pour`, `swirl`, `stir`, `closeValve`, `openValve`, `remove` |
+| `steps[].kind` | – | `bloom`, `pour`, `swirl`, `stir`, `closeValve`, `openValve`, `remove`, `preinfuse`, `extract` |
 | `steps[].time` | – | seconds from start |
 | `steps[].target` | – | cumulative grams on the scale (pours and blooms) |
 | `steps[].valve` | – | `open` / `closed` (Hario Switch) |
+| `pressure` | – | Espresso only: peak pressure in bar (e.g. 9, turbo shots 6) |
+
+**Espresso recipes** use `"method": "espresso"`, `water` = yield in the cup, `targetTime` = shot time,
+`flowMin`/`flowMax` = g/s in the cup, and two steps: `preinfuse` at 0 s, then `extract` with the yield as target
+at the time the first drops are expected. Apps that don't know a method or step kind skip just that recipe.
 
 Export (iOS): a recipe's **⋯ → Share as file**, or **Recipes → + → Share my recipes**.
+
+## Espresso shots
+
+A brew with an espresso recipe may carry `machineSamplesData`: `[{"t": seconds, "p": bar, "c": °C, "f": ml/s}]`
+recorded from the machine (about 2–5 per second). The analysis (`EspressoAnalyzer.swift`) uses shot time vs. target
+(±3 s), ratio vs. target (±0.2), time to the first gram in the cup, peak pressure vs. the recipe and sudden pressure
+drops of ≥ 2 bar within 2 s (channeling).
+
+### GaggiMate
+
+WebSocket `ws://<host>/ws` (default host `gaggimate.local`), JSON messages with a `tp` field
+(spec: `docs/websocket-api.yaml` in jniebuhr/gaggimate).
+
+- Read: `evt:status` frames are partial and merged (missing key = unchanged, `null` = cleared). Telemetry every
+  500 ms: `ct`/`tt` temperature/target, `pr`/`pt` pressure/target, `fl` pump flow, `cw` weight from GaggiMate's own
+  scale (`bc` = scale connected), `process` `{a: 1 active, s: "infusion" | "brew" | "grind", u: 1 utility}`. Slow
+  state: `m` mode (0 standby, 1 brew, 2 steam, 3 water), `p` profile, `cp` pressure sensor, `sys.s` system state.
+  A shot is running while `process.a == 1`, `s` is `infusion` or `brew` and `u != 1`.
+- Control: `req:change-mode {mode}`, `req:process:activate {ignoreWarnings}`, `req:process:deactivate`,
+  `req:raise-temp` / `req:lower-temp`, `req:scale:tare`. A blocked start answers with `evt:brew:confirm {warn}`.
+- Profiles: `req:profiles:save {rid, profile}` → `res:profiles:save {rid, profile.id}`, then
+  `req:profiles:select {rid, id}`. BrewLog's profiles are named `BrewLog · <recipe>`: a pre-infusion phase at 3 bar
+  (needs a pressure sensor), then the recipe's pressure with a 2 s linear ramp, stopped by a volumetric target at the
+  yield when GaggiMate has a scale, otherwise by time. The profile id per recipe is remembered to update it next time.
 
 ## Online recipe list
 
@@ -84,6 +113,7 @@ no pour curve; choosing a recipe via **Edit** enables the analysis.
 - [ ] Online recipe list with the same merge rule and cache
 - [ ] Beanconqueror import (ZIP reader + mapping above, `externalID` for de-duplication)
 - [ ] Edit a saved brew (date, recipe, dose, water, time, temperature, brewer, grinder, filter)
+- [ ] Espresso: recipes (`espresso`, `preinfuse`, `extract`, `pressure`), shot screen, espresso analysis, GaggiMate
 - [ ] App icon from `web/public/icon.svg` (already used by the web app)
 
 Test data: `BrewLogTests/ImportTests.swift` (`backupJSON`, ZIP fixtures) can be reused as fixtures.

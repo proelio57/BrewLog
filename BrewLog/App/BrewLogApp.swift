@@ -22,6 +22,7 @@ struct BrewLogApp: App {
                 .environment(setup)
                 .environment(router)
                 .environment(ScaleManager.shared)
+                .environment(MachineManager.shared)
         }
         .modelContainer(container)
     }

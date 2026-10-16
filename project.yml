@@ -37,6 +37,7 @@ targets:
         INFOPLIST_FILE: BrewLog/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: BrewLog
         INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "BrewLog connects to your Bluetooth coffee scale to read the weight live while you brew."
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES

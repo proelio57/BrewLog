@@ -20,7 +20,7 @@ extension Brew {
                              finalWeight: finalWeight, dose: dose, waterTemp: waterTemp,
                              roastLevel: bean?.roastLevel, daysOffRoast: daysOffRoast,
                              filterName: filterName, filterFlow: filterFlow, filterIdealRoast: filterIdealRoast,
-                             grinder: grinder, feedback: feedback, history: history)
+                             grinder: grinder, feedback: feedback, history: history, machine: machineSamples)
     }
 
     func analyze(allBrews: [Brew]) -> BrewAnalysis? {

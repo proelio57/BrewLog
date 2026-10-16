@@ -29,6 +29,9 @@ struct BrewDetailView: View {
                 if brew.usedScale, let recipe = brew.recipe, !brew.samples.isEmpty {
                     chartCard(recipe)
                 }
+                if !brew.machineSamples.isEmpty {
+                    machineCard
+                }
                 rateCard
                 if let analysis {
                     suggestionsSection(analysis)
@@ -101,7 +104,7 @@ struct BrewDetailView: View {
                 }
                 HStack {
                     StatView(value: brew.totalTime.mmss, label: "Time", symbol: "timer")
-                    StatView(value: brew.finalWeight.grams, label: "Water", symbol: "drop.fill")
+                    StatView(value: brew.finalWeight.grams, label: isEspresso ? "Yield" : "Water", symbol: "drop.fill")
                     StatView(value: String(format: "1:%.1f", brew.ratio), label: "Ratio")
                     StatView(value: brew.grindDisplay.isEmpty ? "–" : brew.grindDisplay, label: "Grind", symbol: "dial.medium")
                 }
@@ -114,6 +117,17 @@ struct BrewDetailView: View {
             SectionHeader(title: "Pour curve")
             Card {
                 BrewChart(samples: brew.samples, recipe: recipe, height: 230, showFlowRange: true)
+            }
+        }
+    }
+
+    private var isEspresso: Bool { brew.recipe?.method.isEspresso ?? false }
+
+    private var machineCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionHeader(title: "Pressure & flow")
+            Card {
+                MachineChart(samples: brew.machineSamples, targetPressure: brew.recipe?.pressure, height: 160)
             }
         }
     }
@@ -303,9 +317,9 @@ struct BrewDetailView: View {
                     }
                     Divider()
                     row("Brewer", brew.brewerName, "cup.and.saucer.fill")
-                    row("Filter", brew.filterName, "doc.fill")
+                    if !isEspresso || !brew.filterName.isEmpty { row("Filter", brew.filterName, "doc.fill") }
                     row("Dose", brew.dose.grams1, "scalemass")
-                    row("Water temp", "\(Int(brew.waterTemp)) °C", "thermometer.medium")
+                    row(isEspresso ? "Brew temp" : "Water temp", "\(Int(brew.waterTemp)) °C", "thermometer.medium")
                     Divider()
                     TextField("Notes: aroma, flavours, what you changed…", text: $brew.notes, axis: .vertical)
                         .lineLimit(3...8)

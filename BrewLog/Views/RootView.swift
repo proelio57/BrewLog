@@ -41,6 +41,7 @@ struct RootView: View {
             restoreCustomRecipe()
             BrewLiveActivity.endAll()
             ScaleManager.shared.start()
+            MachineManager.shared.start()
             if !UserDefaults.standard.bool(forKey: SettingsKey.onboardingDone) {
                 router.cover = .onboarding
             }

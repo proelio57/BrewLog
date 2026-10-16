@@ -6,6 +6,7 @@ final class RecipeTests: XCTestCase {
     func testPresetsLoadAndAreConsistent() {
         let presets = RecipeLibrary.presets
         XCTAssertGreaterThanOrEqual(presets.count, 9)
+        XCTAssertGreaterThanOrEqual(presets.filter(\.method.isEspresso).count, 3, "espresso recipes")
         XCTAssertEqual(Set(presets.map(\.id)).count, presets.count, "ids must be unique")
 
         for recipe in presets {
@@ -17,7 +18,8 @@ final class RecipeTests: XCTestCase {
             XCTAssertEqual(targets, targets.sorted(), "\(recipe.id) targets cumulative")
             XCTAssertEqual(targets.last ?? 0, recipe.water, accuracy: 0.5, "\(recipe.id) last pour reaches total water")
             XCTAssertGreaterThanOrEqual(recipe.targetTime, recipe.steps.last?.time ?? 0)
-            XCTAssertTrue((12...18).contains(recipe.ratio), "\(recipe.id) ratio \(recipe.ratio)")
+            let ratios: ClosedRange<Double> = recipe.method.isEspresso ? 1.2...5 : 12...18
+            XCTAssertTrue(ratios.contains(recipe.ratio), "\(recipe.id) ratio \(recipe.ratio)")
             XCTAssertLessThan(recipe.flowMin, recipe.flowMax)
         }
     }

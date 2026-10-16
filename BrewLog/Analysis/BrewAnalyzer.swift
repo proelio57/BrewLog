@@ -44,6 +44,8 @@ struct AnalysisInput {
     var feedback: Set<TasteFeedback>
     /// Earlier brews with the same bean and grinder, newest first (excluding the analysed brew).
     var history: [PastBrew]
+    /// Espresso: pressure, temperature and flow recorded from the machine.
+    var machine: [MachineSample] = []
 }
 
 enum FindingLevel: Int {
@@ -290,6 +292,7 @@ enum BrewAnalyzer {
     // MARK: - Main analysis
 
     static func analyze(_ input: AnalysisInput) -> BrewAnalysis {
+        if input.recipe.method.isEspresso { return EspressoAnalyzer.analyze(input) }
         let recipe = input.recipe
         let samples = input.samples
         let hasCurve = input.usedScale && samples.count > 10

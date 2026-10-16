@@ -18,6 +18,8 @@ enum SettingsKey {
     static let quickWeighAutoStart = "quickWeighAutoStart"
     static let chartShowsFlow = "chartShowsFlow"
     static let onlineRecipes = "onlineRecipes"
+    static let machineKind = "machine.kind"
+    static let machineHost = "machine.host"
 
     // Last used setup
     static let lastRecipeID = "setup.recipeID"

@@ -53,6 +53,7 @@ struct BrewSetupView: View {
                 ScaleStatusCard()
                 recipeCard
                 doseCard
+                machineSection
                 VStack(alignment: .leading, spacing: 8) {
                     SectionHeader(title: "Coffee")
                     beanCard
@@ -137,6 +138,15 @@ struct BrewSetupView: View {
 
     // MARK: Cards
 
+    @ViewBuilder
+    private var machineSection: some View {
+        if setup.recipe.method.isEspresso {
+            MachineCard(recipe: setup.scaledRecipe, dose: setup.dose, temperature: setup.waterTemp) {
+                showSettings = true
+            }
+        }
+    }
+
     private var setupBanner: some View {
         Card {
             HStack(alignment: .top, spacing: 12) {
@@ -202,7 +212,7 @@ struct BrewSetupView: View {
             VStack(spacing: 14) {
                 HStack {
                     StatView(value: setup.dose.grams1, label: "Coffee", symbol: "circle.grid.3x3.fill")
-                    StatView(value: recipe.water.grams, label: "Water", symbol: "drop.fill")
+                    StatView(value: recipe.water.grams, label: recipe.method.isEspresso ? "Yield" : "Water", symbol: "drop.fill")
                     StatView(value: recipe.ratioText, label: "Ratio")
                     StatView(value: "\(Int(setup.waterTemp))°", label: "Temp", symbol: "thermometer.medium")
                 }
@@ -211,7 +221,7 @@ struct BrewSetupView: View {
                     Label("Coffee dose", systemImage: "scalemass")
                 }
                 Stepper(value: $setup.waterTemp, in: 70...100, step: 1) {
-                    Label("Water temperature", systemImage: "thermometer.medium")
+                    Label(recipe.method.isEspresso ? "Brew temperature" : "Water temperature", systemImage: "thermometer.medium")
                 }
                 HStack {
                     Label("Grind", systemImage: "dial.medium").foregroundStyle(.secondary)
@@ -257,18 +267,21 @@ struct BrewSetupView: View {
         @Bindable var setup = setup
         return Card {
             VStack(spacing: 14) {
-                gearRow("Brewer", symbol: "cup.and.saucer.fill", items: brewers, selection: $setup.brewerID)
+                let espresso = setup.recipe.method.isEspresso
+                gearRow(espresso ? "Machine" : "Brewer", symbol: "cup.and.saucer.fill", items: brewers, selection: $setup.brewerID)
                 Divider()
-                VStack(spacing: 4) {
-                    gearRow("Filter", symbol: "doc.fill", items: filters, selection: $setup.filterID)
-                    if let filter = filters.first(where: { $0.id == setup.filterID }), !filter.subtitle.isEmpty {
-                        Text(filter.subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
+                if !espresso {
+                    VStack(spacing: 4) {
+                        gearRow("Filter", symbol: "doc.fill", items: filters, selection: $setup.filterID)
+                        if let filter = filters.first(where: { $0.id == setup.filterID }), !filter.subtitle.isEmpty {
+                            Text(filter.subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
                     }
+                    Divider()
                 }
-                Divider()
                 gearRow("Grinder", symbol: "gearshape.2.fill", items: grinders, selection: $setup.grinderID)
                 GrindInputView(spec: selectedGrinder?.grinderSpec, value: $setup.grindValue, text: $setup.grindText,
                                recommendation: recommendation, focus: $grindFocused)
@@ -334,7 +347,7 @@ struct BrewSetupView: View {
             bean: selectedBean,
             brewer: brewers.first { $0.id == setup.brewerID },
             grinder: selectedGrinder,
-            filter: filters.first { $0.id == setup.filterID },
+            filter: setup.recipe.method.isEspresso ? nil : filters.first { $0.id == setup.filterID },
             grindValue: selectedGrinder == nil ? nil : setup.grindValue,
             grindText: setup.grindText
         )

@@ -351,10 +351,12 @@ final class DemoScale {
 
     func simulate(recipe: Recipe, delay: Double = 2.5) {
         weight = 0
-        let low = max(recipe.flowMin, 2)
+        let espresso = recipe.method.isEspresso
+        let low = espresso ? max(recipe.flowMin, 1) : max(recipe.flowMin, 2)
         let high = max(recipe.flowMax, low + 0.5)
         plan = recipe.pourSteps.enumerated().map { index, step in
-            PlannedPour(start: index == 0 ? 0 : step.time + Double.random(in: -1...2.5),
+            // Pour-over: the first pour starts right away. Espresso: the first drops come after the pre-infusion.
+            PlannedPour(start: index == 0 && !espresso ? 0 : step.time + Double.random(in: -1...2.5),
                         goal: (step.target ?? 0) + Double.random(in: -1.5...2.5),
                         rate: Double.random(in: low...high))
         }

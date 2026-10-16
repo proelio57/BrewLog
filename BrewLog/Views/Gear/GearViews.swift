@@ -265,6 +265,8 @@ struct SettingsView: View {
     var showsDone = false
     @Environment(\.dismiss) private var dismiss
     @Environment(ScaleManager.self) private var scale
+    @Environment(MachineManager.self) private var machine
+    @State private var machineHost = MachineManager.shared.host
 
     @AppStorage(SettingsKey.autoStartThreshold) private var autoStartThreshold = 1.5
     @AppStorage(SettingsKey.pingLeadMode) private var pingLeadMode = PingLeadMode.auto.rawValue
@@ -290,6 +292,8 @@ struct SettingsView: View {
                 }
                 Toggle("Demo scale (simulated pours)", isOn: $scale.isDemo)
             }
+
+            machineSection
 
             Section {
                 VStack(alignment: .leading) {
@@ -380,6 +384,51 @@ struct SettingsView: View {
             }
         }
         .sheet(isPresented: $showScale) { ScaleConnectSheet() }
+    }
+
+    @ViewBuilder
+    private var machineSection: some View {
+        @Bindable var machine = machine
+        Section {
+            Picker("Machine", selection: $machine.kind) {
+                ForEach(MachineKind.allCases) { Text($0.displayName).tag($0) }
+            }
+            if machine.kind == .gaggimate {
+                HStack {
+                    Text("Address")
+                    TextField("gaggimate.local", text: $machineHost)
+                        .multilineTextAlignment(.trailing)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .onSubmit { if gaggiMateURL(host: machineHost) != nil { machine.host = machineHost } }
+                }
+                if gaggiMateURL(host: machineHost) == nil {
+                    Text("Enter a host name like gaggimate.local or an IP address like 192.168.1.20.")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+            if machine.kind != .none {
+                LabeledContent("Status", value: machineStateText)
+            }
+        } header: {
+            Text("Espresso machine")
+        } footer: {
+            Text("GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes and send recipes as profiles. Use the address from GaggiMate's web interface. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there.")
+        }
+        .onDisappear { if machine.host != machineHost, gaggiMateURL(host: machineHost) != nil { machine.host = machineHost } }
+    }
+
+    private var machineStateText: String {
+        switch machine.state {
+        case .off: return "Off"
+        case .connecting: return "Connecting…"
+        case .connected:
+            if let temperature = machine.status.temperature { return String(format: "Connected · %.1f °C", temperature) }
+            return "Connected"
+        case .unreachable: return "Not reachable"
+        }
     }
 
     private func testButton(_ title: String, _ cue: BrewCue) -> some View {

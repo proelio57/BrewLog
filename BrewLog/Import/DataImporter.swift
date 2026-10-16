@@ -191,7 +191,11 @@ enum DataImporter {
             brew.brewerID = brewer?.id
             brew.brewerName = brewer?.name ?? ""
             brew.dose = item.dose.clamped(0, InputLimits.maxDose)
-            let water = (item.water > 0 ? item.water : item.beverage).clamped(0, InputLimits.maxWater)
+            // Espresso is measured in the cup (beverage weight), filter coffee by the water poured.
+            let espresso = brewer?.method?.isEspresso ?? false
+            let primary = espresso ? item.beverage : item.water
+            let fallback = espresso ? item.water : item.beverage
+            let water = (primary > 0 ? primary : fallback).clamped(0, InputLimits.maxWater)
             brew.targetWater = water
             brew.finalWeight = water
             brew.totalTime = item.time.clamped(0, InputLimits.maxBrewSeconds)

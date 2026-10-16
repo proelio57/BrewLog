@@ -149,7 +149,9 @@ final class ImportTests: XCTestCase {
         XCTAssertEqual(BeanconquerorBackup.method(from: "V60"), .v60)
         XCTAssertEqual(BeanconquerorBackup.method(from: "HARIO_SWITCH"), .hybrid)
         XCTAssertEqual(BeanconquerorBackup.method(from: "OREA"), .kalita)
-        XCTAssertNil(BeanconquerorBackup.method(from: "PORTAFILTER"))
+        XCTAssertEqual(BeanconquerorBackup.method(from: "PORTAFILTER"), .espresso)
+        XCTAssertEqual(BeanconquerorBackup.method(from: "GAGGIMATE"), .espresso)
+        XCTAssertNil(BeanconquerorBackup.method(from: "AEROPRESS"))
 
         var backup = BeanconquerorBackup()
         backup.ratingScale = 100

@@ -39,8 +39,9 @@ def main():
     project = read("project.yml")
     bundle_id = setting(r"^PRODUCT_BUNDLE_IDENTIFIER\s*=\s*(\S+)", read("Config/Base.xcconfig"), "com.brewlog.app")
     min_os = setting(r"^\s+iOS:\s*(\S+)", project, "17.0")
-    bluetooth = setting(r"INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription:\s*(.+)$", project,
-                        "BrewLog connects to your Bluetooth coffee scale.")
+    # Every usage description from project.yml, e.g. Bluetooth and local network.
+    privacy = {key: text.strip().strip('"') for key, text in
+               re.findall(r"INFOPLIST_KEY_(NS\w+UsageDescription):\s*(.+)$", project, re.MULTILINE)}
 
     try:
         with open(args.source, encoding="utf-8") as f:
@@ -80,7 +81,7 @@ def main():
         "versions": versions,
         "appPermissions": {
             "entitlements": [],
-            "privacy": {"NSBluetoothAlwaysUsageDescription": bluetooth},
+            "privacy": privacy,
         },
         # Older SideStore/AltStore versions read the latest version from these fields.
         "version": args.version,

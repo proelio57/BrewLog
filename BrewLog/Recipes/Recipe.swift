@@ -6,8 +6,11 @@ enum BrewMethod: String, Codable, CaseIterable, Identifiable {
     case hybrid = "switch"
     case kalita
     case universal
+    case espresso
 
     var id: String { rawValue }
+
+    var isEspresso: Bool { self == .espresso }
 
     var displayName: String {
         switch self {
@@ -15,6 +18,7 @@ enum BrewMethod: String, Codable, CaseIterable, Identifiable {
         case .hybrid: return "Hario Switch"
         case .kalita: return "Flat bottom"
         case .universal: return "Any pour-over"
+        case .espresso: return "Espresso"
         }
     }
 
@@ -24,6 +28,7 @@ enum BrewMethod: String, Codable, CaseIterable, Identifiable {
         case .hybrid: return "switch.2"
         case .kalita: return "cylinder"
         case .universal: return "drop"
+        case .espresso: return "cup.and.saucer.fill"
         }
     }
 }
@@ -37,10 +42,15 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
     case closeValve
     case openValve
     case remove
+    /// Espresso: pump on at low pressure until the first drops.
+    case preinfuse
+    /// Espresso: full extraction up to the target yield in the cup.
+    case extract
 
     var id: String { rawValue }
 
-    var isPour: Bool { self == .bloom || self == .pour }
+    /// Steps with a cumulative weight target on the scale.
+    var isPour: Bool { self == .bloom || self == .pour || self == .extract }
 
     var title: String {
         switch self {
@@ -51,6 +61,8 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .closeValve: return "Close valve"
         case .openValve: return "Open valve"
         case .remove: return "Remove dripper"
+        case .preinfuse: return "Pre-infusion"
+        case .extract: return "Extract"
         }
     }
 
@@ -63,6 +75,8 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .closeValve: return "lock.fill"
         case .openValve: return "lock.open.fill"
         case .remove: return "arrow.up.circle"
+        case .preinfuse: return "drop.halffull"
+        case .extract: return "cup.and.saucer.fill"
         }
     }
 }
@@ -84,7 +98,7 @@ struct RecipeStep: Codable, Hashable {
 
     var headline: String {
         if kind.isPour, let target {
-            let verb = kind == .bloom ? "Bloom to" : "Pour to"
+            let verb = kind == .bloom ? "Bloom to" : (kind == .extract ? "Extract to" : "Pour to")
             return "\(verb) \(Int(target.rounded())) g"
         }
         return kind.title
@@ -119,6 +133,8 @@ struct Recipe: Codable, Hashable, Identifiable {
     var steps: [RecipeStep]
     var tips: [String]
     var isCustom: Bool?
+    /// Espresso: peak brew pressure in bar the recipe is designed for (e.g. 9, or 6 for turbo shots).
+    var pressure: Double?
 
     var ratio: Double { dose > 0 ? water / dose : 0 }
 
@@ -188,6 +204,7 @@ extension Recipe {
         flowMax = try c.decodeIfPresent(Double.self, forKey: .flowMax) ?? blank.flowMax
         tips = try c.decodeIfPresent([String].self, forKey: .tips) ?? []
         isCustom = try c.decodeIfPresent(Bool.self, forKey: .isCustom)
+        pressure = try c.decodeIfPresent(Double.self, forKey: .pressure)
     }
 }
 

@@ -336,6 +336,8 @@ final class Brew {
     var filterIdealRoastRaw: String?
     var bean: Bean?
     var samplesData: Data?
+    /// Espresso: pressure/temperature/flow from the machine, `[MachineSample]` as JSON.
+    var machineSamplesData: Data?
     var usedScale: Bool = false
     var rating: Int = 0
     var feedbackRaw: String = ""
@@ -353,6 +355,11 @@ final class Brew {
     var samples: [WeightSample] {
         get { samplesData.flatMap { try? JSONDecoder().decode([WeightSample].self, from: $0) } ?? [] }
         set { samplesData = try? JSONEncoder().encode(newValue) }
+    }
+
+    var machineSamples: [MachineSample] {
+        get { machineSamplesData.flatMap { try? JSONDecoder().decode([MachineSample].self, from: $0) } ?? [] }
+        set { machineSamplesData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
     }
 
     var feedback: Set<TasteFeedback> {
