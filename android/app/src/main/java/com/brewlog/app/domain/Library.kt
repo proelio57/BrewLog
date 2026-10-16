@@ -61,24 +61,31 @@ data class EquipmentPreset(
     )
 
     companion object {
-        private fun grinder(name: String, unit: GrindUnit, step: Double, adjust: Double, range: String = "", notes: String = "") =
-            EquipmentPreset(name, EquipmentType.GRINDER, grinder = GrinderSpec(unit, step, adjust, true, range), notes = notes)
+        private fun grinder(
+            name: String,
+            unit: GrindUnit,
+            step: Double,
+            adjust: Double,
+            range: String = "",
+            notes: String = "",
+            defaultGrind: Double? = null,
+        ) = EquipmentPreset(name, EquipmentType.GRINDER, grinder = GrinderSpec(unit, step, adjust, true, range, defaultGrind), notes = notes)
 
         /** Grinder scales. Ranges are typical starting points only, so they're editable. */
         val grinders: List<EquipmentPreset> = listOf(
-            grinder("Comandante C40", GrindUnit.CLICKS, 1.0, 2.0, "20–30 clicks", "Clicks counted from fully closed. About 30 µm per click."),
-            grinder("1Zpresso K-Ultra", GrindUnit.NUMBERS, 0.1, 0.2, notes = "Read the dial as rotation.number, e.g. 7.5."),
-            grinder("1Zpresso ZP6 Special", GrindUnit.NUMBERS, 0.1, 0.2, notes = "Read the dial as rotation.number, e.g. 4.5."),
-            grinder("1Zpresso J-Max", GrindUnit.CLICKS, 1.0, 5.0, notes = "Very fine steps, so adjust in bigger jumps for filter."),
-            grinder("Timemore C3", GrindUnit.CLICKS, 1.0, 1.0, "about 14–20 clicks"),
-            grinder("Kingrinder K6", GrindUnit.CLICKS, 1.0, 5.0, notes = "Fine steps, so adjust in bigger jumps for filter."),
-            grinder("Fellow Ode Gen 2", GrindUnit.DIAL, 1.0, 1.0, notes = "Dial 1–11 in steps of 1/3. Track whole numbers or enter thirds as decimals."),
-            grinder("Baratza Encore ESP", GrindUnit.NUMBERS, 1.0, 2.0),
-            grinder("Niche Zero", GrindUnit.DIAL, 1.0, 3.0),
-            grinder("Wilfa Uniform", GrindUnit.NUMBERS, 1.0, 1.0),
-            grinder("Lagom P64", GrindUnit.DIAL, 0.1, 0.2),
-            grinder("Mazzer Philos", GrindUnit.DIAL, 1.0, 2.0),
-            grinder("DF64 / DF83", GrindUnit.DIAL, 1.0, 3.0),
+            grinder("Comandante C40", GrindUnit.CLICKS, 1.0, 2.0, "20–30 clicks", "Clicks counted from fully closed. About 30 µm per click.", defaultGrind = 24.0),
+            grinder("1Zpresso K-Ultra", GrindUnit.NUMBERS, 0.1, 0.2, notes = "Read the dial as rotation.number, e.g. 7.5.", defaultGrind = 7.5),
+            grinder("1Zpresso ZP6 Special", GrindUnit.NUMBERS, 0.1, 0.2, notes = "Read the dial as rotation.number, e.g. 4.5.", defaultGrind = 4.5),
+            grinder("1Zpresso J-Max", GrindUnit.CLICKS, 1.0, 5.0, notes = "Very fine steps, so adjust in bigger jumps for filter.", defaultGrind = 30.0),
+            grinder("Timemore C3", GrindUnit.CLICKS, 1.0, 1.0, "about 14–20 clicks", defaultGrind = 16.0),
+            grinder("Kingrinder K6", GrindUnit.CLICKS, 1.0, 5.0, notes = "Fine steps, so adjust in bigger jumps for filter.", defaultGrind = 90.0),
+            grinder("Fellow Ode Gen 2", GrindUnit.DIAL, 1.0, 1.0, notes = "Dial 1–11 in steps of 1/3. Track whole numbers or enter thirds as decimals.", defaultGrind = 5.0),
+            grinder("Baratza Encore ESP", GrindUnit.NUMBERS, 1.0, 2.0, defaultGrind = 20.0),
+            grinder("Niche Zero", GrindUnit.DIAL, 1.0, 3.0, defaultGrind = 45.0),
+            grinder("Wilfa Uniform", GrindUnit.NUMBERS, 1.0, 1.0, defaultGrind = 20.0),
+            grinder("Lagom P64", GrindUnit.DIAL, 0.1, 0.2, defaultGrind = 5.5),
+            grinder("Mazzer Philos", GrindUnit.DIAL, 1.0, 2.0, defaultGrind = 30.0),
+            grinder("DF64 / DF83", GrindUnit.DIAL, 1.0, 3.0, defaultGrind = 50.0),
         )
 
         /** CAFEC roast-specific papers are named after their recommended brew temperature. */
@@ -136,10 +143,10 @@ data class EquipmentPreset(
 
         /** Defaults for a custom grinder in the setup assistant. */
         fun specFor(unit: GrindUnit): GrinderSpec = when (unit) {
-            GrindUnit.CLICKS -> GrinderSpec(GrindUnit.CLICKS, 1.0, 2.0)
-            GrindUnit.NUMBERS -> GrinderSpec(GrindUnit.NUMBERS, 1.0, 1.0)
-            GrindUnit.DIAL -> GrinderSpec(GrindUnit.DIAL, 0.1, 0.2)
-            GrindUnit.MICRONS -> GrinderSpec(GrindUnit.MICRONS, 10.0, 50.0)
+            GrindUnit.CLICKS -> GrinderSpec(GrindUnit.CLICKS, 1.0, 2.0, defaultGrind = 20.0)
+            GrindUnit.NUMBERS -> GrinderSpec(GrindUnit.NUMBERS, 1.0, 1.0, defaultGrind = 15.0)
+            GrindUnit.DIAL -> GrinderSpec(GrindUnit.DIAL, 0.1, 0.2, defaultGrind = 5.0)
+            GrindUnit.MICRONS -> GrinderSpec(GrindUnit.MICRONS, 10.0, 50.0, defaultGrind = 600.0)
         }
     }
 }

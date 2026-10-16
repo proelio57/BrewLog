@@ -1,0 +1,117 @@
+{
+  "beans": [
+    {
+      "id": "bean-sample-geisha",
+      "name": "Panama Geisha Natural",
+      "roaster": "Finca Deborah",
+      "origin": "Panama, Boquete",
+      "varietal": "Geisha",
+      "process": "natural",
+      "roastLevel": "light",
+      "roastDate": 1792000000000,
+      "tastingNotes": "Jasmine, bergamot, peach, wild strawberry",
+      "notes": "Competition lot with vibrant floral complexity",
+      "bagWeight": 200.0,
+      "remaining": 185.0,
+      "isArchived": false,
+      "createdAt": 1792000000000
+    }
+  ],
+  "equipment": [
+    {
+      "id": "gear-sample-origami",
+      "name": "Origami Dripper M",
+      "type": "brewer",
+      "notes": "Matte pink ceramic",
+      "method": "v60",
+      "createdAt": 1792000000000
+    },
+    {
+      "id": "gear-sample-comandante",
+      "name": "Comandante C40 MK4",
+      "type": "grinder",
+      "notes": "Red Clix installed",
+      "grinder": {
+        "unit": "clicks",
+        "stepValue": 1.0,
+        "adjustStep": 2.0,
+        "minClicks": 10.0,
+        "maxClicks": 40.0,
+        "rangeNote": "pour-over 22–26 clicks"
+      },
+      "createdAt": 1792000000000
+    }
+  ],
+  "brews": [
+    {
+      "id": "brew-sample-1",
+      "date": 1792050000000,
+      "recipeId": "lance-hedrick-121-v60",
+      "recipeName": "Lance Hedrick 1-2-1 V60",
+      "brewerId": "gear-sample-origami",
+      "brewerName": "Origami Dripper M",
+      "grinderId": "gear-sample-comandante",
+      "grinderName": "Comandante C40 MK4",
+      "dose": 15.0,
+      "targetWater": 250.0,
+      "finalWeight": 250.2,
+      "totalTime": 178.5,
+      "waterTemp": 98.0,
+      "grindSetting": "24 clicks",
+      "grindValue": 24.0,
+      "beanId": "bean-sample-geisha",
+      "rating": 5,
+      "notes": "Incredible jasmine clarity and peach sweetness. Best brew of the week!"
+    }
+  ],
+  "customRecipes": [
+    {
+      "id": "custom-sample-aeropress-style",
+      "name": "Concentrated Immersion",
+      "author": "Sample Barista",
+      "method": "switch",
+      "summary": "High strength 1:12 immersion recipe for serving over ice or cutting with milk.",
+      "tasteNotes": "Bold, syrupy and intense dark berry chocolate.",
+      "taste": {
+        "acidity": 2,
+        "sweetness": 5,
+        "body": 5,
+        "clarity": 3
+      },
+      "dose": 20.0,
+      "water": 240.0,
+      "temperature": 90.0,
+      "grind": "Medium-fine",
+      "targetTime": 150.0,
+      "flowMin": 3.0,
+      "flowMax": 8.0,
+      "steps": [
+        {
+          "kind": "pour",
+          "time": 0.0,
+          "target": 240.0,
+          "valve": "closed",
+          "note": "Valve CLOSED. Pour all water quickly."
+        },
+        {
+          "kind": "stir",
+          "time": 20.0,
+          "note": "Stir 5 times back and forth."
+        },
+        {
+          "kind": "openValve",
+          "time": 120.0,
+          "note": "OPEN valve to draw down into glass with ice."
+        }
+      ],
+      "tips": [
+        "Pour over 100 g ice cubes for iced filter coffee."
+      ],
+      "isCustom": true
+    }
+  ],
+  "settings": {
+    "scaleUnit": "g",
+    "theme": "dark"
+  }
+}

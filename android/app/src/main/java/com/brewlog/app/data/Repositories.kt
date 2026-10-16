@@ -51,6 +51,8 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             .putBoolean("setupBannerDismissed", next.setupBannerDismissed)
             .putBoolean("quickWeighAutoStart", next.quickWeighAutoStart)
             .putBoolean("chartShowsFlow", next.chartShowsFlow)
+            .putBoolean("onlineRecipes", next.onlineRecipes)
+            .putBoolean("espressoPressureEnabled", next.espressoPressureEnabled)
             .apply()
     }
 
@@ -72,6 +74,8 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             setupBannerDismissed = prefs.getBoolean("setupBannerDismissed", d.setupBannerDismissed),
             quickWeighAutoStart = prefs.getBoolean("quickWeighAutoStart", d.quickWeighAutoStart),
             chartShowsFlow = prefs.getBoolean("chartShowsFlow", d.chartShowsFlow),
+            onlineRecipes = prefs.getBoolean("onlineRecipes", d.onlineRecipes),
+            espressoPressureEnabled = prefs.getBoolean("espressoPressureEnabled", d.espressoPressureEnabled),
         )
     }
 }

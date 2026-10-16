@@ -24,8 +24,9 @@ android {
         applicationId = "com.brewlog.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("VERSION_NAME") ?: "0.1"
+        buildConfigField("String", "RELEASE_REPO", "\"${System.getenv("RELEASE_REPO") ?: "proelio57/BrewLog"}\"")
     }
 
     signingConfigs {

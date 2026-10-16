@@ -42,12 +42,25 @@ class AppContainer(context: Context) {
     private val prefs = context.getSharedPreferences("brewlog", Context.MODE_PRIVATE)
 
     val settings = SettingsRepository(prefs)
-    val presets: List<Recipe> = context.assets.open("recipes.json").bufferedReader().use { RecipeLibrary.parse(it.readText()) }
+    val bundledRecipes: List<Recipe> = context.assets.open("recipes.json").bufferedReader().use { RecipeLibrary.parse(it.readText()) }
+    val recipeFeed = com.brewlog.app.data.RecipeFeed(
+        bundledRecipes = bundledRecipes,
+        cacheDirectory = context.filesDir,
+        prefs = prefs,
+        isEnabled = { settings.current.onlineRecipes },
+        scope = scope,
+    )
+    val presets: List<Recipe> get() = recipeFeed.presets.value
     val repository = BrewRepository(context.filesDir, scope)
     val scale = ScaleManager(context.applicationContext, prefs, scope)
+    val pressure = com.brewlog.app.scale.PressureManager(context.applicationContext, prefs, scope)
     val sound = SoundPlayer { settings.current }
     val haptics = Haptics(context.applicationContext) { settings.current }
     val setup = BrewSetupState(prefs, presets).also { it.restoreCustom(repository.data.value.customRecipes) }
+
+    init {
+        pressure.setEnabled(settings.current.espressoPressureEnabled)
+    }
 
     /** The live brew survives configuration changes because it lives here, not in the UI. */
     var activeBrew: Pair<BrewConfig, BrewSession>? = null
@@ -67,6 +80,7 @@ class BrewLogApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        container.recipeFeed.syncIfNeeded()
     }
 }
 

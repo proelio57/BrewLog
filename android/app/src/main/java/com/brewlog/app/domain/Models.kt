@@ -71,6 +71,8 @@ data class GrinderSpec(
     val finerIsLower: Boolean = true,
     /** Typical pour-over range, e.g. "20–30 clicks" (informational). */
     val rangeNote: String = "",
+    /** Sensible starting default for pour-over / filter brew. */
+    val defaultGrind: Double? = null,
 ) {
     private val decimals: Int get() = if (step < 1) (if (step < 0.1) 2 else 1) else 0
 
@@ -95,6 +97,26 @@ data class GrinderSpec(
         val snapped = roundHalfAway((value + signed) / step) * step
         return max(0.0, snapped)
     }
+
+    /** Default starting grind for this grinder (explicit default, parsed range midpoint, or unit fallback). */
+    fun defaultStartingValue(): Double {
+        if (defaultGrind != null) return defaultGrind
+        val match = Regex("(\\d+(?:\\.\\d+)?)[–-](\\d+(?:\\.\\d+)?)").find(rangeNote)
+        if (match != null) {
+            val low = match.groupValues[1].toDoubleOrNull()
+            val high = match.groupValues[2].toDoubleOrNull()
+            if (low != null && high != null && high >= low) {
+                val mid = (low + high) / 2.0
+                return roundHalfAway(mid / step) * step
+            }
+        }
+        return when (unit) {
+            GrindUnit.CLICKS -> 20.0
+            GrindUnit.NUMBERS -> if (step < 1.0) 6.0 else 15.0
+            GrindUnit.DIAL -> if (step < 1.0) 5.0 else 5.0
+            GrindUnit.MICRONS -> 600.0
+        }
+    }
 }
 
 @Serializable
@@ -103,6 +125,14 @@ data class WeightSample(
     val t: Double,
     /** Grams on the scale. */
     val w: Double,
+)
+
+@Serializable
+data class PressureSample(
+    /** Seconds since brew/shot start. */
+    val t: Double,
+    /** Extraction pressure in bar. */
+    val bar: Double,
 )
 
 @Serializable
@@ -132,6 +162,7 @@ data class Bean(
     val bagWeight: Double = 250.0,
     val remaining: Double = 250.0,
     val isArchived: Boolean = false,
+    val externalId: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
 ) {
     val displayName: String get() = if (roaster.isEmpty()) name else "$name · $roaster"
@@ -154,6 +185,7 @@ data class Equipment(
     val idealRoast: RoastLevel? = null,
     /** Grinders only: adjustment scale. */
     val grinder: GrinderSpec = GrinderSpec(),
+    val externalId: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
 ) {
     val subtitle: String
@@ -203,8 +235,11 @@ data class Brew(
     val rating: Int = 0,
     val feedback: Set<TasteFeedback> = emptySet(),
     val notes: String = "",
+    val externalId: String? = null,
     /** Weight curve. Stored in a separate file per brew (see BrewRepository), not in the main data file. */
     @Transient val samples: List<WeightSample> = emptyList(),
+    /** Pressure curve in bar (if pressure monitor was connected). */
+    @Transient val pressureSamples: List<PressureSample> = emptyList(),
 ) {
     val ratio: Double get() = if (dose > 0) finalWeight / dose else 0.0
     val isReviewed: Boolean get() = rating > 0 || feedback.isNotEmpty()
@@ -245,4 +280,6 @@ data class AppSettings(
     val setupBannerDismissed: Boolean = false,
     val quickWeighAutoStart: Boolean = true,
     val chartShowsFlow: Boolean = true,
+    val onlineRecipes: Boolean = true,
+    val espressoPressureEnabled: Boolean = false,
 )

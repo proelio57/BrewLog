@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Warning
@@ -102,9 +103,13 @@ fun LiveBrewScreen(nav: NavHostController) {
     val snapshot by session.state.collectAsStateWithLifecycle()
     val settings by container.settings.settings.collectAsStateWithLifecycle()
     val scaleReady by container.scale.ready.collectAsStateWithLifecycle()
+    val pressureReady by container.pressure.ready.collectAsStateWithLifecycle()
+    val currentPressure by container.pressure.pressure.collectAsStateWithLifecycle()
+    val pressureSamples = remember { androidx.compose.runtime.mutableStateListOf<com.brewlog.app.domain.PressureSample>() }
     var confirmDiscard by remember { mutableStateOf(false) }
 
     fun close() {
+        if (pressureReady) container.pressure.brewFinished()
         session.discard()
         container.activeBrew = null
         nav.popBackStack()
@@ -112,6 +117,7 @@ fun LiveBrewScreen(nav: NavHostController) {
 
     fun finish() {
         if (session.phase != BrewPhase.BREWING) return
+        if (pressureReady) container.pressure.brewFinished()
         session.finish()
         val brew = Brew(
             recipeId = config.recipe.id,
@@ -135,6 +141,7 @@ fun LiveBrewScreen(nav: NavHostController) {
             filterIdealRoast = config.filter?.idealRoast,
             beanId = config.beanId,
             usedScale = session.usesScale,
+            pressureSamples = if (pressureReady) pressureSamples.toList() else emptyList(),
         )
         container.repository.saveNewBrew(brew, if (session.usesScale) session.recordedSamples() else emptyList())
         container.activeBrew = null
@@ -144,6 +151,20 @@ fun LiveBrewScreen(nav: NavHostController) {
     LaunchedEffect(session) {
         session.onAutoFinish = { finish() }
         container.scale.readings.collect { session.ingest(it.grams, it.timeMillis) }
+    }
+    LaunchedEffect(pressureReady, snapshot.phase) {
+        if (pressureReady && snapshot.phase == BrewPhase.BREWING) {
+            container.pressure.startMonitoring()
+        }
+    }
+    LaunchedEffect(pressureReady) {
+        if (pressureReady) {
+            container.pressure.readings.collect { r ->
+                if (snapshot.phase == BrewPhase.BREWING) {
+                    pressureSamples.add(com.brewlog.app.domain.PressureSample(snapshot.elapsed, r.bar))
+                }
+            }
+        }
     }
     LaunchedEffect(session) {
         while (isActive) {
@@ -156,6 +177,20 @@ fun LiveBrewScreen(nav: NavHostController) {
         view.keepScreenOn = settings.keepAwake
         onDispose { view.keepScreenOn = false }
     }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(snapshot.phase, snapshot.elapsed.toLong(), snapshot.currentStepIndex) {
+        if (snapshot.phase == BrewPhase.BREWING) {
+            com.brewlog.app.brewing.BrewNotificationManager.show(context, config, snapshot)
+        } else {
+            com.brewlog.app.brewing.BrewNotificationManager.dismiss(context)
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            com.brewlog.app.brewing.BrewNotificationManager.dismiss(context)
+        }
+    }
+
     BackHandler {
         if (snapshot.phase == BrewPhase.BREWING) confirmDiscard = true else close()
     }
@@ -164,21 +199,36 @@ fun LiveBrewScreen(nav: NavHostController) {
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).systemBarsPadding().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Header(config, snapshot.usesScale && scaleReady) { if (snapshot.phase == BrewPhase.BREWING) confirmDiscard = true else close() }
-        Readouts(snapshot, config)
+        Header(config, snapshot.usesScale && scaleReady, pressureLive = pressureReady) { if (snapshot.phase == BrewPhase.BREWING) confirmDiscard = true else close() }
+        Readouts(snapshot, config, pressureReady = pressureReady, pressureBar = currentPressure)
         when (snapshot.phase) {
             BrewPhase.PREPARING -> PreparingCard(snapshot.usesScale)
             BrewPhase.ARMED -> ArmedCard(snapshot, config.recipe.steps.firstOrNull())
             else -> ActiveStepCard(snapshot, session)
         }
         if (snapshot.phase == BrewPhase.BREWING || snapshot.phase == BrewPhase.FINISHED) {
-            BrewChart(snapshot.samples, config.recipe, currentTime = snapshot.elapsed, height = 160.dp)
+            BrewChart(
+                snapshot.samples,
+                config.recipe,
+                currentTime = snapshot.elapsed,
+                height = 160.dp,
+                pressureSamples = if (pressureReady) pressureSamples.toList() else emptyList(),
+            )
         } else {
             PreparationList(config)
         }
         StepsStrip(config, snapshot)
         Spacer(Modifier.weight(1f))
-        Controls(snapshot, onReady = { session.ready(); container.haptics.tap() }, onStart = { session.startManually() }, onFinish = { finish() })
+        Controls(
+            snapshot,
+            onReady = {
+                session.ready()
+                if (pressureReady) container.pressure.prepareForBrew(config.recipe)
+                container.haptics.tap()
+            },
+            onStart = { session.startManually() },
+            onFinish = { finish() },
+        )
         Spacer(Modifier.height(4.dp))
     }
 
@@ -193,7 +243,7 @@ fun LiveBrewScreen(nav: NavHostController) {
 }
 
 @Composable
-private fun Header(config: BrewConfig, scaleLive: Boolean, onClose: () -> Unit) {
+private fun Header(config: BrewConfig, scaleLive: Boolean, pressureLive: Boolean = false, onClose: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onClose, modifier = Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)) {
             Icon(Icons.Filled.Close, contentDescription = "Close")
@@ -203,7 +253,13 @@ private fun Header(config: BrewConfig, scaleLive: Boolean, onClose: () -> Unit) 
             Text("${config.dose.grams1()} : ${config.recipe.water.grams()} · ${config.waterTemp.toInt()} °C",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Row(Modifier.width(48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+            if (pressureLive) {
+                Box(Modifier.size(8.dp).clip(CircleShape).background(Color(0xFFFF9800)))
+                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Filled.Speed, contentDescription = "Pressure monitor connected", modifier = Modifier.size(16.dp), tint = Color(0xFFFF9800))
+                Spacer(Modifier.width(8.dp))
+            }
             Box(Modifier.size(8.dp).clip(CircleShape).background(if (scaleLive) GoodGreen else MaterialTheme.colorScheme.onSurfaceVariant))
             Spacer(Modifier.width(4.dp))
             Icon(Icons.Filled.Scale, null, Modifier.size(16.dp))
@@ -212,23 +268,36 @@ private fun Header(config: BrewConfig, scaleLive: Boolean, onClose: () -> Unit) 
 }
 
 @Composable
-private fun Readouts(snapshot: BrewSnapshot, config: BrewConfig) {
+private fun Readouts(
+    snapshot: BrewSnapshot,
+    config: BrewConfig,
+    pressureReady: Boolean = false,
+    pressureBar: Double = 0.0,
+) {
+    val fontSize = if (pressureReady) 38.sp else 54.sp
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
             Text("TIME", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(snapshot.elapsed.mmss(), fontSize = 54.sp, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
+            Text(snapshot.elapsed.mmss(), fontSize = fontSize, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
             val late = snapshot.phase == BrewPhase.BREWING && snapshot.elapsed >= config.recipe.targetTime
             Text("target ${config.recipe.targetTime.mmss()}", style = MaterialTheme.typography.bodySmall,
                 color = if (late) WarnOrange else MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Column(horizontalAlignment = Alignment.End) {
+        if (pressureReady) {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("PRESSURE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFFF9800))
+                Text(String.format(java.util.Locale.US, "%.1f", pressureBar), fontSize = fontSize, fontWeight = FontWeight.SemiBold, style = tabular, color = Color(0xFFFF9800), maxLines = 1)
+                Text("bar", style = MaterialTheme.typography.bodySmall, color = Color(0xFFFF9800))
+            }
+        }
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
             Text("WEIGHT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (snapshot.usesScale) {
                 val shown = if (snapshot.phase == BrewPhase.PREPARING) snapshot.weight else maxOf(snapshot.weight, 0.0)
-                Text(shown.scaleReadout(), fontSize = 54.sp, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
+                Text(shown.scaleReadout(), fontSize = fontSize, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
                 Text("${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
-                Text(snapshot.activeTarget?.let { "→${it.toInt()}" } ?: "–", fontSize = 54.sp, fontWeight = FontWeight.SemiBold, style = tabular)
+                Text(snapshot.activeTarget?.let { "→${it.toInt()}" } ?: "–", fontSize = fontSize, fontWeight = FontWeight.SemiBold, style = tabular)
                 Text("no scale", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

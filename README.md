@@ -144,7 +144,11 @@ The documented XOR checksum matches the tare command, but the **timer commands u
 
 ## Android
 
-The Android app lives in [`android/`](android/README.md). It's native Kotlin + Jetpack Compose with the same features, and a self-contained folder: copy it to a Windows PC, open it in Android Studio and press Run. No account is needed to install it on your phone. Build and install steps are in [android/README.md](android/README.md).
+The Android app lives in [`android/`](android/README.md). It's native Kotlin + Jetpack Compose with the same features (including the brew editor, Beanconqueror backup importer, online recipe feed sync, and GitHub in-app updater).
+- Build the APK in one command: `./scripts/build-apk.sh` (or `./scripts/build-apk.sh --release`).
+- Automated tests and APK builds run on push via `.github/workflows/android.yml`.
+- Play Store publishing instructions are available in [docs/play-store.md](docs/play-store.md).
+- Full details and manual build steps are in [android/README.md](android/README.md).
 
 ## Web (PWA)
 
@@ -168,9 +172,14 @@ Hosting, installing and the browser details are in [web/README.md](web/README.md
 | UI | SwiftUI + Swift Charts | Jetpack Compose + Canvas chart | React + SVG chart |
 | Tests | 47 XCTest unit tests + 2 UI flows | 39 JVM unit tests (same scenarios and numbers) | 32 Vitest unit tests (same scenarios and numbers + backup, setup state) |
 
-## Ideas for later
+## Future Ideas & Feature Requests
 
-Live Activity and lock-screen timer, Apple Watch haptics, iCloud sync, CSV export (the web app already has a JSON backup), more scales (Acaia, Timemore, Decent), TDS/extraction-yield input, and a water-recipe tracker.
+See [docs/feature-requests.md](docs/feature-requests.md) for detailed architectural proposals and community requests, including:
+- **Zero-knowledge cryptographic sync**: Accountless journal restore using a secret hash / recovery key so data persists across app reinstalls without accounts or telemetry.
+- **Brewing science**: Water chemistry/mineral calculator, TDS & extraction yield refractometer assistant.
+- **Hardware & sensors**: Smart BLE kettles (Fellow Stagg), additional scales (Acaia, Timemore), Wear OS / watchOS companion timer.
+
+For AI assistants (Claude, Gemini) and contributors maintaining cross-platform synchronization, see the [AI Parity & Maintenance Guide](docs/ai-parity-guide.md).
 
 ## Credits
 

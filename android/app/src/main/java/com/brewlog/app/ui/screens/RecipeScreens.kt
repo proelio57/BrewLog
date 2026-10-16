@@ -68,14 +68,92 @@ import com.brewlog.app.ui.switchTab
 @Composable
 fun RecipeListScreen(nav: NavHostController) {
     val container = LocalContainer.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val data by container.repository.data.collectAsStateWithLifecycle()
+    var showMenu by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
+    var importResult by remember { mutableStateOf<String?>(null) }
+
+    val filePicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes != null) {
+                    val summary = com.brewlog.app.data.DataImporter.importData(bytes, container.repository, container.presets)
+                    importResult = summary.message
+                }
+            } catch (e: Exception) {
+                importResult = "Import failed: ${e.localizedMessage ?: "Unknown error"}"
+            }
+        }
+    }
+
     BrewScreen(
         title = "Recipes",
-        actions = { IconButton(onClick = { nav.navigate(Routes.recipeEditor(Routes.NEW)) }) { Icon(Icons.Filled.Add, contentDescription = "New recipe") } },
+        actions = {
+            androidx.compose.foundation.layout.Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add or import recipe")
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("New recipe") },
+                        onClick = {
+                            showMenu = false
+                            nav.navigate(Routes.recipeEditor(Routes.NEW))
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Import from file…") },
+                        onClick = {
+                            showMenu = false
+                            showImportDialog = true
+                        },
+                    )
+                    if (data.customRecipes.isNotEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("Share my recipes") },
+                            onClick = {
+                                showMenu = false
+                                val jsonStr = com.brewlog.app.domain.RecipeFile.encode(data.customRecipes)
+                                val sendIntent = android.content.Intent().apply {
+                                    action = android.content.Intent.ACTION_SEND
+                                    putExtra(android.content.Intent.EXTRA_TEXT, jsonStr)
+                                    type = "application/json"
+                                }
+                                val shareIntent = android.content.Intent.createChooser(sendIntent, "Share recipes")
+                                context.startActivity(shareIntent)
+                            },
+                        )
+                    }
+                }
+            }
+        },
     ) { padding ->
         CardList(padding) {
             recipeSections(data.customRecipes, container.presets) { recipe -> RecipeRow(recipe) { nav.navigate(Routes.recipe(recipe.id)) } }
         }
+    }
+
+    if (showImportDialog) {
+        com.brewlog.app.ui.dialogs.ImportFormatDialog(
+            onDismissRequest = { showImportDialog = false },
+            onSelectFileToImport = {
+                showImportDialog = false
+                filePicker.launch("*/*")
+            },
+        )
+    }
+
+    importResult?.let { message ->
+        AlertDialog(
+            onDismissRequest = { importResult = null },
+            title = { Text("Import") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { importResult = null }) { Text("OK") } },
+        )
     }
 }
 

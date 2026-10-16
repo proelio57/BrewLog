@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -118,6 +119,45 @@ fun ScaleStatusCard(onClick: () -> Unit) {
 }
 
 @Composable
+fun PressureStatusCard(onClick: () -> Unit) {
+    val pressure = LocalContainer.current.pressure
+    val state by pressure.state.collectAsStateWithLifecycle()
+    val isDemo by pressure.isDemo.collectAsStateWithLifecycle()
+    val ready by pressure.ready.collectAsStateWithLifecycle()
+    val bar by pressure.pressure.collectAsStateWithLifecycle()
+    val battery by pressure.battery.collectAsStateWithLifecycle()
+    val name by pressure.connectedName.collectAsStateWithLifecycle()
+
+    val color = when {
+        isDemo || state == com.brewlog.app.scale.PressureConnectionState.CONNECTED -> Color(0xFFFF9800)
+        state == com.brewlog.app.scale.PressureConnectionState.CONNECTING || state == com.brewlog.app.scale.PressureConnectionState.SCANNING -> WarnOrange
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val subtitle = when {
+        isDemo -> "Simulated espresso profile. Turn off in Settings."
+        state == com.brewlog.app.scale.PressureConnectionState.CONNECTED -> "Connected" + (battery?.let { " · $it% battery" } ?: "")
+        state == com.brewlog.app.scale.PressureConnectionState.IDLE -> "Tap to connect BOOKOO pressure monitor"
+        else -> state.label
+    }
+    BrewCard(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconCircle(Icons.Filled.Speed, color, size = 42)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(if (ready) (if (isDemo) "Demo pressure" else name ?: "BOOKOO Monitor") else "No pressure monitor",
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (ready) {
+                Text(String.format(java.util.Locale.US, "%.1f bar", bar), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = Color(0xFFFF9800))
+            } else {
+                Text("Connect", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
 fun ScaleSheet(onDismiss: () -> Unit) {
     val scale = LocalContainer.current.scale
     val state by scale.state.collectAsStateWithLifecycle()
@@ -200,6 +240,93 @@ fun ScaleSheet(onDismiss: () -> Unit) {
             Spacer(Modifier.height(4.dp))
             Text("Turn on your BOOKOO Themis Mini. BrewLog reconnects to it automatically next time.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun PressureMonitorSheet(onDismiss: () -> Unit) {
+    val pressure = LocalContainer.current.pressure
+    val state by pressure.state.collectAsStateWithLifecycle()
+    val isDemo by pressure.isDemo.collectAsStateWithLifecycle()
+    val bar by pressure.pressure.collectAsStateWithLifecycle()
+    val battery by pressure.battery.collectAsStateWithLifecycle()
+    val discovered by pressure.discovered.collectAsStateWithLifecycle()
+    val name by pressure.connectedName.collectAsStateWithLifecycle()
+    val search = rememberBluetoothAccess { pressure.startScan() }
+
+    DisposableEffect(Unit) {
+        onDispose { pressure.stopScan() }
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Speed, null, tint = Color(0xFFFF9800), modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(if (isDemo) "Demo Pressure Monitor" else (name ?: "BOOKOO Espresso Monitor"),
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(if (isDemo) "Simulated espresso profile" else state.label,
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (state == com.brewlog.app.scale.PressureConnectionState.CONNECTING || state == com.brewlog.app.scale.PressureConnectionState.SCANNING) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                }
+            }
+            if (isDemo || state == com.brewlog.app.scale.PressureConnectionState.CONNECTED) {
+                HorizontalDivider()
+                battery?.let { InfoRow("Battery", "$it%") }
+                InfoRow("Pressure", String.format(java.util.Locale.US, "%.2f bar", bar))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { pressure.tare() }) { Text("Tare") }
+                    if (isDemo) {
+                        OutlinedButton(onClick = { pressure.startMonitoring() }) { Text("Simulate") }
+                    }
+                    TextButton(onClick = { pressure.disconnect() }) { Text("Disconnect", color = Color(0xFFFF3B30)) }
+                }
+            }
+            if (!isDemo && state != com.brewlog.app.scale.PressureConnectionState.CONNECTED) {
+                HorizontalDivider()
+                Text("Nearby monitors", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (discovered.isEmpty()) {
+                    Text(
+                        when (state) {
+                            com.brewlog.app.scale.PressureConnectionState.SCANNING -> "Searching…"
+                            com.brewlog.app.scale.PressureConnectionState.NO_PERMISSION -> "Allow Bluetooth access to find your monitor."
+                            com.brewlog.app.scale.PressureConnectionState.BLUETOOTH_OFF -> "Switch Bluetooth on to find your monitor."
+                            else -> "Tap Search to find your monitor."
+                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                discovered.forEach { device ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { pressure.connect(device.address) }.padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Filled.Speed, null, tint = Color(0xFFFF9800))
+                        Spacer(Modifier.width(10.dp))
+                        Text(device.name, Modifier.weight(1f))
+                        Text("${device.rssi} dBm", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                OutlinedButton(onClick = { if (state == com.brewlog.app.scale.PressureConnectionState.SCANNING) pressure.stopScan() else search() }) {
+                    Text(if (state == com.brewlog.app.scale.PressureConnectionState.SCANNING) "Stop searching" else "Search")
+                }
+            }
+            HorizontalDivider()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Demo pressure monitor", fontWeight = FontWeight.Medium)
+                    Text("Simulates a 9-bar espresso shot with pre-infusion and pressure decline without physical hardware.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = isDemo, onCheckedChange = { pressure.setDemo(it) })
+            }
         }
     }
 }

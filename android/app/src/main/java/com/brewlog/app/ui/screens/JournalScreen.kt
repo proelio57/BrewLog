@@ -15,9 +15,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Coffee
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -65,10 +70,77 @@ fun JournalScreen(nav: NavHostController) {
         listOfNotNull(brew.recipeName, bean?.name, bean?.roaster, brew.notes).any { it.contains(search, ignoreCase = true) }
     }
 
-    BrewScreen(title = "Journal") { padding ->
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var importResult by remember { mutableStateOf<String?>(null) }
+    var showMenu by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
+
+    val filePicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes != null) {
+                    val summary = com.brewlog.app.data.DataImporter.importData(bytes, container.repository, container.presets)
+                    importResult = summary.message
+                }
+            } catch (e: Exception) {
+                importResult = "Import failed: ${e.localizedMessage ?: "Unknown error"}"
+            }
+        }
+    }
+
+    BrewScreen(
+        title = "Journal",
+        actions = {
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = "More",
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Import backup / recipes…") },
+                        onClick = {
+                            showMenu = false
+                            showImportDialog = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Export backup (JSON)") },
+                        onClick = {
+                            showMenu = false
+                            val jsonStr = com.brewlog.app.data.DataImporter.exportBackup(container.repository)
+                            val sendIntent = android.content.Intent().apply {
+                                action = android.content.Intent.ACTION_SEND
+                                putExtra(android.content.Intent.EXTRA_TEXT, jsonStr)
+                                type = "application/json"
+                            }
+                            context.startActivity(android.content.Intent.createChooser(sendIntent, "Export BrewLog Backup"))
+                        },
+                    )
+                }
+            }
+        },
+    ) { padding ->
         if (brews.isEmpty()) {
             Box(Modifier.padding(padding)) {
-                EmptyState("No brews yet", "Every brew you finish is saved here with its pour curve, rating and suggestions.", Icons.Filled.Coffee)
+                EmptyState(
+                    title = "No brews yet",
+                    message = "Every brew you finish is saved here with its pour curve, rating and suggestions.",
+                    icon = Icons.Filled.Coffee,
+                    action = {
+                        Button(onClick = { showImportDialog = true }) {
+                            Text("Import recipes or backup")
+                        }
+                    },
+                )
             }
             return@BrewScreen
         }
@@ -116,6 +188,26 @@ fun JournalScreen(nav: NavHostController) {
                 TextButton(onClick = { container.repository.deleteBrew(brew.id); toDelete = null }) { Text("Delete", color = Color(0xFFFF3B30)) }
             },
             dismissButton = { TextButton(onClick = { toDelete = null }) { Text("Cancel") } },
+        )
+    }
+    if (showImportDialog) {
+        com.brewlog.app.ui.dialogs.ImportFormatDialog(
+            onDismissRequest = { showImportDialog = false },
+            onSelectFileToImport = {
+                showImportDialog = false
+                filePicker.launch("*/*")
+            },
+        )
+    }
+
+    importResult?.let { message ->
+        AlertDialog(
+            onDismissRequest = { importResult = null },
+            title = { Text("Import") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { importResult = null }) { Text("OK") }
+            },
         )
     }
 }

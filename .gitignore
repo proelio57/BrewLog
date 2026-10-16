@@ -42,8 +42,9 @@ captures/
 *.apk
 *.aab
 *.hprof
-# Android Studio / IntelliJ
+# Android Studio / IntelliJ / VSCode
 .idea/
+.vscode/
 *.iml
 
 # Web app (web/ folder)

@@ -74,6 +74,8 @@ import com.brewlog.app.ui.components.FilterIcon
 import com.brewlog.app.ui.components.PillChip
 import com.brewlog.app.ui.components.SectionHeader
 import com.brewlog.app.ui.theme.GoodGreen
+import com.brewlog.app.ui.theme.WarnOrange
+import kotlinx.coroutines.launch
 
 fun EquipmentType.icon(): ImageVector = when (this) {
     EquipmentType.BREWER -> Icons.Filled.Coffee
@@ -334,6 +336,7 @@ fun SettingsScreen(nav: NavHostController) {
     val isDemo by container.scale.isDemo.collectAsStateWithLifecycle()
     val state by container.scale.state.collectAsStateWithLifecycle()
     var showScale by remember { mutableStateOf(false) }
+    var showPressure by remember { mutableStateOf(false) }
     fun update(transform: (com.brewlog.app.domain.AppSettings) -> com.brewlog.app.domain.AppSettings) = container.settings.update(transform)
 
     BrewScreen(title = "Settings", onBack = { nav.popBackStack() }) { padding ->
@@ -347,6 +350,33 @@ fun SettingsScreen(nav: NavHostController) {
                         Text(if (isDemo) "Demo" else state.label, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     SwitchRow("Demo scale (simulated pours)", isDemo) { container.scale.setDemo(it) }
+                }
+            }
+            item {
+                SectionHeader("Espresso pressure monitor")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    SwitchRow("Enable pressure monitoring", settings.espressoPressureEnabled) { v ->
+                        update { it.copy(espressoPressureEnabled = v) }
+                        container.pressure.setEnabled(v)
+                    }
+                    if (settings.espressoPressureEnabled) {
+                        val pressureState by container.pressure.state.collectAsStateWithLifecycle()
+                        val isPressureDemo by container.pressure.isDemo.collectAsStateWithLifecycle()
+                        val pressureName by container.pressure.connectedName.collectAsStateWithLifecycle()
+                        HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                        Row(Modifier.fillMaxWidth().clickable { showPressure = true }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("BOOKOO espresso monitor", Modifier.weight(1f))
+                            Text(if (isPressureDemo) "Demo" else (pressureName ?: pressureState.label), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        SwitchRow("Demo pressure (simulated shot)", isPressureDemo) { container.pressure.setDemo(it) }
+                    }
+                    Text(
+                        "Connect a BOOKOO Espresso Monitor via Bluetooth to log and graph real-time extraction pressure (up to 12 bar) alongside weight and flow.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
             }
             item {
@@ -398,20 +428,101 @@ fun SettingsScreen(nav: NavHostController) {
                 }
             }
             item {
-                SectionHeader("About")
+                SectionHeader("Recipes & Feed")
                 Spacer(Modifier.height(8.dp))
                 BrewCard {
-                    Row {
-                        Text("Version", Modifier.weight(1f))
-                        Text(BuildConfig.VERSION_NAME, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    SwitchRow("Online recipe updates", settings.onlineRecipes) { v ->
+                        update { it.copy(onlineRecipes = v) }
+                        if (v) container.recipeFeed.syncIfNeeded(force = true)
                     }
-                    Text("BrewLog has no account, no analytics and no network access. Everything stays on this device.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+                    Text(
+                        "Automatically checks for and downloads new and updated recipes from the repository feed.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            item {
+                SectionHeader("About & Updates")
+                Spacer(Modifier.height(8.dp))
+                val updateState by com.brewlog.app.data.AppUpdater.updateState.collectAsStateWithLifecycle()
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+                BrewCard {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Version", fontWeight = FontWeight.SemiBold)
+                            Text("v${BuildConfig.VERSION_NAME}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    com.brewlog.app.data.AppUpdater.checkForUpdates(BuildConfig.VERSION_NAME)
+                                }
+                            },
+                            enabled = updateState !is com.brewlog.app.data.AppUpdater.UpdateState.Checking &&
+                                updateState !is com.brewlog.app.data.AppUpdater.UpdateState.Downloading,
+                        ) {
+                            Text("Check for updates")
+                        }
+                    }
+
+                    when (val state = updateState) {
+                        is com.brewlog.app.data.AppUpdater.UpdateState.Checking -> {
+                            Spacer(Modifier.height(8.dp))
+                            Text("Checking GitHub for updates…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                        is com.brewlog.app.data.AppUpdater.UpdateState.UpToDate -> {
+                            Spacer(Modifier.height(8.dp))
+                            Text("BrewLog is up to date.", style = MaterialTheme.typography.bodySmall, color = GoodGreen)
+                        }
+                        is com.brewlog.app.data.AppUpdater.UpdateState.Available -> {
+                            Spacer(Modifier.height(10.dp))
+                            HorizontalDivider()
+                            Spacer(Modifier.height(10.dp))
+                            Text("New version available: ${state.info.tagName}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            if (state.info.notes.isNotBlank()) {
+                                Text(state.info.notes.take(300), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            PrimaryButton(text = "Download and update APK", onClick = {
+                                scope.launch {
+                                    com.brewlog.app.data.AppUpdater.downloadAndInstall(context, state.info)
+                                }
+                            })
+                        }
+                        is com.brewlog.app.data.AppUpdater.UpdateState.Downloading -> {
+                            Spacer(Modifier.height(8.dp))
+                            Text("Downloading update: ${(state.progress * 100).toInt()}%…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                            androidx.compose.material3.LinearProgressIndicator(
+                                progress = { state.progress },
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            )
+                        }
+                        is com.brewlog.app.data.AppUpdater.UpdateState.ReadyToInstall -> {
+                            Spacer(Modifier.height(8.dp))
+                            Text("Download complete. Opening installer…", style = MaterialTheme.typography.bodySmall, color = GoodGreen)
+                        }
+                        is com.brewlog.app.data.AppUpdater.UpdateState.Error -> {
+                            Spacer(Modifier.height(8.dp))
+                            Text("Update check: ${state.message}", style = MaterialTheme.typography.bodySmall, color = WarnOrange)
+                        }
+                        is com.brewlog.app.data.AppUpdater.UpdateState.Idle -> {}
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "BrewLog has no accounts or ads. Network access is used exclusively for online recipes and app update checks. All brew data stays on this device.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
     }
     if (showScale) ScaleSheet { showScale = false }
+    if (showPressure) PressureMonitorSheet { showPressure = false }
 }
 
 @Composable

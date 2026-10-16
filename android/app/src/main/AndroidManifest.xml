@@ -17,7 +17,14 @@
     <!-- Not required: the app also works as a timer and with the demo scale. -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
-    <!-- Security: deliberately NO android.permission.INTERNET. The app cannot reach the network. -->
+    <!-- Network: used exclusively for fetching online recipes (Shared/recipes.json) and checking for app updates from GitHub releases. No telemetry, ads or third-party servers. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- In-app APK updates from GitHub releases -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- Brewing timer lock screen & status notification (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".BrewLogApplication"
@@ -39,5 +46,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>
