@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.11",
+          "buildVersion": "11",
+          "date": "2026-10-16T13:42:28Z",
+          "localizedDescription": "feat: BOOKOO Espresso Monitor on iOS, protocol fixed on Android\n\nThe pressure sensor now follows BOOKOO's published protocol\n(espresso_monitor/protocols.md, as used by Beanconqueror) on both platforms:\nstart 02 0C 01 00 00 00 0F, stop 02 0C 00 00 00 00 0E, 10-byte data\npackets 02 1B 00 00 <bar*100 hi> <lo> <battery>. The previous Android\nparser expected 20-byte 03 0B packets and dropped every real reading, and\nnever sent the start command after connecting.\n\n- iOS: PressureMonitor (CoreBluetooth, demo sensor), settings sheet, pressure\n  recorded with each shot (group-head sensor wins over the machine reading),\n  shot timer starts when the pressure rises.\n- Scale scans on both platforms ignore the monitor (\"BOOKOO_EM\").\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.11/BrewLog.ipa",
+          "size": 1899192,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.10",
           "buildVersion": "10",
           "date": "2026-10-16T13:08:04Z",
@@ -50,11 +59,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.10",
-      "versionDate": "2026-10-16T13:08:04Z",
-      "versionDescription": "fix(android): read espresso recipes from the shared recipe list\n\nThe online recipe list now contains espresso recipes (method espresso, step\nkinds preinfuse/extract). Without these enum values the Android feed sync\nfailed as a whole.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.10/BrewLog.ipa",
-      "size": 1845927
+      "version": "0.1.11",
+      "versionDate": "2026-10-16T13:42:28Z",
+      "versionDescription": "feat: BOOKOO Espresso Monitor on iOS, protocol fixed on Android\n\nThe pressure sensor now follows BOOKOO's published protocol\n(espresso_monitor/protocols.md, as used by Beanconqueror) on both platforms:\nstart 02 0C 01 00 00 00 0F, stop 02 0C 00 00 00 00 0E, 10-byte data\npackets 02 1B 00 00 <bar*100 hi> <lo> <battery>. The previous Android\nparser expected 20-byte 03 0B packets and dropped every real reading, and\nnever sent the start command after connecting.\n\n- iOS: PressureMonitor (CoreBluetooth, demo sensor), settings sheet, pressure\n  recorded with each shot (group-head sensor wins over the machine reading),\n  shot timer starts when the pressure rises.\n- Scale scans on both platforms ignore the monitor (\"BOOKOO_EM\").\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.11/BrewLog.ipa",
+      "size": 1899192
     }
   ],
   "news": []
