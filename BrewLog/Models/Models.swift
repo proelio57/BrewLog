@@ -137,6 +137,8 @@ struct GrinderSpec: Hashable, Codable {
     var finerIsLower: Bool = true
     /// Typical pour-over range, e.g. "20–30 clicks" (informational).
     var rangeNote: String = ""
+    /// Sensible starting grind for filter coffee (presets), see `startingValue`.
+    var defaultGrind: Double? = nil
 
     func format(_ value: Double) -> String {
         let decimals = step < 1 ? (step < 0.1 ? 2 : 1) : 0
@@ -181,6 +183,7 @@ final class Equipment {
     var grindAdjustStep: Double = 2
     var finerIsLower: Bool = true
     var grindRangeNote: String = ""
+    var grindDefault: Double?
     var isFavorite: Bool = false
     var createdAt: Date = Date()
     /// Where imported gear came from, e.g. "beanconqueror:<uuid>".
@@ -204,7 +207,8 @@ final class Equipment {
                         step: grindStep > 0 ? grindStep : 1,
                         adjustStep: grindAdjustStep > 0 ? grindAdjustStep : 1,
                         finerIsLower: finerIsLower,
-                        rangeNote: grindRangeNote)
+                        rangeNote: grindRangeNote,
+                        defaultGrind: grindDefault)
         }
         set {
             grindUnitRaw = newValue.unit.rawValue
@@ -212,6 +216,7 @@ final class Equipment {
             grindAdjustStep = newValue.adjustStep
             finerIsLower = newValue.finerIsLower
             grindRangeNote = newValue.rangeNote
+            grindDefault = newValue.defaultGrind
         }
     }
 

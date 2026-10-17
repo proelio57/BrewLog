@@ -1,8 +1,7 @@
 # Data formats
 
-Shared by the iOS, Android and web apps, so files can move between them. iOS implements everything below.
-Android and web read the same `recipes.json` today; import/export, the online list and the Beanconqueror import
-are still to do there (see the checklist at the end).
+Shared by the iOS, Android and web apps, so files can move between them. iOS and web implement everything below;
+Android's gaps are listed in the checklist at the end.
 
 ## Recipe files
 
@@ -46,6 +45,42 @@ recipe. All values are validated and clamped on import (see `RecipeValidation.sw
 at the time the first drops are expected. Apps that don't know a method or step kind skip just that recipe.
 
 Export (iOS): a recipe's **⋯ → Share as file**, or **Recipes → + → Share my recipes**.
+
+## BrewLog backup
+
+One JSON file with everything: **Settings → Backup & import → Export backup** (iOS, web). Importing it on any
+device merges: what isn't there yet (by `id`) is added, nothing is replaced or deleted, so importing the same file
+twice adds nothing. The same **Import** also reads recipe files and Beanconqueror backups (detected by content).
+
+```json
+{
+  "app": "BrewLog", "format": 1, "exportedAt": "2026-10-17T08:00:00.000Z",
+  "data": { "version": 1, "beans": [], "equipment": [], "brews": [], "customRecipes": [] },
+  "samples": { "<brewId>": [[0, 0], [1.5, 12.3]] },
+  "machine": { "<brewId>": [{ "t": 0, "p": 1.5, "c": 92.5, "f": 2.1 }] }
+}
+```
+
+- Dates are milliseconds since 1970 (whole numbers). Ids are strings: lowercase UUIDs from iOS and Android; the web
+  app falls back to `id-<time>-<random>` without a secure context. iOS stores UUIDs and maps other ids to a stable
+  UUID, so references and de-duplication still work.
+- `samples`: weight curve per brew as `[seconds, grams]` pairs (`{t, w}` objects are read too). `machine`: espresso
+  pressure/temperature/flow per brew (see Espresso shots). Only stored for brews the import adds.
+- **Bean:** `id, name, roaster, origin, varietal, process, roastLevel, roastDate (or null), tastingNotes, notes,
+  bagWeight, remaining, isArchived, createdAt, externalId`.
+- **Equipment:** `id, name, type (brewer|grinder|kettle|filter|scale|water), notes, method, filterFlow, idealRoast,
+  grinder {unit, step, adjustStep, finerIsLower, rangeNote, defaultGrind}, createdAt, externalId`; iOS also writes
+  `isFavorite`.
+- **Brew:** `id, date, recipeId, recipeName, recipe (snapshot of the scaled recipe or null), dose, targetWater,
+  finalWeight, totalTime, waterTemp, grindSetting, grindValue, suggestedGrind, brewerId, brewerName, grinderId,
+  grinderName, grinderSpec, filterId, filterName, filterFlow, filterIdealRoast, beanId, usedScale, rating (0–5),
+  feedback ([perfect|sour|bitter|weak|strong|astringent|flat]), notes, externalId`.
+- `customRecipes`: recipe objects as in recipe files.
+- Android (for now) exports the bare `data` object (no wrapper, no curves); it's read the same way.
+- The file is untrusted: every field is optional with the defaults of a new item, text is sanitized and limited,
+  numbers are clamped (e.g. dose ≤ 150 g, water ≤ 3000 g, time ≤ 30 min), unknown fields and enum values are
+  ignored, a broken entry (e.g. a bean without a name) only drops itself. Limits: 1000 beans, 1000 gear,
+  10 000 brews, 500 recipes, 18 010 samples per brew, 200 MB per file.
 
 ## Espresso shots
 
@@ -107,13 +142,13 @@ Imported items remember their Beanconqueror id (`externalID = "beanconqueror:<uu
 backup again only adds what's new. Gear with the same name as existing gear is reused. Brews have no recipe and
 no pour curve; choosing a recipe via **Edit** enables the analysis.
 
-## Porting checklist (Android / web)
+## Porting checklist (Android)
 
-- [ ] Lenient recipe decoding (defaults above) + recipe file import/export
-- [ ] Online recipe list with the same merge rule and cache
-- [ ] Beanconqueror import (ZIP reader + mapping above, `externalID` for de-duplication)
-- [ ] Edit a saved brew (date, recipe, dose, water, time, temperature, brewer, grinder, filter)
-- [ ] Espresso: recipes (`espresso`, `preinfuse`, `extract`, `pressure`), shot screen, espresso analysis, GaggiMate
-- [ ] App icon from `web/public/icon.svg` (already used by the web app)
+Web has everything above. Android still needs:
 
-Test data: `BrewLogTests/ImportTests.swift` (`backupJSON`, ZIP fixtures) can be reused as fixtures.
+- [ ] BrewLog backup in the wrapped format above: export with `samples`/`machine`, import that detects
+  `"app": "BrewLog"` (today Android exports and reads only the bare `data` object, without curves)
+- [ ] Espresso: shot screen, espresso analysis, GaggiMate (started on branch `wip/android-espresso-parity`)
+
+Test data: `BrewLogTests/ImportTests.swift` (`backupJSON`, ZIP fixtures) and `BrewLogTests/BackupTests.swift`
+(`webBackupJSON`, a web backup with broken entries) can be reused as fixtures.

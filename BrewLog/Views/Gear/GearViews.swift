@@ -364,6 +364,8 @@ struct SettingsView: View {
                 }
             }
 
+            BackupSection()
+
             Section {
                 LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
             } header: {

@@ -80,9 +80,31 @@ final class BrewSetup {
     func pinGrind(_ value: Double?) {
         grindValue = value
         pinnedGrindContext = grindContextKey
+        rememberGrind()
     }
 
     var isGrindPinned: Bool { pinnedGrindContext == grindContextKey }
+
+    @ObservationIgnored private var grindMemory = GrindMemory.load()
+
+    /// Remembers the grind set by hand for the selected grinder (see `GrindMemory`).
+    func rememberGrind() {
+        guard let grinderID, let grindValue else { return }
+        grindMemory.remember(grindValue, grinder: grinderID)
+        grindMemory.save()
+    }
+
+    /// After switching grinders: that grinder's own setting, never the number from the previous grinder's scale.
+    func restoreGrind(for grinder: Equipment?, recommendation: GrindRecommendation?, lastBrew: Date?) {
+        // A grind set explicitly together with the grinder ("Brew again", setup assistant) stays.
+        guard !isGrindPinned else { return }
+        guard let grinder else {
+            grindValue = nil
+            return
+        }
+        grindValue = grindMemory.grind(for: grinder.id, spec: grinder.grinderSpec, recommendation: recommendation?.value,
+                                       lastBrew: lastBrew, espresso: recipe.method.isEspresso)
+    }
 
     init() {
         let defaults = UserDefaults.standard

@@ -32,11 +32,12 @@ A pour-over brewing companion for iPhone, with matching [Android](android/README
   - **Brewers**: V60, Hario Switch, Kalita, Orea, April, Origami, Chemex …
   - **Filters** with flow speed and roast suitability: **CAFEC T-90 / T-92 / T-83**, Abaca(+), **Hario V60 standard**, tabbed and natural papers, Sibarist, Kalita, Chemex …
   - **Grinders** with their own scale (clicks, numbers or dial, step size, finer direction): Comandante, 1Zpresso, Timemore, Kingrinder, Fellow Ode, Niche …
-- **Grind tracking**: grind is logged as a number on your grinder's scale. The next brew of the same bean is **pre-filled with the grind the last review suggested**. Each bean shows a grind log.
+- **Grind tracking**: grind is logged as a number on your grinder's scale. The next brew of the same bean is **pre-filled with the grind the last review suggested**. Each bean shows a grind log. Switching grinders brings back that grinder's own last setting (or a sensible starting point), never the number from the other grinder.
 - **Beans**: roaster, origin, process, roast level and date (days off roast), bag weight with automatic deduction. Add beans before or after brewing.
 - **Journal**: every brew is saved with its curve, rating, taste feedback, notes, analysis and a "Brew again with suggestions" button. Entered something wrong? **Edit** corrects date, recipe, dose, water, time, temperature and gear afterwards, and the analysis updates.
 - **Lock Screen & Dynamic Island**: leave the app while brewing and a Live Activity shows the timer, the current step, a countdown to the next one and the live weight. Cues keep playing in the background.
 - **Import & export**:
+  - **Backup** of everything (journal with curves, beans, gear, own recipes) as one `.json` file: Settings → **Backup & import**. The same file works in the Android and web app; importing merges and never deletes anything.
   - Share recipes as `.json` files and import them again (Recipes → **+**). Hand-written files only need a name and steps, see [docs/data-formats.md](docs/data-formats.md).
   - Import a **Beanconqueror** backup (`Beanconqueror.zip` or `.json`) with brews, beans, grinders and brewers (Journal → **⋯**). Importing it again only adds what's new.
 - **Espresso**: espresso recipes (classic 1:2, ristretto, lungo, turbo shot, allongé) with a shot screen, yield ping and an espresso-specific analysis (shot time, ratio, first drops, pressure). Works with just a scale.
@@ -90,7 +91,7 @@ With a free Apple ID the app must be re-signed every 7 days (SideStore does this
 
 ```bash
 # Fast unit tests: protocol parsing & validation, analyzer, pour detection, recipes, grinder math, recommender,
-# recipe files, Beanconqueror import, ZIP reader, online recipe merge
+# recipe files, Beanconqueror import, ZIP reader, online recipe merge, backup format, grind per grinder
 xcodebuild test -project BrewLog.xcodeproj -scheme BrewLog \
   -destination 'platform=iOS Simulator,name=iPhone 17'
 
@@ -113,7 +114,7 @@ BrewLog/
   App/                      App entry, settings, routing, brew setup state
   Models/                   SwiftData models: Bean, Equipment (grinder/filter specs), Brew, SavedRecipe
   Recipes/                  Recipe types, library & presets, input validation, online recipe list
-  Import/                   Recipe files, Beanconqueror backups, ZIP reader
+  Import/                   BrewLog backup, recipe files, Beanconqueror backups, ZIP reader
   Scale/                    BOOKOO protocol + validator, CoreBluetooth manager, demo scale
   Brewing/BrewSession.swift Live brew engine: auto-start, pings, countdown, recording
   Analysis/                 BrewAnalyzer (rules), grind recommender

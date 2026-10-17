@@ -121,10 +121,10 @@ struct BrewSetupView: View {
     private func observingSelection(_ content: some View) -> some View {
         content
             .onChange(of: setup.beanID, applyRecommendation)
-            .onChange(of: setup.grinderID, applyRecommendation)
+            .onChange(of: setup.grinderID, restoreGrind)
             .onChange(of: setup.recipe.id, applyRecommendation)
             .onAppear {
-                if setup.grindValue == nil { applyRecommendation() }
+                if setup.grindValue == nil { restoreGrind() }
             }
     }
 
@@ -283,7 +283,7 @@ struct BrewSetupView: View {
                     Divider()
                 }
                 gearRow("Grinder", symbol: "gearshape.2.fill", items: grinders, selection: $setup.grinderID)
-                GrindInputView(spec: selectedGrinder?.grinderSpec, value: $setup.grindValue, text: $setup.grindText,
+                GrindInputView(spec: selectedGrinder?.grinderSpec, value: grindByHand, text: $setup.grindText,
                                recommendation: recommendation, focus: $grindFocused)
             }
         }
@@ -330,7 +330,22 @@ struct BrewSetupView: View {
         .background(.bar.opacity(0.0))
     }
 
+    /// The grind as typed or stepped by hand: remembered for the selected grinder.
+    private var grindByHand: Binding<Double?> {
+        Binding {
+            setup.grindValue
+        } set: {
+            setup.grindValue = $0
+            setup.rememberGrind()
+        }
+    }
+
     // MARK: Actions
+
+    private func restoreGrind() {
+        let lastBrew = brews.first { $0.grinderID == setup.grinderID && $0.grindValue != nil }?.date
+        setup.restoreGrind(for: selectedGrinder, recommendation: recommendation, lastBrew: lastBrew)
+    }
 
     private func applyRecommendation() {
         // Keep a grind the user set explicitly (setup assistant, "Brew again") for this bean + grinder.

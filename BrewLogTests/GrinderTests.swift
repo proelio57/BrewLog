@@ -133,6 +133,32 @@ final class GrindRecommenderTests: XCTestCase {
         XCTAssertFalse(setup.isGrindPinned, "a different bean gets its own recommendation again")
     }
 
+    func testSwitchingGrindersNeverCarriesTheNumberOver() {
+        let setup = BrewSetup()
+        setup.select(RecipeLibrary.blankRecipe())
+        let comandante = EquipmentPreset.grinders[0].makeEquipment()
+        let kUltra = EquipmentPreset.grinders[1].makeEquipment()
+        XCTAssertEqual(kUltra.grinderSpec.defaultGrind, 7.5, "the preset's starting value is stored with the grinder")
+
+        setup.grinderID = comandante.id
+        setup.restoreGrind(for: comandante, recommendation: nil, lastBrew: nil)
+        XCTAssertEqual(setup.grindValue, 24, "starts at the preset's starting value")
+        setup.grindValue = 26
+        setup.rememberGrind()
+
+        setup.grinderID = kUltra.id
+        setup.restoreGrind(for: kUltra, recommendation: nil, lastBrew: nil)
+        XCTAssertEqual(setup.grindValue, 7.5, "26 clicks mean nothing on the K-Ultra")
+
+        setup.grinderID = comandante.id
+        setup.restoreGrind(for: comandante, recommendation: GrindRecommendation(value: 22, reason: ""), lastBrew: .distantPast)
+        XCTAssertEqual(setup.grindValue, 26, "the setting made by hand comes back")
+
+        setup.grinderID = nil
+        setup.restoreGrind(for: nil, recommendation: nil, lastBrew: nil)
+        XCTAssertNil(setup.grindValue)
+    }
+
     func testBrewGrindDisplayUsesSnapshotSpec() {
         let grinder = makeGrinder()
         let brew = makeBrew(bean: nil, grinder: grinder, grind: 24, daysAgo: 0)

@@ -58,33 +58,34 @@ struct EquipmentPreset: Identifiable, Hashable {
     }
 
     static func grinder(_ name: String, _ unit: GrindUnit, step: Double, adjust: Double,
-                        range: String = "", notes: String = "") -> EquipmentPreset {
+                        range: String = "", notes: String = "", start: Double? = nil) -> EquipmentPreset {
         EquipmentPreset(name: name, type: .grinder,
-                        grinder: GrinderSpec(unit: unit, step: step, adjustStep: adjust, finerIsLower: true, rangeNote: range),
+                        grinder: GrinderSpec(unit: unit, step: step, adjustStep: adjust, finerIsLower: true, rangeNote: range,
+                                             defaultGrind: start),
                         notes: notes)
     }
 
     /// Grinder scales. Ranges are typical starting points only. Every grinder is different, so they're editable.
     static let grinders: [EquipmentPreset] = [
         grinder("Comandante C40", .clicks, step: 1, adjust: 2, range: "20–30 clicks",
-                notes: "Clicks counted from fully closed. About 30 µm per click."),
+                notes: "Clicks counted from fully closed. About 30 µm per click.", start: 24),
         grinder("1Zpresso K-Ultra", .numbers, step: 0.1, adjust: 0.2,
-                notes: "Read the dial as rotation.number, e.g. 7.5."),
+                notes: "Read the dial as rotation.number, e.g. 7.5.", start: 7.5),
         grinder("1Zpresso ZP6 Special", .numbers, step: 0.1, adjust: 0.2,
-                notes: "Read the dial as rotation.number, e.g. 4.5."),
+                notes: "Read the dial as rotation.number, e.g. 4.5.", start: 4.5),
         grinder("1Zpresso J-Max", .clicks, step: 1, adjust: 5,
-                notes: "Very fine steps, so adjust in bigger jumps for filter."),
-        grinder("Timemore C3", .clicks, step: 1, adjust: 1, range: "about 14–20 clicks"),
+                notes: "Very fine steps, so adjust in bigger jumps for filter.", start: 30),
+        grinder("Timemore C3", .clicks, step: 1, adjust: 1, range: "about 14–20 clicks", start: 16),
         grinder("Kingrinder K6", .clicks, step: 1, adjust: 5,
-                notes: "Fine steps, so adjust in bigger jumps for filter."),
+                notes: "Fine steps, so adjust in bigger jumps for filter.", start: 90),
         grinder("Fellow Ode Gen 2", .dial, step: 1, adjust: 1,
-                notes: "Dial 1–11 in steps of 1/3. Track whole numbers or enter thirds as decimals."),
-        grinder("Baratza Encore ESP", .numbers, step: 1, adjust: 2),
-        grinder("Niche Zero", .dial, step: 1, adjust: 3),
-        grinder("Wilfa Uniform", .numbers, step: 1, adjust: 1),
-        grinder("Lagom P64", .dial, step: 0.1, adjust: 0.2),
-        grinder("Mazzer Philos", .dial, step: 1, adjust: 2),
-        grinder("DF64 / DF83", .dial, step: 1, adjust: 3),
+                notes: "Dial 1–11 in steps of 1/3. Track whole numbers or enter thirds as decimals.", start: 5),
+        grinder("Baratza Encore ESP", .numbers, step: 1, adjust: 2, start: 20),
+        grinder("Niche Zero", .dial, step: 1, adjust: 3, start: 45),
+        grinder("Wilfa Uniform", .numbers, step: 1, adjust: 1, start: 20),
+        grinder("Lagom P64", .dial, step: 0.1, adjust: 0.2, start: 5.5),
+        grinder("Mazzer Philos", .dial, step: 1, adjust: 2, start: 30),
+        grinder("DF64 / DF83", .dial, step: 1, adjust: 3, start: 50),
     ]
 
     static let filters: [EquipmentPreset] = [

@@ -11,11 +11,11 @@ Before writing or modifying any code in this repository, Claude and Gemini must 
 
 1. **Privacy & Security First:**
    - **Zero Telemetry / Zero Ads:** No analytics SDKs, trackers, or third-party monitoring servers.
-   - **Zero Unnecessary Permissions:** On Android, Bluetooth permissions must use `android:usesPermissionFlags="neverForLocation"`. Network access is permitted **only** for reading the read-only public recipe feed and querying GitHub releases for self-updating APKs.
+   - **Zero Unnecessary Permissions:** On Android, Bluetooth permissions must use `android:usesPermissionFlags="neverForLocation"`. Network access is permitted **only** for reading the read-only public recipe feed, querying GitHub releases for self-updating APKs, and the user's own espresso machine (GaggiMate) in the local network.
 2. **Offline-First & Local Sovereignty:**
-   - All user data (brews, beans, gear, recipes) is stored locally on the user's device (`UserDefaults`/JSON on iOS, atomic JSON on Android, IndexedDB on Web).
+   - All user data (brews, beans, gear, recipes) is stored locally on the user's device (SwiftData on iOS, atomic JSON on Android, IndexedDB on Web; settings in `UserDefaults` / `SharedPreferences` / `localStorage`).
 3. **Format Interchangeability:**
-   - A backup JSON exported from iOS **must** import flawlessly into Android and Web, and vice versa.
+   - A backup JSON exported from iOS **must** import flawlessly into Android and Web, and vice versa. The format is specified in `docs/data-formats.md` ("BrewLog backup").
    - Any model field added to one platform must have a safe default on the other platforms so older backups never crash newer app versions.
 4. **Mandatory Pre-Compilation Testing:**
    - Always write and run unit tests and linters **before** compiling binaries or finalizing tasks.
@@ -26,27 +26,33 @@ Before writing or modifying any code in this repository, Claude and Gemini must 
 
 ## 2. Cross-Platform Architecture & File Mapping
 
-Use this reference table to find the corresponding implementation files across platforms:
+Use this reference table to find the corresponding implementation files across platforms
+(paths relative to `BrewLog/`, `android/app/src/main/java/com/brewlog/app/` and `web/src/`):
 
 | Architectural Role | iOS (Swift / SwiftUI) | Android (Kotlin / Jetpack Compose) | Web (TypeScript / React) |
 | :--- | :--- | :--- | :--- |
-| **Domain Models** | `BrewLog/Models/Models.swift`<br>`BrewLog/Recipes/Recipe.swift` | `android/app/src/main/java/com/brewlog/app/domain/Models.kt`<br>`.../domain/Recipe.kt` | `web/src/types/domain.ts` |
-| **Data Storage / Repo** | `BrewLog/Models/BrewRepository.swift` | `android/app/src/main/java/com/brewlog/app/data/BrewRepository.kt` | `web/src/services/BrewRepository.ts` |
-| **Backup & Importer** | `BrewLog/Import/DataImporter.swift`<br>`BrewLog/Import/BeanconquerorBackup.swift` | `android/app/src/main/java/com/brewlog/app/data/DataImporter.kt`<br>`.../domain/BeanconquerorBackup.kt` | `web/src/services/dataImporter.ts` |
-| **Recipe Feed (Online)**| `BrewLog/Recipes/RecipeFeed.swift` | `android/app/src/main/java/com/brewlog/app/data/RecipeFeed.kt` | `web/src/services/recipeFeed.ts` |
-| **Brewing Engine** | `BrewLog/Brewing/BrewEngine.swift` | `android/app/src/main/java/com/brewlog/app/brewing/BrewEngine.kt` | `web/src/services/brewEngine.ts` |
-| **Live Timer / Heads-Up**| `ActivityShared/` (ActivityKit Live Activity & Dynamic Island) | `android/app/src/main/java/com/brewlog/app/brewing/BrewNotificationManager.kt` | Web Notifications API |
-| **Bluetooth Scale (BLE)**| `BrewLog/Scale/ScaleManager.swift` | `android/app/src/main/java/com/brewlog/app/scale/ScaleManager.kt` | `web/src/services/webBluetoothScale.ts` |
-| **Audio & Metronome** | `BrewLog/Audio/AudioCuePlayer.swift` | `android/app/src/main/java/com/brewlog/app/audio/AudioCuePlayer.kt` | Web Audio API / Synthetic Cues |
-| **Extraction Analytics** | `BrewLog/Analysis/TastingAnalysis.swift` | `android/app/src/main/java/com/brewlog/app/analysis/TastingAnalysis.kt` | `web/src/services/analysis.ts` |
-| **App Entry / Root** | `BrewLog/App/BrewLogApp.swift`<br>`BrewLog/Views/RootView.swift` | `android/app/src/main/java/com/brewlog/app/MainActivity.kt`<br>`.../ui/AppRoot.kt` | `web/src/App.tsx` |
-| **Journal & History UI** | `BrewLog/Views/History/HistoryView.swift` | `.../ui/screens/JournalScreen.kt` | `web/src/components/JournalView.tsx` |
-| **Live Brew Screen** | `BrewLog/Views/Brew/LiveBrewView.kt` | `.../ui/screens/LiveBrewScreen.kt` | `web/src/components/LiveBrewView.tsx` |
-| **Recipe Library UI** | `BrewLog/Views/Recipes/RecipesView.swift` | `.../ui/screens/RecipeScreens.kt` | `web/src/components/RecipeList.tsx` |
-| **Bean Cellar UI** | `BrewLog/Views/Beans/BeansView.swift` | `.../ui/screens/BeanScreens.kt` | `web/src/components/BeanCellar.tsx` |
-| **Gear & Grinders UI** | `BrewLog/Views/Gear/GearView.swift` | `.../ui/screens/GearScreens.kt` | `web/src/components/GearView.tsx` |
-| **In-App Updater** | SideStore / AltStore JSON feed | `.../data/AppUpdater.kt` + GitHub Releases | PWA Service Worker cache |
-| **Shared Recipe Seed** | `Shared/recipes.json` | `Shared/recipes.json` (linked/bundled) | `Shared/recipes.json` |
+| **Domain Models** | `Models/Models.swift`, `Recipes/Recipe.swift` | `domain/Models.kt`, `domain/Recipe.kt` | `domain/models.ts`, `domain/recipe.ts` |
+| **Validation / Limits** | `Recipes/RecipeValidation.swift` | `domain/Validation.kt` | `domain/validation.ts` |
+| **Data Storage** | SwiftData (`@Model` classes in `Models/Models.swift`, container in `App/BrewLogApp.swift`) | `data/Repositories.kt` | `data/repository.ts`, `data/db.ts` |
+| **Backup & Importer** | `Import/DataImporter.swift`, `Import/BrewLogBackup.swift`, `Import/BeanconquerorBackup.swift`, `Import/RecipeFile.swift`, `Import/ZipArchive.swift` | `data/DataImporter.kt`, `domain/BeanconquerorBackup.kt`, `domain/RecipeFile.kt` | `import/importer.ts`, `import/beanconqueror.ts`, `import/recipeFile.ts`, `import/zip.ts` |
+| **Recipe Feed (Online)** | `Recipes/RecipeFeed.swift` | `data/RecipeFeed.kt` | `data/recipeFeed.ts` |
+| **Built-in Recipes & Gear Presets** | `Recipes/RecipeLibrary.swift` + `Shared/recipes.json` | `domain/Library.kt` + `Shared/recipes.json` | `domain/library.ts` + `Shared/recipes.json` |
+| **Brew Setup State** | `BrewSetup` in `App/BrewLogApp.swift`, `Brewing/GrindMemory.swift` | `data/BrewSetupState.kt` | `data/setup.ts` |
+| **Brewing Engine** | `Brewing/BrewSession.swift` | `brewing/BrewSession.kt` | `brewing/brewSession.ts` |
+| **Live Timer / Heads-Up** | `Brewing/BrewLiveActivity.swift`, `ActivityShared/`, `BrewLogWidgets/` (Live Activity & Dynamic Island) | `brewing/BrewNotificationManager.kt` | – |
+| **Bluetooth Scale (BLE)** | `Scale/ScaleManager.swift`, `Scale/BookooProtocol.swift` | `scale/ScaleManager.kt`, `scale/BookooProtocol.kt` | `scale/scaleManager.ts`, `scale/bookoo.ts` (Web Bluetooth) |
+| **Pressure Sensor (BOOKOO Espresso Monitor)** | `Scale/PressureMonitor.swift`, `Scale/BookooMonitorProtocol.swift` | `scale/PressureManager.kt`, `scale/BookooPressureProtocol.kt` | `scale/pressure.ts` |
+| **Espresso Machine (GaggiMate)** | `Machine/MachineManager.swift`, `Machine/MachineStatus.swift` | – (branch `wip/android-espresso-parity`) | `machine/machineManager.ts`, `machine/gaggimate.ts` |
+| **Audio & Haptics** | `Audio/SoundPlayer.swift` | `audio/SoundPlayer.kt` | `audio/sound.ts` |
+| **Brew Analysis** | `Analysis/BrewAnalyzer.swift`, `Analysis/EspressoAnalyzer.swift`, `Analysis/BrewAnalysis+Brew.swift` (grind recommender) | `analysis/BrewAnalyzer.kt`, `analysis/GrindRecommender.kt` | `analysis/analyzer.ts`, `analysis/espresso.ts`, `analysis/recommender.ts` |
+| **App Entry / Root** | `App/BrewLogApp.swift`, `Views/RootView.swift` | `AppContainer.kt` (activity + container), `ui/AppRoot.kt` | `main.tsx`, `app.ts`, `Shell.tsx` |
+| **Journal & History UI** | `Views/History/` (`HistoryListView`, `BrewDetailView`, `BrewEditorView`) | `ui/screens/JournalScreen.kt`, `BrewDetailScreen.kt`, `BrewEditorScreen.kt` | `screens/Journal.tsx`, `BrewDetail.tsx`, `BrewEditor.tsx` |
+| **Brew Setup & Live Brew** | `Views/Brew/BrewSetupView.swift`, `BrewSessionView.swift`, `MachineCard.swift`, `QuickWeighView.swift` | `ui/screens/BrewSetupScreen.kt`, `LiveBrewScreen.kt`, `QuickWeighScreen.kt` | `screens/BrewSetup.tsx`, `LiveBrew.tsx`, `Machine.tsx`, `QuickWeigh.tsx` |
+| **Recipe Library UI** | `Views/Recipes/RecipeViews.swift` | `ui/screens/RecipeScreens.kt` | `screens/Recipes.tsx` |
+| **Bean Cellar UI** | `Views/Beans/BeanViews.swift` | `ui/screens/BeanScreens.kt` | `screens/Beans.tsx` |
+| **Gear, Grinders & Settings UI** | `Views/Gear/GearViews.swift` | `ui/screens/GearScreens.kt` | `screens/Gear.tsx` |
+| **Onboarding** | `Views/Onboarding/OnboardingView.swift` | `ui/screens/OnboardingScreen.kt` | `screens/Onboarding.tsx` |
+| **In-App Updater** | SideStore / AltStore source (branch `sidestore`) | `data/AppUpdater.kt` + GitHub Releases | Service worker (`main.tsx`), reload = latest |
 
 ---
 
@@ -54,18 +60,25 @@ Use this reference table to find the corresponding implementation files across p
 
 | Feature | iOS | Android | Web | Notes for AI Agents |
 | :--- | :---: | :---: | :---: | :--- |
-| **Preset Recipes** | Yes | Yes | Yes | Sourced from `Shared/recipes.json`. Updated via remote feed if available. |
-| **Custom Recipe Builder** | Yes | Yes | Yes | Full JSON import/export and step editing. |
-| **Bean Inventory** | Yes | Yes | Yes | Bag weight tracking, remaining grams, roast date freshness, archiving. |
-| **Equipment & Grinder Dial**| Yes | Yes | Yes | Micro-step clicks, calibrated numeric ranges, brewer methods. |
-| **Live Brew Flow Tracking**| Yes | Yes | Yes | Real-time flow rate curve ($g/s$), target waterline, phase timing. |
-| **Bookoo BLE Scale** | Yes | Yes | Yes | Auto-tare, auto-start timer on first drop, battery & weight streaming. |
-| **Live Activity / Timer** | Yes | Yes | Partial | iOS uses ActivityKit / Dynamic Island. Android uses ongoing lock screen `BrewNotificationManager`. |
-| **Full AppData Backup Export**| Yes | Yes | Yes | Exports complete state to pretty-printed JSON (`exportBackup`). |
-| **Full AppData Restore** | Yes | Yes | Yes | Automatic detection of full backups vs recipe files vs Beanconqueror. |
-| **Beanconqueror Import** | Yes | Yes | Yes | Supports both raw `.json` and `.zip` archives with automatic deduplication. |
-| **In-App Self Updater** | Via SideStore | Yes | PWA | Android checks GitHub releases and downloads APK directly. |
-| **Play Store Bundle (AAB)**| N/A | Yes | N/A | Documented in `docs/play-store.md`, buildable via `./scripts/build-apk.sh --release`. |
+| **Preset Recipes** | Yes | Yes | Yes | Sourced from `Shared/recipes.json`, updated by the online recipe list. |
+| **Online Recipe List** | Yes | Yes | Yes | Same merge rule and cache (`docs/data-formats.md`). |
+| **Custom Recipe Builder** | Yes | Yes | Yes | Step editing, recipe files import/export. |
+| **Bean Inventory** | Yes | Yes | Yes | Bag weight, remaining grams, roast date freshness, archiving. |
+| **Equipment & Grinder Scale** | Yes | Yes | Yes | Clicks/numbers/dial/microns, step and adjustment size, presets. |
+| **Grind Remembered per Grinder** | Yes | Yes | No | Switching grinders restores that grinder's setting, else history, else a starting value (`defaultGrind`). |
+| **Live Brew Flow Tracking** | Yes | Yes | Yes | Weight curve, flow rate, step timing, pings. |
+| **BOOKOO Scale** | Yes | Yes | Yes | Web: Web Bluetooth (Chromium browsers, not iOS Safari). |
+| **Live Activity / Timer** | Yes | Yes | No | iOS: ActivityKit / Dynamic Island. Android: ongoing notification. |
+| **Brew Analysis & Grind Suggestions** | Yes | Yes | Yes | Pour-over analysis and history-based grind recommendation. |
+| **Edit a Saved Brew** | Yes | Yes | Yes | |
+| **Espresso Mode** (recipes, shot screen, espresso analysis) | Yes | Partial | Yes | Android reads espresso recipes; shot screen and analysis are on branch `wip/android-espresso-parity`. |
+| **BOOKOO Espresso Monitor** (pressure) | Yes | Yes | Yes | |
+| **GaggiMate** | Yes | No | Partial | Web only when the app is opened over http (browsers block `ws://` from https pages). |
+| **Backup Export** (wrapped format with curves) | Yes | Partial | Yes | Android exports only the bare `data` object, without weight/machine curves. |
+| **Backup Import** (merge by id) | Yes | Partial | Yes | Android reads only the bare `data` object, not the wrapped format from iOS/web. |
+| **Beanconqueror Import** | Yes | Yes | Yes | `.zip` and `.json`, de-duplicated by `externalId`. |
+| **In-App Self Updater** | Via SideStore | Yes | Reload | Android checks GitHub releases and downloads the APK. |
+| **Play Store Bundle (AAB)** | N/A | Yes | N/A | Documented in `docs/play-store.md`, buildable via `./scripts/build-apk.sh --release`. |
 
 ---
 
@@ -166,7 +179,7 @@ When adding a brand-new feature to BrewLog across both platforms at once:
 2. **Synchronize Model Definitions:**
    - Add the fields to `BrewLog/Models/Models.swift` with `var property: Type? = default`.
    - Add the fields to `android/.../domain/Models.kt` with `val property: Type = default`.
-   - Add the fields to `web/src/types/domain.ts` with `property?: Type`.
+   - Add the fields to `web/src/domain/models.ts` with `property?: Type` and parse them in `web/src/domain/validation.ts`.
 3. **Keep `Shared/recipes.json` as the Single Source of Truth:**
    - If adding a new preset recipe, edit `Shared/recipes.json` once. Both iOS and Android reference this file directly.
 4. **Implement Platform-Specific Services:**
