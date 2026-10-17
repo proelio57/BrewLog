@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.12",
+          "buildVersion": "12",
+          "date": "2026-10-17T11:24:53Z",
+          "localizedDescription": "feat(ios): BrewLog backup export/import and grind remembered per grinder\n\n- Settings → Backup & import: export everything as one JSON file in the format\n  shared with web and Android ({app, format, exportedAt, data, samples, machine},\n  dates in ms, lowercase ids). Import merges by id and never replaces anything;\n  it detects the wrapped format and the bare app data of Android exports.\n  Non-UUID ids from the web app map to stable UUIDs. Everything is parsed\n  leniently, sanitized and clamped (BrewLogBackup.swift).\n- Switching grinders restores that grinder's own setting (set by hand after the\n  last brew, else the history recommendation, else a starting value from the\n  preset's defaultGrind or the typical range), like Android. No filter starting\n  value for espresso.\n- Tests for the format (Linux-runnable), SwiftData import/export round trip and\n  grind memory.\n- docs: backup format in data-formats.md, parity guide with real file paths and\n  an honest feature matrix.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.12/BrewLog.ipa",
+          "size": 2034694,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.11",
           "buildVersion": "11",
           "date": "2026-10-16T13:42:28Z",
@@ -59,11 +68,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.11",
-      "versionDate": "2026-10-16T13:42:28Z",
-      "versionDescription": "feat: BOOKOO Espresso Monitor on iOS, protocol fixed on Android\n\nThe pressure sensor now follows BOOKOO's published protocol\n(espresso_monitor/protocols.md, as used by Beanconqueror) on both platforms:\nstart 02 0C 01 00 00 00 0F, stop 02 0C 00 00 00 00 0E, 10-byte data\npackets 02 1B 00 00 <bar*100 hi> <lo> <battery>. The previous Android\nparser expected 20-byte 03 0B packets and dropped every real reading, and\nnever sent the start command after connecting.\n\n- iOS: PressureMonitor (CoreBluetooth, demo sensor), settings sheet, pressure\n  recorded with each shot (group-head sensor wins over the machine reading),\n  shot timer starts when the pressure rises.\n- Scale scans on both platforms ignore the monitor (\"BOOKOO_EM\").\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.11/BrewLog.ipa",
-      "size": 1899192
+      "version": "0.1.12",
+      "versionDate": "2026-10-17T11:24:53Z",
+      "versionDescription": "feat(ios): BrewLog backup export/import and grind remembered per grinder\n\n- Settings → Backup & import: export everything as one JSON file in the format\n  shared with web and Android ({app, format, exportedAt, data, samples, machine},\n  dates in ms, lowercase ids). Import merges by id and never replaces anything;\n  it detects the wrapped format and the bare app data of Android exports.\n  Non-UUID ids from the web app map to stable UUIDs. Everything is parsed\n  leniently, sanitized and clamped (BrewLogBackup.swift).\n- Switching grinders restores that grinder's own setting (set by hand after the\n  last brew, else the history recommendation, else a starting value from the\n  preset's defaultGrind or the typical range), like Android. No filter starting\n  value for espresso.\n- Tests for the format (Linux-runnable), SwiftData import/export round trip and\n  grind memory.\n- docs: backup format in data-formats.md, parity guide with real file paths and\n  an honest feature matrix.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.12/BrewLog.ipa",
+      "size": 2034694
     }
   ],
   "news": []
