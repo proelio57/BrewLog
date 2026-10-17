@@ -352,6 +352,7 @@ fun SettingsScreen(nav: NavHostController) {
                     SwitchRow("Demo scale (simulated pours)", isDemo) { container.scale.setDemo(it) }
                 }
             }
+            item { EspressoMachineSettingsCard() }
             item {
                 SectionHeader("Espresso pressure monitor")
                 Spacer(Modifier.height(8.dp))

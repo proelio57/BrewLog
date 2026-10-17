@@ -91,5 +91,6 @@ fun Recipe.validated(): Recipe {
         steps = cleanSteps,
         targetTime = cleanTargetTime,
         tips = tips.take(InputLimits.MAX_TIPS).map { it.sanitized(InputLimits.MAX_SHORT_TEXT) }.filter { it.isNotEmpty() },
+        pressure = pressure?.clamped(1.0, 15.0),
     )
 }

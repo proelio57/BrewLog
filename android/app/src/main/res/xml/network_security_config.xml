@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  GaggiMate only speaks plain ws:// in the local network, reached by host name (gaggimate.local) or IP address.
+  Android can't scope cleartext to private IP ranges, so it is allowed; BrewLog itself only uses https for
+  everything on the internet (recipe list, app updates).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

@@ -127,6 +127,18 @@ data class WeightSample(
     val w: Double,
 )
 
+/**
+ * Espresso: one reading from the machine (GaggiMate) or the pressure sensor during a shot.
+ * Same JSON as iOS and web: {"t": seconds, "p": bar, "c": °C, "f": ml/s}. Stored per brew next to the weight curve.
+ */
+@Serializable
+data class MachineSample(
+    val t: Double,
+    val p: Double,
+    val c: Double? = null,
+    val f: Double? = null,
+)
+
 @Serializable
 data class PressureSample(
     /** Seconds since brew/shot start. */

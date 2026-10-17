@@ -54,6 +54,8 @@ data class AnalysisInput(
     val feedback: Set<TasteFeedback>,
     /** Earlier brews with the same bean and grinder, newest first (excluding the analysed brew). */
     val history: List<PastBrew>,
+    /** Espresso: pressure, temperature and flow from the machine or pressure sensor. */
+    val machine: List<com.brewlog.app.domain.MachineSample> = emptyList(),
 )
 
 enum class FindingLevel { GOOD, INFO, WARNING }
@@ -282,6 +284,7 @@ object BrewAnalyzer {
     // MARK: - Main analysis
 
     fun analyze(input: AnalysisInput): BrewAnalysis {
+        if (input.recipe.isEspresso) return EspressoAnalyzer.analyze(input)
         val recipe = input.recipe
         val samples = input.samples
         val hasCurve = input.usedScale && samples.size > 10
