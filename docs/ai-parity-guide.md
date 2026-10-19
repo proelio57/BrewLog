@@ -12,6 +12,7 @@ Before writing or modifying any code in this repository, Claude and Gemini must 
 1. **Privacy & Security First:**
    - **Zero Telemetry / Zero Ads:** No analytics SDKs, trackers, or third-party monitoring servers.
    - **Zero Unnecessary Permissions:** On Android, Bluetooth permissions must use `android:usesPermissionFlags="neverForLocation"`. Network access is permitted **only** for reading the read-only public recipe feed, querying GitHub releases for self-updating APKs, and the user's own espresso machine (GaggiMate) in the local network.
+   - **Camera (iOS):** only for bean photos and the label scan. Text recognition runs on the device (Vision); photos never leave the device except inside the user's own backup file.
 2. **Offline-First & Local Sovereignty:**
    - All user data (brews, beans, gear, recipes) is stored locally on the user's device (SwiftData on iOS, atomic JSON on Android, IndexedDB on Web; settings in `UserDefaults` / `SharedPreferences` / `localStorage`).
 3. **Format Interchangeability:**
@@ -44,6 +45,11 @@ Use this reference table to find the corresponding implementation files across p
 | **Pressure Sensor (BOOKOO Espresso Monitor)** | `Scale/PressureMonitor.swift`, `Scale/BookooMonitorProtocol.swift` | `scale/PressureManager.kt`, `scale/BookooPressureProtocol.kt` | `scale/pressure.ts` |
 | **Espresso Machine (GaggiMate)** | `Machine/MachineManager.swift`, `Machine/MachineStatus.swift` | – (branch `wip/android-espresso-parity`) | `machine/machineManager.ts`, `machine/gaggimate.ts` |
 | **Audio & Haptics** | `Audio/SoundPlayer.swift` | `audio/SoundPlayer.kt` | `audio/sound.ts` |
+| **Voice Prompts** | `Audio/StepAnnouncement.swift` (texts), `Audio/VoicePrompter.swift` (AVSpeechSynthesizer) | – | – |
+| **Extraction (TDS / EY)** | `Tools/Extraction.swift`, `Views/Tools/ToolViews.swift` (`ExtractionCalculatorView`, `BrewExtractionCard`, `ExtractionChart`) | – | – |
+| **Water Recipes** | `Tools/WaterChemistry.swift`, `Views/Tools/ToolViews.swift` (`WaterCalculatorView`) | – | – |
+| **Grind Converter** | `Tools/GrindConverter.swift`, `Views/Tools/ToolViews.swift` (`GrindConverterView`) | – | – |
+| **Bean Photos & Label Scan** | `Tools/LabelParser.swift`, `Tools/LabelScanner.swift` (Vision, `BeanPhoto`), `Views/Beans/BeanPhotoViews.swift` | – | – |
 | **Brew Analysis** | `Analysis/BrewAnalyzer.swift`, `Analysis/EspressoAnalyzer.swift`, `Analysis/BrewAnalysis+Brew.swift` (grind recommender) | `analysis/BrewAnalyzer.kt`, `analysis/GrindRecommender.kt` | `analysis/analyzer.ts`, `analysis/espresso.ts`, `analysis/recommender.ts` |
 | **App Entry / Root** | `App/BrewLogApp.swift`, `Views/RootView.swift` | `AppContainer.kt` (activity + container), `ui/AppRoot.kt` | `main.tsx`, `app.ts`, `Shell.tsx` |
 | **Journal & History UI** | `Views/History/` (`HistoryListView`, `BrewDetailView`, `BrewEditorView`) | `ui/screens/JournalScreen.kt`, `BrewDetailScreen.kt`, `BrewEditorScreen.kt` | `screens/Journal.tsx`, `BrewDetail.tsx`, `BrewEditor.tsx` |
@@ -64,17 +70,23 @@ Use this reference table to find the corresponding implementation files across p
 | **Online Recipe List** | Yes | Yes | Yes | Same merge rule and cache (`docs/data-formats.md`). |
 | **Custom Recipe Builder** | Yes | Yes | Yes | Step editing, recipe files import/export. |
 | **Bean Inventory** | Yes | Yes | Yes | Bag weight, remaining grams, roast date freshness, archiving. |
+| **Bean Photos** | Yes | No | No | Camera or photo library, downsampled JPEG (≤ 1024 px) in SwiftData external storage, placeholder tinted by roast level. In the backup as `photos`. |
+| **Bean Label Scan (OCR)** | Yes | No | No | Apple Vision on the device, `LabelParser` fills empty fields (name, roaster, origin, process, varietal, roast level, roast date, weight, tasting notes). Android candidate: ML Kit. |
 | **Equipment & Grinder Scale** | Yes | Yes | Yes | Clicks/numbers/dial/microns, step and adjustment size, presets. |
+| **Grind Converter** | Yes | No | No | Between calibrated grinders (`defaultGrind` + `micronsPerStep`) and from the recipe's µm range to the selected grinder (shown under the grind in Brew setup). |
 | **Grind Remembered per Grinder** | Yes | Yes | No | Switching grinders restores that grinder's setting, else history, else a starting value (`defaultGrind`). |
 | **Live Brew Flow Tracking** | Yes | Yes | Yes | Weight curve, flow rate, step timing, pings. |
+| **Spoken Step Prompts** | Yes | No | No | Settings → Voice. Off by default. Texts in `StepAnnouncement` (port them 1:1), optional announcement 5 s ahead. |
 | **BOOKOO Scale** | Yes | Yes | Yes | Web: Web Bluetooth (Chromium browsers, not iOS Safari). |
 | **Live Activity / Timer** | Yes | Yes | No | iOS: ActivityKit / Dynamic Island. Android: ongoing notification. |
 | **Brew Analysis & Grind Suggestions** | Yes | Yes | Yes | Pour-over analysis and history-based grind recommendation. |
+| **TDS & Extraction Yield** | Yes | No | No | TDS (and optional drink weight) on a brew, EY %, verdict and control chart; standalone calculator under Gear → Tools. Beanconqueror `tds` is imported on iOS. |
+| **Water Recipes & Profiles** | Yes | No | No | Calculator for distilled water + Epsom salt / calcium chloride / baking soda (dry or Barista Hustle concentrates), presets, saved as gear of type water with GH/KH; water chosen per brew. |
 | **Edit a Saved Brew** | Yes | Yes | Yes | |
 | **Espresso Mode** (recipes, shot screen, espresso analysis) | Yes | Partial | Yes | Android reads espresso recipes; shot screen and analysis are on branch `wip/android-espresso-parity`. |
 | **BOOKOO Espresso Monitor** (pressure) | Yes | Yes | Yes | |
 | **GaggiMate** | Yes | No | Partial | Web only when the app is opened over http (browsers block `ws://` from https pages). |
-| **Backup Export** (wrapped format with curves) | Yes | Partial | Yes | Android exports only the bare `data` object, without weight/machine curves. |
+| **Backup Export** (wrapped format with curves) | Yes | Partial | Yes | Android exports only the bare `data` object, without weight/machine curves. Bean photos, TDS and water fields: iOS only so far; Android and web ignore them on import (unknown keys), so they are lost when re-exported there. |
 | **Backup Import** (merge by id) | Yes | Partial | Yes | Android reads only the bare `data` object, not the wrapped format from iOS/web. |
 | **Beanconqueror Import** | Yes | Yes | Yes | `.zip` and `.json`, de-duplicated by `externalId`. |
 | **In-App Self Updater** | Via SideStore | Yes | Reload | Android checks GitHub releases and downloads the APK. |

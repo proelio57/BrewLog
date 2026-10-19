@@ -66,6 +66,7 @@ final class BrewSetup {
     var brewerID: UUID? { didSet { save(brewerID, SettingsKey.lastBrewerID) } }
     var grinderID: UUID? { didSet { save(grinderID, SettingsKey.lastGrinderID) } }
     var filterID: UUID? { didSet { save(filterID, SettingsKey.lastFilterID) } }
+    var waterID: UUID? { didSet { save(waterID, SettingsKey.lastWaterID) } }
     var grindValue: Double?
     var grindText: String = ""
     /// Bean + grinder for which the grind was set explicitly (setup assistant, "Brew again").
@@ -119,6 +120,7 @@ final class BrewSetup {
         self.brewerID = load(SettingsKey.lastBrewerID)
         self.grinderID = load(SettingsKey.lastGrinderID)
         self.filterID = load(SettingsKey.lastFilterID)
+        self.waterID = load(SettingsKey.lastWaterID)
     }
 
     var scaledRecipe: Recipe { recipe.scaled(toDose: dose) }

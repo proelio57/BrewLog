@@ -10,6 +10,7 @@ struct BrewConfig: Identifiable {
     let brewer: Equipment?
     let grinder: Equipment?
     let filter: Equipment?
+    var water: Equipment? = nil
     let grindValue: Double?
     let grindText: String
 }
@@ -32,6 +33,7 @@ struct BrewSetupView: View {
     private var brewers: [Equipment] { equipment.filter { $0.type == .brewer } }
     private var grinders: [Equipment] { equipment.filter { $0.type == .grinder } }
     private var filters: [Equipment] { equipment.filter { $0.type == .filter } }
+    private var waters: [Equipment] { equipment.filter { $0.type == .water } }
     private var selectedGrinder: Equipment? { grinders.first { $0.id == setup.grinderID } }
     private var selectedBean: Bean? { beans.first { $0.id == setup.beanID } }
 
@@ -116,6 +118,9 @@ struct BrewSetupView: View {
             .onChange(of: grinders.map(\.id), reconciler(\.grinderID))
             .onChange(of: brewers.map(\.id), reconciler(\.brewerID))
             .onChange(of: filters.map(\.id), reconciler(\.filterID))
+            .onChange(of: waters.map(\.id)) { _, ids in
+                if let id = setup.waterID, !ids.contains(id) { setup.waterID = nil }
+            }
     }
 
     private func observingSelection(_ content: some View) -> some View {
@@ -248,6 +253,7 @@ struct BrewSetupView: View {
                 }
                 if let bean = selectedBean {
                     HStack(spacing: 12) {
+                        BeanThumbnail(photo: bean.photo, roast: bean.roastLevel, size: 36)
                         Label(bean.roastLevel.displayName, systemImage: "flame")
                         if let days = bean.daysOffRoast { Label("\(days) d off roast", systemImage: "calendar") }
                         Label(bean.remaining.grams + " left", systemImage: "bag")
@@ -285,8 +291,27 @@ struct BrewSetupView: View {
                 gearRow("Grinder", symbol: "gearshape.2.fill", items: grinders, selection: $setup.grinderID)
                 GrindInputView(spec: selectedGrinder?.grinderSpec, value: grindByHand, text: $setup.grindText,
                                recommendation: recommendation, focus: $grindFocused)
+                if let hint = recipeGrindHint {
+                    Label(hint, systemImage: "arrow.left.arrow.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if !waters.isEmpty {
+                    Divider()
+                    MenuPickerRow(title: "Water", symbol: "drop.triangle.fill",
+                                  options: waters.map { PickerOption(id: $0.id, name: $0.name) },
+                                  selection: $setup.waterID, noneLabel: "Not set")
+                }
             }
         }
+    }
+
+    /// The recipe's grind size on the selected grinder, e.g. "Recipe ≈ 22–25 clicks on your grinder".
+    private var recipeGrindHint: String? {
+        guard let grinder = selectedGrinder else { return nil }
+        let spec = GrindConverter.calibrated(grinder.grinderSpec, name: grinder.name)
+        return GrindConverter.hint(recipeGrind: setup.recipe.grind, spec: spec).map { "Recipe \($0) on your grinder" }
     }
 
     @ViewBuilder
@@ -363,6 +388,7 @@ struct BrewSetupView: View {
             brewer: brewers.first { $0.id == setup.brewerID },
             grinder: selectedGrinder,
             filter: setup.recipe.method.isEspresso ? nil : filters.first { $0.id == setup.filterID },
+            water: waters.first { $0.id == setup.waterID },
             grindValue: selectedGrinder == nil ? nil : setup.grindValue,
             grindText: setup.grindText
         )

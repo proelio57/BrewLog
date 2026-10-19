@@ -94,6 +94,8 @@ A privacy-first, accountless sync system where user identity and encryption are 
 ## 2. Brewing & Extraction Enhancements
 
 ### Water Chemistry & Mineral Target Calculator
+
+> **Status:** Done on iOS (Gear → Tools → Water recipes; water profiles per brew). Presets: SCA, Rao, Barista Hustle, Hendon, WoC Budapest, Melbourne. Commercial drops (Lotus) not included. Android/web open, see `docs/data-formats.md`.
 - **Description:** Provide a water formulation assistant for mineralizing distilled / reverse-osmosis (RO) water.
 - **Features:**
   - Presets: SCA Standard (150 mg/L TDS, 40 mg/L alkalinity, 68 mg/L calcium hardness), Barista Hustle recipes, Rao Water, Lotus Coffee drops.
@@ -101,6 +103,8 @@ A privacy-first, accountless sync system where user identity and encryption are 
   - Water profile selector attached to brews in the journal.
 
 ### Refractometer & Extraction Yield (EY%) Calculator
+
+> **Status:** Done on iOS (TDS on each brew, calculator under Gear → Tools, control chart). Android/web open.
 - **Description:** Allow coffee enthusiasts with digital refractometers to evaluate extraction efficiency.
 - **Formulas:**
   $$\text{Extraction Yield (\%)} = \frac{\text{Beverage Weight (g)} \times \text{TDS (\%)}}{\text{Dry Coffee Dose (g)}}$$
@@ -108,6 +112,8 @@ A privacy-first, accountless sync system where user identity and encryption are 
 - **UI:** Interactive coffee brewing chart mapping TDS against Extraction Yield (under-extracted, balanced, over-extracted).
 
 ### Audio / Voice Step Prompts
+
+> **Status:** Done on iOS (Settings → Voice, AVSpeechSynthesizer, English prompts). Android/web open.
 - **Description:** Optional voice synthesis during active brewing so the barista does not need to look at the screen while pouring.
 - **Example Prompts:**
   - *"Pour to 60 grams for bloom."*
@@ -179,6 +185,8 @@ A privacy-first, accountless sync system where user identity and encryption are 
 ## 4. Bean Inventory & Smart Scanning
 
 ### On-Device OCR Label Scanner
+
+> **Status:** Done on iOS (bean editor → Scan label, Apple Vision, English and German labels). Android (ML Kit) open.
 - **Description:** Take a picture of a coffee bean bag and automatically extract metadata into a new Bean profile.
 - **Technology:**
   - Android: Google ML Kit Text Recognition (runs 100% on-device, zero cloud uploads).
@@ -187,6 +195,8 @@ A privacy-first, accountless sync system where user identity and encryption are 
   - Roaster name, bean name/origin (country & region), process method (Washed, Natural, Anaerobic, Honey), varietal (Geisha, Bourbon, SL28), and roast date.
 
 ### Bean Bag & Roast Photos
+
+> **Status:** Done on iOS: photo per bean (camera or library), roast-tinted placeholder, thumbnails in the bean list, brew setup and brew detail. Stored as downsampled JPEG in SwiftData external storage (not a separate file per bean) and exported inline as base64 (`photos` in the backup). Android/web open.
 - **Description:** Allow users to capture or select a photo of their coffee bag or roasted beans for each bean cellar entry.
 - **Visual Design & UX:**
   - **Custom Image:** When a photo is attached, display an edge-rounded thumbnail in the Bean Cellar, Brew Setup screen, and Brew Detail history card.
@@ -197,6 +207,8 @@ A privacy-first, accountless sync system where user identity and encryption are 
   - **Backup Integrity:** Allow exporting with images in a `.zip` bundle (similar to Beanconqueror backup archives) or inline Base64 data for lightweight single-file sharing.
 
 ### Universal Grinder Click & Dial Conversion Matrix
+
+> **Status:** Done on iOS as a calibration model rather than a fixed matrix: Gear → Tools → Grind converter, plus the recipe's µm range shown on the selected grinder. Built-in calibrations for Comandante C40, 1Zpresso K-Ultra and ZP6, Kingrinder K6; other grinders get `µm per step` + filter starting point in their settings. Android/web open.
 - **Description:** A reference tool to translate grind settings across different popular grinders.
 - **Supported Grinders:** Comandante C40 (clicks), Fellow Ode Gen 1/2, Timemore C2/C3/Chestnut, Baratza Encore ESP, 1Zpresso (JX, K-Ultra, ZP6), DF64, Niche Zero.
 - **Benefit:** When sharing a recipe with a friend or importing a community recipe, automatically map "24 clicks on Comandante" to "4.2 on Ode Gen 2".

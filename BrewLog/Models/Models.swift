@@ -43,6 +43,8 @@ final class Bean {
     var createdAt: Date = Date()
     /// Where an imported bean came from, e.g. "beanconqueror:<uuid>". Prevents duplicates on re-import.
     var externalID: String?
+    /// Photo of the bag or the beans, a downsampled JPEG (see `BeanPhoto`).
+    @Attribute(.externalStorage) var photo: Data?
 
     @Relationship(deleteRule: .nullify, inverse: \Brew.bean)
     var brews: [Brew]? = []
@@ -139,6 +141,8 @@ struct GrinderSpec: Hashable, Codable {
     var rangeNote: String = ""
     /// Sensible starting grind for filter coffee (presets), see `startingValue`.
     var defaultGrind: Double? = nil
+    /// How far one smallest step moves the burrs, in µm. Used to translate settings between grinders (`GrindConverter`).
+    var micronsPerStep: Double? = nil
 
     func format(_ value: Double) -> String {
         let decimals = step < 1 ? (step < 0.1 ? 2 : 1) : 0
@@ -184,6 +188,10 @@ final class Equipment {
     var finerIsLower: Bool = true
     var grindRangeNote: String = ""
     var grindDefault: Double?
+    var grindMicronsPerStep: Double?
+    /// Water only: total hardness (GH) and alkalinity (KH) in mg/L as CaCO3.
+    var waterHardness: Double?
+    var waterAlkalinity: Double?
     var isFavorite: Bool = false
     var createdAt: Date = Date()
     /// Where imported gear came from, e.g. "beanconqueror:<uuid>".
@@ -208,7 +216,8 @@ final class Equipment {
                         adjustStep: grindAdjustStep > 0 ? grindAdjustStep : 1,
                         finerIsLower: finerIsLower,
                         rangeNote: grindRangeNote,
-                        defaultGrind: grindDefault)
+                        defaultGrind: grindDefault,
+                        micronsPerStep: grindMicronsPerStep)
         }
         set {
             grindUnitRaw = newValue.unit.rawValue
@@ -217,6 +226,7 @@ final class Equipment {
             finerIsLower = newValue.finerIsLower
             grindRangeNote = newValue.rangeNote
             grindDefault = newValue.defaultGrind
+            grindMicronsPerStep = newValue.micronsPerStep
         }
     }
 
@@ -254,6 +264,9 @@ final class Equipment {
             return text
         case .brewer:
             return method?.displayName ?? ""
+        case .water:
+            guard let waterHardness, let waterAlkalinity else { return notes }
+            return WaterChemistry.summary(hardness: waterHardness, alkalinity: waterAlkalinity)
         default:
             return notes
         }
@@ -344,6 +357,12 @@ final class Brew {
     /// Espresso: pressure/temperature/flow from the machine, `[MachineSample]` as JSON.
     var machineSamplesData: Data?
     var usedScale: Bool = false
+    /// Refractometer reading in % and the drink weight it was taken from (see `Extraction`).
+    var tds: Double?
+    var beverageWeight: Double?
+    /// The water profile used (gear of type water).
+    var waterID: UUID?
+    var waterName: String = ""
     var rating: Int = 0
     var feedbackRaw: String = ""
     var notes: String = ""
@@ -402,6 +421,23 @@ final class Brew {
     }
 
     var ratio: Double { dose > 0 ? finalWeight / dose : 0 }
+
+    var isEspresso: Bool { recipe?.method.isEspresso ?? false }
+
+    /// The weighed drink, or an estimate from the final weight.
+    var effectiveBeverageWeight: Double {
+        beverageWeight ?? Extraction.estimatedBeverage(finalWeight: finalWeight, dose: dose, espresso: isEspresso)
+    }
+
+    /// Extraction yield in % when a TDS reading was entered.
+    var extractionYield: Double? {
+        tds.flatMap { Extraction.yield(tds: $0, beverage: effectiveBeverageWeight, dose: dose) }
+    }
+
+    func setWater(_ water: Equipment?) {
+        waterID = water?.id
+        waterName = water?.name ?? ""
+    }
     var isReviewed: Bool { rating > 0 || !feedbackRaw.isEmpty }
 }
 

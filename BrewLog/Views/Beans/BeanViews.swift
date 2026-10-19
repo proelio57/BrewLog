@@ -62,6 +62,14 @@ private struct BeanRow: View {
     let bean: Bean
 
     var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            BeanThumbnail(photo: bean.photo, roast: bean.roastLevel, size: 48)
+            details
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var details: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(bean.name).font(.headline)
@@ -86,7 +94,6 @@ private struct BeanRow: View {
                 ProgressView(value: min(max(bean.remaining / bean.bagWeight, 0), 1)).tint(.green)
             }
         }
-        .padding(.vertical, 4)
     }
 }
 
@@ -111,6 +118,7 @@ struct BeanEditorView: View {
     @State private var bagWeight: Double = 250
     @State private var remaining: Double = 250
     @State private var isArchived = false
+    @State private var photo: Data?
     @State private var loaded = false
 
     init(bean: Bean?, onCreate: ((Bean) -> Void)? = nil) {
@@ -120,6 +128,7 @@ struct BeanEditorView: View {
 
     var body: some View {
         Form {
+            BeanPhotoSection(photo: $photo, roast: roastLevel, onScan: apply)
             Section("Coffee") {
                 TextField("Name (e.g. Ethiopia Guji)", text: $name)
                 TextField("Roaster", text: $roaster)
@@ -218,6 +227,29 @@ struct BeanEditorView: View {
         bagWeight = bean.bagWeight
         remaining = bean.remaining
         isArchived = bean.isArchived
+        photo = bean.photo
+    }
+
+    /// Fills in what the label scan found. Typed text is kept, the pickers take the label's value.
+    private func apply(_ scan: LabelParser.Result) {
+        func fill(_ field: inout String, _ value: String?) {
+            if field.trimmingCharacters(in: .whitespaces).isEmpty, let value { field = value }
+        }
+        fill(&name, scan.name)
+        fill(&roaster, scan.roaster)
+        fill(&origin, scan.origin)
+        fill(&varietal, scan.varietal)
+        fill(&tastingNotes, scan.tastingNotes)
+        if let process = scan.process { self.process = process }
+        if let roast = scan.roastLevel { roastLevel = roast }
+        if let date = scan.roastDate {
+            hasRoastDate = true
+            roastDate = date
+        }
+        if let weight = scan.bagWeight, bean == nil {
+            bagWeight = weight
+            remaining = weight
+        }
     }
 
     private func save() {
@@ -234,6 +266,7 @@ struct BeanEditorView: View {
         target.bagWeight = bagWeight.clamped(0, InputLimits.maxBagWeight)
         target.remaining = remaining.clamped(0, InputLimits.maxBagWeight)
         target.isArchived = isArchived
+        if target.photo != photo { target.photo = photo }
         if bean == nil {
             context.insert(target)
             onCreate?(target)

@@ -33,7 +33,9 @@ A pour-over brewing companion for iPhone, with matching [Android](android/README
   - **Filters** with flow speed and roast suitability: **CAFEC T-90 / T-92 / T-83**, Abaca(+), **Hario V60 standard**, tabbed and natural papers, Sibarist, Kalita, Chemex …
   - **Grinders** with their own scale (clicks, numbers or dial, step size, finer direction): Comandante, 1Zpresso, Timemore, Kingrinder, Fellow Ode, Niche …
 - **Grind tracking**: grind is logged as a number on your grinder's scale. The next brew of the same bean is **pre-filled with the grind the last review suggested**. Each bean shows a grind log. Switching grinders brings back that grinder's own last setting (or a sensible starting point), never the number from the other grinder.
-- **Beans**: roaster, origin, process, roast level and date (days off roast), bag weight with automatic deduction. Add beans before or after brewing.
+- **Beans**: roaster, origin, process, roast level and date (days off roast), bag weight with automatic deduction. Add beans before or after brewing. Add a **photo** of the bag (camera or library), or **scan the label**: BrewLog reads name, roaster, origin, process, varietal, roast date and weight from the bag. The text is recognized on the iPhone, nothing is uploaded (iOS).
+- **Tools** (Gear tab, iOS): **extraction calculator** for refractometer readings (TDS → extraction yield with a brewing control chart, also on every brew), **water recipes** (SCA, Rao, Barista Hustle and more, as grams of Epsom salt, calcium chloride and baking soda or as concentrates, saved as water profiles you pick per brew) and a **grind converter** between grinders. The recipe's grind size is also shown as a setting on your grinder.
+- **Spoken step prompts** (iOS, Settings → Voice): "Pour to 150 grams." at each step, optionally "Next, …" a few seconds ahead, so you can keep your eyes on the kettle.
 - **Journal**: every brew is saved with its curve, rating, taste feedback, notes, analysis and a "Brew again with suggestions" button. Entered something wrong? **Edit** corrects date, recipe, dose, water, time, temperature and gear afterwards, and the analysis updates.
 - **Lock Screen & Dynamic Island**: leave the app while brewing and a Live Activity shows the timer, the current step, a countdown to the next one and the live weight. Cues keep playing in the background.
 - **Import & export**:
@@ -134,6 +136,7 @@ The documented XOR checksum matches the tare command, but the **timer commands u
 ## Security & privacy
 
 - **No accounts, no analytics, no third-party dependencies.** All data stays on the device in the app sandbox, protected by iOS Data Protection. A privacy manifest (`PrivacyInfo.xcprivacy`) declares no tracking and no data collection.
+- **Camera**: only when you photograph a bag. Label text is recognized on the device with Apple Vision; photos stay in the app (and in your own backup file).
 - **Network**: the only request is the optional download of the public recipe list (HTTPS, max 1 MB, validated like any imported recipe, can be turned off in Settings). Builds without `RECIPE_FEED_URL` make no network requests at all.
 - **Imported files are untrusted**: size-limited (200 MB, 100 MB per ZIP entry), parsed leniently and then sanitized and clamped like everything you type.
 - **Bluetooth input is untrusted**:
@@ -179,7 +182,7 @@ Hosting, installing and the browser details are in [web/README.md](web/README.md
 
 See [docs/feature-requests.md](docs/feature-requests.md) for detailed architectural proposals and community requests, including:
 - **Zero-knowledge cryptographic sync**: Accountless journal restore using a secret hash / recovery key so data persists across app reinstalls without accounts or telemetry.
-- **Brewing science**: Water chemistry/mineral calculator, TDS & extraction yield refractometer assistant.
+- **Brewing science**: water calculator, TDS & extraction yield, voice prompts, bean photos with label scan and the grind converter are done on iOS; Android and web follow.
 - **Hardware & sensors**: Smart BLE kettles (Fellow Stagg), additional scales (Acaia, Timemore), Wear OS / watchOS companion timer.
 
 For AI assistants (Claude, Gemini) and contributors maintaining cross-platform synchronization, see the [AI Parity & Maintenance Guide](docs/ai-parity-guide.md).

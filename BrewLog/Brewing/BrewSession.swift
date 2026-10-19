@@ -33,6 +33,8 @@ final class BrewSession {
 
     @ObservationIgnored private let scale: ScaleManager
     @ObservationIgnored private let sound: SoundPlayer
+    @ObservationIgnored private let voice = VoicePrompter.shared
+    @ObservationIgnored private var previewed: Set<Int> = []
     @ObservationIgnored private let machine: MachineManager
     @ObservationIgnored private let monitor: PressureMonitor
     /// The weight comes from the scale connected to the espresso machine instead of BrewLog's own scale connection.
@@ -93,6 +95,7 @@ final class BrewSession {
         // Brew discarded mid-way: stop the scale timer / demo simulation too.
         if usesScale && !weighsViaMachine && (phase == .armed || phase == .brewing) { scale.brewFinished() }
         liveActivity.end(nil)
+        voice.stop()
         sound.stop()
         UIApplication.shared.isIdleTimerDisabled = false
     }
@@ -320,6 +323,7 @@ final class BrewSession {
         for (index, step) in recipe.steps.enumerated() where step.time <= 0 {
             startPinged.insert(index)
         }
+        if let first = recipe.steps.first(where: { $0.time <= 0 }) { voice.say(StepAnnouncement.text(for: first), delay: 0) }
         liveActivity.start(recipe: recipe, state: liveActivityState())
     }
 
@@ -334,6 +338,7 @@ final class BrewSession {
             return
         }
         checkStepStarts()
+        checkStepPreview()
         checkCountdownTicks()
         checkFinishPing()
         liveActivity.update(liveActivityState())
@@ -371,7 +376,22 @@ final class BrewSession {
         for (index, step) in recipe.steps.enumerated() where step.time > 0 && step.time <= elapsed && !startPinged.contains(index) {
             startPinged.insert(index)
             // Don't replay cues that were missed (e.g. app was suspended)
-            if elapsed - step.time < 2 { fire(.nextStep) }
+            if elapsed - step.time < 2 {
+                fire(.nextStep)
+                voice.say(StepAnnouncement.text(for: step))
+            }
+        }
+    }
+
+    /// "Next, pour to 250 grams." a few seconds ahead, when the previous step leaves time for it.
+    private func checkStepPreview() {
+        guard AppSettings.voicePrompts, AppSettings.voicePreview, let next = nextStepIndex, !previewed.contains(next),
+              let remaining = timeToNextStep, remaining <= StepAnnouncement.leadTime else { return }
+        previewed.insert(next)
+        let previousStart = currentStepIndex.map { recipe.steps[$0].time } ?? 0
+        let gap = recipe.steps[next].time - previousStart
+        if remaining > StepAnnouncement.leadTime - 1, gap >= StepAnnouncement.leadTime + 6 {
+            voice.say(StepAnnouncement.preview(for: recipe.steps[next]), delay: 0)
         }
     }
 
@@ -389,7 +409,10 @@ final class BrewSession {
         finishPinged = true
         // Skip if a recipe step already chimes at this exact moment (e.g. "remove dripper")
         if recipe.steps.contains(where: { abs($0.time - recipe.targetTime) < 1.5 }) { return }
-        if elapsed - recipe.targetTime < 2 { fire(.finish) }
+        if elapsed - recipe.targetTime < 2 {
+            fire(.finish)
+            voice.say(StepAnnouncement.finished)
+        }
     }
 
     private func checkTargetPing() {

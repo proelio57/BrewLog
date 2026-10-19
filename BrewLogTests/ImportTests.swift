@@ -95,7 +95,7 @@ final class ImportTests: XCTestCase {
       "BREWS": [
         { "grind_size": "24", "grind_weight": 15, "method_of_preparation": "prep-1", "mill": "mill-1", "bean": "bean-1",
           "brew_temperature": 94, "brew_time": 165, "brew_time_milliseconds": 500, "brew_quantity": 250,
-          "brew_beverage_quantity": 215, "rating": 8, "note": "juicy",
+          "brew_beverage_quantity": 215, "rating": 8, "note": "juicy", "tds": 1.38,
           "config": { "uuid": "brew-1", "unix_timestamp": 1760000000 } },
         { "grind_size": "medium", "grind_weight": "16,5", "method_of_preparation": "", "mill": "", "bean": "",
           "brew_temperature": null, "brew_time": 0, "brew_quantity": 0, "brew_beverage_quantity": 230, "rating": 0,
@@ -122,6 +122,9 @@ final class ImportTests: XCTestCase {
         XCTAssertEqual(brew.time, 165.5, accuracy: 0.001)
         XCTAssertEqual(brew.dose, 15)
         XCTAssertEqual(brew.water, 250)
+        XCTAssertEqual(brew.beverage, 215)
+        XCTAssertEqual(brew.tds, 1.38)
+        XCTAssertEqual(backup.brews[1].tds, 0)
         XCTAssertEqual(backup.stars(for: brew.rating), 4, "8 of 10 → 4 stars")
 
         let second = backup.brews[1]

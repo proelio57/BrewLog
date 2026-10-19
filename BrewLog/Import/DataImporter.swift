@@ -82,7 +82,11 @@ enum DataImporter {
 
         for record in backup.beans {
             let id = uuid(record.id)
-            guard beans[id] == nil else { continue }
+            if let existing = beans[id] {
+                // Nothing is replaced, but a photo the bean doesn't have yet is added.
+                if existing.photo == nil, let photo = backup.photos[record.id] { existing.photo = photo }
+                continue
+            }
             let bean = Bean(name: record.name, roaster: record.roaster)
             bean.id = id
             bean.origin = record.origin
@@ -97,6 +101,7 @@ enum DataImporter {
             bean.isArchived = record.isArchived
             bean.createdAt = record.createdAt
             bean.externalID = record.externalId
+            if let photo = backup.photos[record.id] { bean.photo = photo }
             context.insert(bean)
             beans[id] = bean
             summary.beans += 1
@@ -110,6 +115,8 @@ enum DataImporter {
                                  grinder: record.grinder, notes: record.notes)
             item.id = id
             item.isFavorite = record.isFavorite ?? false
+            item.waterHardness = record.waterHardness
+            item.waterAlkalinity = record.waterAlkalinity
             item.createdAt = record.createdAt
             item.externalID = record.externalId
             context.insert(item)
@@ -150,6 +157,10 @@ enum DataImporter {
             brew.filterIdealRoastRaw = record.filterIdealRoast?.rawValue
             brew.bean = record.beanId.flatMap { beans[uuid($0)] }
             brew.usedScale = record.usedScale
+            brew.tds = record.tds
+            brew.beverageWeight = record.beverageWeight
+            brew.waterID = record.waterId.map(uuid)
+            brew.waterName = record.waterName
             brew.rating = record.rating
             brew.feedback = Set(record.feedback)
             brew.notes = record.notes
@@ -173,18 +184,22 @@ enum DataImporter {
     static func exportBackup(from context: ModelContext, exportedAt: Date = Date()) throws -> Data {
         let id = BrewLogBackup.idString
         var backup = BrewLogBackup()
-        backup.beans = try context.fetch(FetchDescriptor<Bean>(sortBy: [SortDescriptor(\.createdAt)])).map {
+        let beans = try context.fetch(FetchDescriptor<Bean>(sortBy: [SortDescriptor(\.createdAt)]))
+        backup.beans = beans.map {
             BrewLogBackup.BeanRecord(
                 id: id($0.id), name: $0.name, roaster: $0.roaster, origin: $0.origin, varietal: $0.varietal,
                 process: $0.process, roastLevel: $0.roastLevel, roastDate: $0.roastDate, tastingNotes: $0.tastingNotes,
                 notes: $0.notes, bagWeight: $0.bagWeight, remaining: $0.remaining, isArchived: $0.isArchived,
                 createdAt: $0.createdAt, externalId: $0.externalID)
         }
+        for bean in beans {
+            if let photo = bean.photo, BrewLogBackup.isPhoto(photo) { backup.photos[id(bean.id)] = photo }
+        }
         backup.equipment = try context.fetch(FetchDescriptor<Equipment>(sortBy: [SortDescriptor(\.createdAt)])).map {
             BrewLogBackup.GearRecord(
                 id: id($0.id), name: $0.name, type: $0.type, notes: $0.notes, method: $0.method,
                 filterFlow: $0.filterFlow, idealRoast: $0.idealRoast, grinder: $0.grinderSpec,
-                isFavorite: $0.isFavorite, createdAt: $0.createdAt, externalId: $0.externalID)
+                waterHardness: $0.waterHardness, waterAlkalinity: $0.waterAlkalinity, isFavorite: $0.isFavorite, createdAt: $0.createdAt, externalId: $0.externalID)
         }
         for brew in try context.fetch(FetchDescriptor<Brew>(sortBy: [SortDescriptor(\.date)])) {
             let key = id(brew.id)
@@ -196,6 +211,7 @@ enum DataImporter {
                 grinderId: brew.grinderID.map(id), grinderName: brew.grinderName, grinderSpec: brew.grinderSpec,
                 filterId: brew.filterID.map(id), filterName: brew.filterName, filterFlow: brew.filterFlow,
                 filterIdealRoast: brew.filterIdealRoast, beanId: brew.bean.map { id($0.id) }, usedScale: brew.usedScale,
+                tds: brew.tds, beverageWeight: brew.beverageWeight, waterId: brew.waterID.map(id), waterName: brew.waterName,
                 rating: brew.rating, feedback: brew.feedback.sorted { $0.rawValue < $1.rawValue }, notes: brew.notes,
                 externalId: brew.externalID))
             let samples = brew.samples
@@ -351,6 +367,8 @@ enum DataImporter {
             brew.finalWeight = water
             brew.totalTime = item.time.clamped(0, InputLimits.maxBrewSeconds)
             brew.waterTemp = item.temperature.clamped(0, 100)
+            if item.tds > 0 { brew.tds = item.tds.clamped(0, Extraction.Limits.maxTDS) }
+            if !espresso, item.beverage > 0, item.water > 0 { brew.beverageWeight = item.beverage.clamped(0, InputLimits.maxWater) }
             brew.grindSetting = item.grindSize.sanitized(maxLength: InputLimits.maxShortText)
             if let grinder = gear[prefix + item.millID] {
                 brew.setGrinder(grinder)

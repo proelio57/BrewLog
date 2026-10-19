@@ -2,7 +2,7 @@ import Foundation
 
 /// The BrewLog backup file, the same format on iOS, Android and the web app (docs/data-formats.md):
 /// `{"app": "BrewLog", "format": 1, "exportedAt", "data": {"version": 1, "beans", "equipment", "brews", "customRecipes"},
-///   "samples": {brewId: [[t, w], …]}, "machine": {brewId: [{t, p, c, f}, …]}}`.
+///   "samples": {brewId: [[t, w], …]}, "machine": {brewId: [{t, p, c, f}, …]}, "photos": {beanId: base64 JPEG}}`.
 /// Android exports (so far) the bare `data` object. Dates are milliseconds since 1970.
 ///
 /// The file is untrusted: every field is optional, sanitized and clamped, and a broken entry only drops itself.
@@ -15,6 +15,8 @@ struct BrewLogBackup: Equatable {
     var samples: [String: [WeightSample]] = [:]
     /// Espresso pressure/temperature/flow curves by brew id.
     var machine: [String: [MachineSample]] = [:]
+    /// Bean photos (JPEG or PNG) by bean id.
+    var photos: [String: Data] = [:]
 
     enum Limits {
         static let maxBeans = 1_000
@@ -22,6 +24,7 @@ struct BrewLogBackup: Equatable {
         static let maxBrews = 10_000
         static let maxRecipes = 500
         static let maxSamples = 18_010
+        static let maxPhotoBytes = 2_000_000
         static let maxIDLength = 120
         /// 2100-01-01, later dates are clamped.
         static let maxDate = Date(timeIntervalSince1970: 4_102_444_800)
@@ -52,8 +55,16 @@ struct BrewLogBackup: Equatable {
             exportedAt: iso.string(from: exportedAt),
             data: .init(beans: beans, equipment: equipment, brews: brews, customRecipes: customRecipes),
             samples: samples.mapValues { $0.map { [$0.t, $0.w] } },
-            machine: machine)
+            machine: machine,
+            photos: photos.isEmpty ? nil : photos)
         return try encoder.encode(file)
+    }
+
+    /// Only JPEG and PNG data of a sensible size is kept from a file.
+    static func isPhoto(_ data: Data) -> Bool {
+        guard data.count > 8, data.count <= Limits.maxPhotoBytes else { return false }
+        let head = [UInt8](data.prefix(4))
+        return head.starts(with: [0xFF, 0xD8, 0xFF]) || head == [0x89, 0x50, 0x4E, 0x47]
     }
 
     /// iOS stores ids as UUIDs. The web app can also create other ids ("id-…"); those map to a stable UUID,
@@ -110,6 +121,9 @@ extension BrewLogBackup {
         var filterFlow: FilterFlow?
         var idealRoast: RoastLevel?
         var grinder = GrinderSpec()
+        /// Water only: hardness and alkalinity in mg/L as CaCO3.
+        var waterHardness: Double?
+        var waterAlkalinity: Double?
         /// iOS only, the other apps ignore it.
         var isFavorite: Bool?
         var createdAt = Date()
@@ -142,6 +156,10 @@ extension BrewLogBackup {
         var filterIdealRoast: RoastLevel?
         var beanId: String?
         var usedScale = false
+        var tds: Double?
+        var beverageWeight: Double?
+        var waterId: String?
+        var waterName = ""
         var rating = 0
         /// Raw values, sorted.
         var feedback: [TasteFeedback] = []
@@ -233,6 +251,8 @@ extension BrewLogBackup.GearRecord {
         filterFlow = c.lenient(FilterFlow.self, .filterFlow)
         idealRoast = c.lenient(RoastLevel.self, .idealRoast)
         grinder = c.lenient(LenientGrinderSpec.self, .grinder)?.spec ?? GrinderSpec()
+        waterHardness = c.optionalNumber(.waterHardness, 0, WaterChemistry.Limits.maxPPM)
+        waterAlkalinity = c.optionalNumber(.waterAlkalinity, 0, WaterChemistry.Limits.maxPPM)
         isFavorite = c.lenient(Bool.self, .isFavorite)
         createdAt = c.date(.createdAt) ?? Date()
         externalId = c.externalID(.externalId)
@@ -266,6 +286,10 @@ extension BrewLogBackup.BrewRecord {
         filterIdealRoast = c.lenient(RoastLevel.self, .filterIdealRoast)
         beanId = c.id(.beanId)
         usedScale = c.lenient(Bool.self, .usedScale) ?? false
+        tds = c.optionalNumber(.tds, 0, Extraction.Limits.maxTDS).flatMap { $0 > 0 ? $0 : nil }
+        beverageWeight = c.optionalNumber(.beverageWeight, 0, InputLimits.maxWater * 2).flatMap { $0 > 0 ? $0 : nil }
+        waterId = c.id(.waterId)
+        waterName = c.text(.waterName, max: InputLimits.maxNameLength)
         rating = Int(c.number(.rating, 0, 5, default: 0).rounded())
         let feedbackRaw = c.lenient([Lossy<TasteFeedback>].self, .feedback) ?? []
         feedback = Set(feedbackRaw.compactMap(\.value)).sorted { $0.rawValue < $1.rawValue }
@@ -278,7 +302,7 @@ extension BrewLogBackup.BrewRecord {
 private struct LenientGrinderSpec: Decodable {
     var spec: GrinderSpec
 
-    private enum Keys: String, CodingKey { case unit, step, adjustStep, finerIsLower, rangeNote, defaultGrind }
+    private enum Keys: String, CodingKey { case unit, step, adjustStep, finerIsLower, rangeNote, defaultGrind, micronsPerStep }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -288,8 +312,15 @@ private struct LenientGrinderSpec: Decodable {
                            adjustStep: max(c.number(.adjustStep, 0.01, 100, default: 2), step),
                            finerIsLower: c.lenient(Bool.self, .finerIsLower) ?? true,
                            rangeNote: c.text(.rangeNote, max: InputLimits.maxShortText),
-                           defaultGrind: c.optionalNumber(.defaultGrind, 0, 10_000))
+                           defaultGrind: c.optionalNumber(.defaultGrind, 0, 10_000),
+                           micronsPerStep: c.optionalNumber(.micronsPerStep, 0.1, 1_000))
     }
+}
+
+/// Binary data as a base64 string (through the decoder, so its data strategy applies).
+private struct Base64: Decodable {
+    var data: Data
+    init(from decoder: Decoder) throws { data = try decoder.singleValueContainer().decode(Data.self) }
 }
 
 /// A weight sample written as `[t, w]` (backup files) or `{"t", "w"}`.
@@ -324,6 +355,7 @@ private struct Envelope: Decodable {
         var data: AppData
         var samples: [String: [[Double]]]
         var machine: [String: [MachineSample]]
+        var photos: [String: Data]?
     }
 
     struct AppData: Codable {
@@ -355,7 +387,7 @@ private struct Envelope: Decodable {
         }
     }
 
-    private enum Keys: String, CodingKey { case app, data, samples, machine }
+    private enum Keys: String, CodingKey { case app, data, samples, machine, photos }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -379,6 +411,11 @@ private struct Envelope: Decodable {
                 MachineSample(t: $0.t.clamped(0, InputLimits.maxBrewSeconds), p: $0.p.clamped(0, 20),
                               c: $0.c.map { $0.clamped(0, 200) }, f: $0.f.map { $0.clamped(0, 30) })
             }
+        }
+        let photos = c.lenient([String: Lossy<Base64>].self, .photos) ?? [:]
+        for (id, photo) in photos.prefix(BrewLogBackup.Limits.maxBeans) {
+            guard let photo = photo.value?.data, id.count <= BrewLogBackup.Limits.maxIDLength, BrewLogBackup.isPhoto(photo) else { continue }
+            backup.photos[id] = photo
         }
     }
 }

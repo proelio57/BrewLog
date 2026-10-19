@@ -53,6 +53,8 @@ struct BeanconquerorBackup {
         var beverage: Double
         var rating: Double
         var note: String
+        /// Refractometer reading in % (`tds`), 0 = none.
+        var tds: Double = 0
     }
 
     enum ImportError: LocalizedError, Equatable {
@@ -164,7 +166,8 @@ struct BeanconquerorBackup {
                         water: number(item["brew_quantity"]) ?? 0,
                         beverage: number(item["brew_beverage_quantity"]) ?? 0,
                         rating: number(item["rating"]) ?? 0,
-                        note: string(item["note"]))
+                        note: string(item["note"]),
+                        tds: number(item["tds"]) ?? 0)
         }
         return backup
     }

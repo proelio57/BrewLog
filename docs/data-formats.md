@@ -57,7 +57,8 @@ twice adds nothing. The same **Import** also reads recipe files and Beanconquero
   "app": "BrewLog", "format": 1, "exportedAt": "2026-10-17T08:00:00.000Z",
   "data": { "version": 1, "beans": [], "equipment": [], "brews": [], "customRecipes": [] },
   "samples": { "<brewId>": [[0, 0], [1.5, 12.3]] },
-  "machine": { "<brewId>": [{ "t": 0, "p": 1.5, "c": 92.5, "f": 2.1 }] }
+  "machine": { "<brewId>": [{ "t": 0, "p": 1.5, "c": 92.5, "f": 2.1 }] },
+  "photos": { "<beanId>": "<base64 JPEG>" }
 }
 ```
 
@@ -66,21 +67,54 @@ twice adds nothing. The same **Import** also reads recipe files and Beanconquero
   UUID, so references and de-duplication still work.
 - `samples`: weight curve per brew as `[seconds, grams]` pairs (`{t, w}` objects are read too). `machine`: espresso
   pressure/temperature/flow per brew (see Espresso shots). Only stored for brews the import adds.
+- `photos` (iOS, optional): bean photo per bean as base64 JPEG (or PNG), downsampled to at most 1024 px, at most
+  2 MB each; anything else is ignored. Added on import to new beans and to existing beans that have no photo.
+  Apps without bean photos ignore the key.
 - **Bean:** `id, name, roaster, origin, varietal, process, roastLevel, roastDate (or null), tastingNotes, notes,
   bagWeight, remaining, isArchived, createdAt, externalId`.
 - **Equipment:** `id, name, type (brewer|grinder|kettle|filter|scale|water), notes, method, filterFlow, idealRoast,
-  grinder {unit, step, adjustStep, finerIsLower, rangeNote, defaultGrind}, createdAt, externalId`; iOS also writes
-  `isFavorite`.
+  grinder {unit, step, adjustStep, finerIsLower, rangeNote, defaultGrind, micronsPerStep}, waterHardness,
+  waterAlkalinity, createdAt, externalId`; iOS also writes `isFavorite`. `micronsPerStep` (µm one smallest step moves
+  the burrs) is optional and used by the grind converter (see below). `waterHardness` / `waterAlkalinity`: water
+  profiles only, mg/L as CaCO3 (0–500), optional.
 - **Brew:** `id, date, recipeId, recipeName, recipe (snapshot of the scaled recipe or null), dose, targetWater,
   finalWeight, totalTime, waterTemp, grindSetting, grindValue, suggestedGrind, brewerId, brewerName, grinderId,
-  grinderName, grinderSpec, filterId, filterName, filterFlow, filterIdealRoast, beanId, usedScale, rating (0–5),
-  feedback ([perfect|sour|bitter|weak|strong|astringent|flat]), notes, externalId`.
+  grinderName, grinderSpec, filterId, filterName, filterFlow, filterIdealRoast, beanId, usedScale, tds,
+  beverageWeight, waterId, waterName, rating (0–5), feedback ([perfect|sour|bitter|weak|strong|astringent|flat]),
+  notes, externalId`. `tds` (refractometer reading in %, 0–25) and `beverageWeight` (drink in grams) are optional;
+  `waterId` / `waterName` point to the water profile used (gear of type `water`).
 - `customRecipes`: recipe objects as in recipe files.
 - Android (for now) exports the bare `data` object (no wrapper, no curves); it's read the same way.
 - The file is untrusted: every field is optional with the defaults of a new item, text is sanitized and limited,
   numbers are clamped (e.g. dose ≤ 150 g, water ≤ 3000 g, time ≤ 30 min), unknown fields and enum values are
   ignored, a broken entry (e.g. a bean without a name) only drops itself. Limits: 1000 beans, 1000 gear,
   10 000 brews, 500 recipes, 18 010 samples per brew, 200 MB per file.
+
+## Extraction, water and grind conversion
+
+- **Extraction yield** (`Tools/Extraction.swift`): `EY % = beverage g × TDS % / dose g`. Without a weighed drink the
+  beverage is estimated: espresso = the yield in the cup, filter = water poured − 2 × dose (the grounds hold back
+  about twice their weight). Ideal zone: filter 1.15–1.45 % TDS, espresso 8–12 % TDS, both at 18–22 % EY.
+- **Water** (`Tools/WaterChemistry.swift`): hardness (GH) and alkalinity (KH) in mg/L as CaCO3. Per litre and ppm:
+  Epsom salt (MgSO4·7H2O) 2.4625 mg, calcium chloride (CaCl2·2H2O) 1.4688 mg, baking soda (NaHCO3) 1.6786 mg.
+  Concentrates as Barista Hustle: 2.46 g Epsom / 1.47 g CaCl2 / 1.68 g baking soda in 1 L = 1000 ppm, so 1 g of
+  concentrate per litre of brewing water adds 1 ppm. Presets (GH / KH): SCA 68 / 40, Rao 76 / 50,
+  Barista Hustle 81 / 40, Hendon 100 / 31, World of Coffee Budapest 51 / 40, Melbourne 24 / 12.
+- **Grind converter** (`Tools/GrindConverter.swift`): a calibrated grinder has `defaultGrind` (medium-fine filter
+  setting) and `micronsPerStep`. Its filter setting sits at 720 µm on a shared scale (Comandante 24 clicks × 30 µm),
+  each step moves `micronsPerStep` along it (reversed when `finerIsLower` is false):
+  `µm = 720 ± (value − defaultGrind) / step × micronsPerStep`. Built-in calibrations by preset name: Comandante C40
+  30, 1Zpresso K-Ultra 20, 1Zpresso ZP6 Special 16, Kingrinder K6 16 µm per step; a `microns` grinder uses its step.
+  Recipe grind texts give sizes on the same scale (`about 600–750 µm`), shown as a setting on the selected grinder.
+- **Label scan** (`Tools/LabelParser.swift`, text recognized on the device with Apple Vision): English and German
+  labels. Origin from a list of producing countries, process and roast level from keywords, varietals from a list
+  (Colombia / Java only after a "varietal" label), weight from `250 g` / `1 kg`, roast date from the line that says
+  "roast"/"röst" (or the next line), never from best-before lines, only up to a year old and not in the future.
+  The biggest remaining text is the name; a "… Roasters" / "Rösterei" line (else big text above the name) the
+  roaster. Found values fill empty fields only; process, roast level and date replace the pickers.
+- **Voice prompts** (`Audio/StepAnnouncement.swift`): at each step "Bloom to 45 grams." plus the step's note when it
+  is at most 80 characters; optionally "Next, pour to 250 grams." 5 s before a step when the step before is at least
+  11 s long; "Brew time reached." at the target time.
 
 ## Espresso shots
 
@@ -136,19 +170,30 @@ for large backups (stored or deflated entries). Mapping:
 | `brew_time` + `brew_time_milliseconds` / 1000 | total time |
 | `brew_temperature`, `note` | water temp, notes |
 | `grind_size` | grind text; numeric (`24`, `7,5`) → grind value on the grinder's scale |
+| `tds`, `brew_beverage_quantity` (iOS) | TDS; drink weight for filter brews when both quantities are set |
 | `rating` on `SETTINGS[0].brew_rating` scale (default 5) | 1–5 stars, 0 = not rated |
 
 Imported items remember their Beanconqueror id (`externalID = "beanconqueror:<uuid>"`), so importing the same
 backup again only adds what's new. Gear with the same name as existing gear is reused. Brews have no recipe and
 no pour curve; choosing a recipe via **Edit** enables the analysis.
 
-## Porting checklist (Android)
+## Porting checklist (Android, web)
 
-Web has everything above. Android still needs:
+Android still needs:
 
 - [ ] BrewLog backup in the wrapped format above: export with `samples`/`machine`, import that detects
   `"app": "BrewLog"` (today Android exports and reads only the bare `data` object, without curves)
 - [ ] Espresso: shot screen, espresso analysis, GaggiMate (started on branch `wip/android-espresso-parity`)
+
+Android and web still need the iOS tools (logic and test cases to port: `BrewLog/Tools/*.swift`,
+`BrewLog/Audio/StepAnnouncement.swift`, `BrewLogTests/ToolsTests.swift`):
+
+- [ ] TDS / extraction yield on a brew (`tds`, `beverageWeight`) and the extraction calculator with control chart
+- [ ] Water recipes calculator, water profiles (`waterHardness`, `waterAlkalinity`) and `waterId` / `waterName` on brews
+- [ ] Grind converter, `micronsPerStep` in the grinder settings, recipe grind size on the selected grinder
+- [ ] Spoken step prompts (Android: `TextToSpeech`, web: `speechSynthesis`)
+- [ ] Bean photos (`photos` in the backup) and the label scan (Android: ML Kit text recognition on the device;
+  web: photo only, no on-device text recognition)
 
 Test data: `BrewLogTests/ImportTests.swift` (`backupJSON`, ZIP fixtures) and `BrewLogTests/BackupTests.swift`
 (`webBackupJSON`, a web backup with broken entries) can be reused as fixtures.

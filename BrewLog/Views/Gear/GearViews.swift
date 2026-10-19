@@ -18,6 +18,7 @@ struct GearListView: View {
                     .accessibilityIdentifier("gear.setupAssistant")
                     NavigationLink { SettingsView() } label: { Label("Settings", systemImage: "gearshape") }
                 }
+                ToolsSection()
                 ForEach(EquipmentType.allCases) { type in
                     let items = equipment.filter { $0.type == type }
                     if !items.isEmpty {
@@ -138,6 +139,8 @@ struct EquipmentEditorView: View {
     @State private var idealRoast: RoastLevel?
     @State private var spec = GrinderSpec()
     @State private var notes = ""
+    @State private var waterHardness: Double?
+    @State private var waterAlkalinity: Double?
     @State private var loaded = false
 
     var body: some View {
@@ -186,6 +189,24 @@ struct EquipmentEditorView: View {
                 } footer: {
                     Text("Example: with a typical adjustment of 2, BrewLog suggests going from 24 to 22 clicks when your brew tastes sour and ran fast.")
                 }
+                Section {
+                    optionalRow("Filter starting point", value: $spec.defaultGrind)
+                    optionalRow("µm per step", value: $spec.micronsPerStep)
+                } header: {
+                    Text("Calibration")
+                } footer: {
+                    Text("Your setting for a medium-fine pour-over and how far one smallest step moves the burrs (from the manufacturer). With both, BrewLog translates recipe grind sizes and other grinders' settings to this grinder.")
+                }
+            case .water:
+                Section {
+                    optionalRow("Hardness (GH, ppm)", value: $waterHardness)
+                    optionalRow("Alkalinity (KH, ppm)", value: $waterAlkalinity)
+                    NavigationLink { WaterCalculatorView() } label: { Label("Water recipes", systemImage: "drop.triangle") }
+                } header: {
+                    Text("Minerals")
+                } footer: {
+                    Text("In mg/L as CaCO3, from your recipe or the water report. Optional.")
+                }
             default:
                 EmptyView()
             }
@@ -220,16 +241,29 @@ struct EquipmentEditorView: View {
         }
     }
 
+    private func optionalRow(_ title: String, value: Binding<Double?>) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            TextField("–", value: value, format: .number.precision(.fractionLength(0...2)))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 80)
+        }
+    }
+
     private func load() {
         guard !loaded else { return }
         loaded = true
         guard let item else { return }
+        waterHardness = item.waterHardness
+        waterAlkalinity = item.waterAlkalinity
         name = item.name
         type = item.type
         method = item.method ?? .v60
         flow = item.filterFlow ?? .medium
         idealRoast = item.idealRoast
-        spec = item.grinderSpec
+        spec = GrindConverter.calibrated(item.grinderSpec, name: item.name)
         notes = item.notes
     }
 
@@ -249,7 +283,12 @@ struct EquipmentEditorView: View {
             clean.step = spec.step.clamped(0.01, 100)
             clean.adjustStep = max(spec.adjustStep.clamped(0.01, 100), clean.step)
             clean.rangeNote = spec.rangeNote.sanitized(maxLength: InputLimits.maxShortText)
+            clean.defaultGrind = spec.defaultGrind.map { $0.clamped(0, 10_000) }
+            clean.micronsPerStep = spec.micronsPerStep.flatMap { $0 > 0 ? $0.clamped(0.1, 1_000) : nil }
             target.grinderSpec = clean
+        case .water:
+            target.waterHardness = waterHardness.map { $0.clamped(0, WaterChemistry.Limits.maxPPM) }
+            target.waterAlkalinity = waterAlkalinity.map { $0.clamped(0, WaterChemistry.Limits.maxPPM) }
         default:
             break
         }
@@ -278,6 +317,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.silentModeSound) private var silentModeSound = true
     @AppStorage(SettingsKey.countdownTicks) private var countdownTicks = false
     @AppStorage(SettingsKey.finishPing) private var finishPing = true
+    @AppStorage(SettingsKey.voicePrompts) private var voicePrompts = false
+    @AppStorage(SettingsKey.voicePreview) private var voicePreview = true
     @AppStorage(SettingsKey.keepAwake) private var keepAwake = true
     @AppStorage(SettingsKey.onlineRecipes) private var onlineRecipes = true
     @State private var showScale = false
@@ -319,6 +360,8 @@ struct SettingsView: View {
             } footer: {
                 Text("Automatic buffer = your pour rate × reaction time + 1 g, so you hear the ping early enough to stop right on target. Increase the reaction time if you often overpour.")
             }
+
+            voiceSection
 
             Section("Sound & haptics") {
                 Toggle("Sounds", isOn: $soundEnabled)
@@ -386,6 +429,23 @@ struct SettingsView: View {
             }
         }
         .sheet(isPresented: $showScale) { ScaleConnectSheet() }
+    }
+
+    private var voiceSection: some View {
+        Section {
+            Toggle("Spoken step prompts", isOn: $voicePrompts)
+            if voicePrompts {
+                Toggle("Announce the next step ahead", isOn: $voicePreview)
+                Button("Test voice") {
+                    SoundPlayer.shared.prepare()
+                    VoicePrompter.shared.say(StepAnnouncement.text(for: RecipeStep(kind: .bloom, time: 0, target: 45, note: nil)), delay: 0)
+                }
+            }
+        } header: {
+            Text("Voice")
+        } footer: {
+            Text("Reads each step out loud, e.g. \"Pour to 150 grams.\", so you can keep your eyes on the kettle. Ahead: \"Next, pour to 250 grams.\" \(Int(StepAnnouncement.leadTime)) seconds before a step. Uses the volume and silent-mode setting below.")
+        }
     }
 
     @ViewBuilder

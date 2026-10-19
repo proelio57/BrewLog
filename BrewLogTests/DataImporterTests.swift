@@ -23,6 +23,9 @@ final class DataImporterTests: XCTestCase {
         let brews = try context.fetch(FetchDescriptor<Brew>(sortBy: [SortDescriptor(\.date)]))
         let brew = try XCTUnwrap(brews.first)
         XCTAssertEqual(brew.recipeName, "My V60")
+        XCTAssertEqual(brew.tds, 1.38)
+        XCTAssertEqual(brew.beverageWeight, 215)
+        XCTAssertEqual(try XCTUnwrap(brew.extractionYield), 215 * 1.38 / 15, accuracy: 0.001)
         XCTAssertEqual(brew.grinderName, "Comandante C40 MK4")
         XCTAssertEqual(brew.grinderSpec?.unit, .clicks, "known grinder gets the preset's scale")
         XCTAssertEqual(brew.grindValue, 24)
@@ -167,6 +170,51 @@ final class DataImporterTests: XCTestCase {
         let again = try DataImporter.importData(data, into: context)
         XCTAssertEqual(again.brews + again.beans + again.grinders + again.brewers, 0)
         XCTAssertEqual(again.skippedBrews, 1)
+    }
+
+    func testBackupCarriesPhotosWaterAndExtraction() throws {
+        let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0, 0, 0x10, 0x4A, 0x46, 0x49, 0x46])
+        let bean = Bean(name: "Gesha", roaster: "Fritz")
+        bean.photo = jpeg
+        let water = Equipment(name: "SCA water", type: .water)
+        water.waterHardness = 68
+        water.waterAlkalinity = 40
+        let grinder = Equipment(name: "Custom grinder", type: .grinder,
+                                grinder: GrinderSpec(unit: .dial, step: 0.5, adjustStep: 1, defaultGrind: 6, micronsPerStep: 25))
+        context.insert(bean)
+        context.insert(water)
+        context.insert(grinder)
+        let brew = Brew()
+        context.insert(brew)
+        brew.dose = 15
+        brew.finalWeight = 250
+        brew.bean = bean
+        brew.setWater(water)
+        brew.tds = 1.36
+        try context.save()
+        XCTAssertEqual(try XCTUnwrap(brew.extractionYield), 220 * 1.36 / 15, accuracy: 0.001)
+
+        let data = try DataImporter.exportBackup(from: context)
+        let other = try ModelContainer(for: Bean.self, Equipment.self, Brew.self, SavedRecipe.self,
+                                       configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        _ = try DataImporter.importData(data, into: other.mainContext)
+
+        let copy = try XCTUnwrap(other.mainContext.fetch(FetchDescriptor<Brew>()).first)
+        XCTAssertEqual(copy.bean?.photo, jpeg)
+        XCTAssertEqual(copy.waterID, water.id)
+        XCTAssertEqual(copy.waterName, "SCA water")
+        XCTAssertEqual(copy.tds, 1.36)
+        XCTAssertNil(copy.beverageWeight)
+        let gear = try other.mainContext.fetch(FetchDescriptor<Equipment>())
+        XCTAssertEqual(gear.first { $0.id == water.id }?.waterHardness, 68)
+        XCTAssertEqual(gear.first { $0.id == water.id }?.subtitle, "GH 68 · KH 40 ppm")
+        XCTAssertEqual(gear.first { $0.id == grinder.id }?.grinderSpec.micronsPerStep, 25)
+
+        // Importing again adds nothing, but fills in a photo the bean no longer has.
+        let otherBean = try XCTUnwrap(other.mainContext.fetch(FetchDescriptor<Bean>()).first)
+        otherBean.photo = nil
+        _ = try DataImporter.importData(data, into: other.mainContext)
+        XCTAssertEqual(otherBean.photo, jpeg)
     }
 
     func testUnknownFileFails() {

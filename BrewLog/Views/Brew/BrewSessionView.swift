@@ -328,6 +328,7 @@ struct BrewSessionView: View {
         brew.grindSetting = config.grindText
         brew.setGrinder(config.grinder)
         brew.setFilter(config.filter)
+        brew.setWater(config.water)
         brew.brewerID = config.brewer?.id
         brew.brewerName = config.brewer?.name ?? ""
         brew.usedScale = session.usesScale

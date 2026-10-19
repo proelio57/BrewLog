@@ -38,6 +38,7 @@ struct BrewDetailView: View {
                     findingsSection(analysis)
                     if !analysis.pours.isEmpty { poursSection(analysis) }
                 }
+                BrewExtractionCard(brew: brew, focus: $focused)
                 detailsCard
                 if !isNew { brewAgainButton(analysis) }
             }
@@ -100,6 +101,9 @@ struct BrewDetailView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
+                    if let bean = brew.bean, bean.photo != nil {
+                        BeanThumbnail(photo: bean.photo, roast: bean.roastLevel, size: 40)
+                    }
                     if let method = brew.recipe?.method { MethodBadge(method: method) }
                 }
                 HStack {
@@ -320,6 +324,7 @@ struct BrewDetailView: View {
                     if !isEspresso || !brew.filterName.isEmpty { row("Filter", brew.filterName, "doc.fill") }
                     row("Dose", brew.dose.grams1, "scalemass")
                     row(isEspresso ? "Brew temp" : "Water temp", "\(Int(brew.waterTemp)) °C", "thermometer.medium")
+                    if !brew.waterName.isEmpty { row("Water", brew.waterName, "drop.triangle.fill") }
                     Divider()
                     TextField("Notes: aroma, flavours, what you changed…", text: $brew.notes, axis: .vertical)
                         .lineLimit(3...8)

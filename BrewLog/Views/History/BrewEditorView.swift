@@ -21,6 +21,7 @@ struct BrewEditorView: View {
     @State private var brewerID: UUID?
     @State private var grinderID: UUID?
     @State private var filterID: UUID?
+    @State private var waterID: UUID?
     @FocusState private var focused: Bool
 
     init(brew: Brew) {
@@ -36,6 +37,7 @@ struct BrewEditorView: View {
         _brewerID = State(initialValue: brew.brewerID)
         _grinderID = State(initialValue: brew.grinderID)
         _filterID = State(initialValue: brew.filterID)
+        _waterID = State(initialValue: brew.waterID)
     }
 
     private var recipes: [Recipe] { saved.compactMap(\.recipe) + RecipeLibrary.presets }
@@ -80,6 +82,7 @@ struct BrewEditorView: View {
                 gearPicker("Brewer", symbol: "cup.and.saucer.fill", type: .brewer, current: brew.brewerName, selection: $brewerID)
                 gearPicker("Grinder", symbol: "gearshape.2.fill", type: .grinder, current: brew.grinderName, selection: $grinderID)
                 gearPicker("Filter", symbol: "doc.fill", type: .filter, current: brew.filterName, selection: $filterID)
+                gearPicker("Water", symbol: "drop.triangle.fill", type: .water, current: brew.waterName, selection: $waterID)
             }
         }
         .navigationTitle("Edit brew")
@@ -155,6 +158,9 @@ struct BrewEditorView: View {
         }
         if filterID != brew.filterID {
             brew.setFilter(equipment.first { $0.id == filterID })
+        }
+        if waterID != brew.waterID {
+            brew.setWater(equipment.first { $0.id == waterID })
         }
 
         try? context.save()

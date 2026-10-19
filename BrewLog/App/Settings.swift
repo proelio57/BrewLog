@@ -12,6 +12,8 @@ enum SettingsKey {
     static let silentModeSound = "silentModeSound"
     static let countdownTicks = "countdownTicks"
     static let finishPing = "finishPing"
+    static let voicePrompts = "voicePrompts"
+    static let voicePreview = "voicePreview"
     static let keepAwake = "keepAwake"
     static let onboardingDone = "onboardingDone"
     static let setupBannerDismissed = "setupBannerDismissed"
@@ -28,6 +30,7 @@ enum SettingsKey {
     static let lastBrewerID = "setup.brewerID"
     static let lastGrinderID = "setup.grinderID"
     static let lastFilterID = "setup.filterID"
+    static let lastWaterID = "setup.waterID"
     static let lastBeanID = "setup.beanID"
 }
 
@@ -51,6 +54,8 @@ enum AppSettings {
             SettingsKey.silentModeSound: true,
             SettingsKey.countdownTicks: false,
             SettingsKey.finishPing: true,
+            SettingsKey.voicePrompts: false,
+            SettingsKey.voicePreview: true,
             SettingsKey.keepAwake: true,
             SettingsKey.quickWeighAutoStart: true,
             SettingsKey.chartShowsFlow: true,
@@ -69,5 +74,7 @@ enum AppSettings {
     static var silentModeSound: Bool { d.bool(forKey: SettingsKey.silentModeSound) }
     static var countdownTicks: Bool { d.bool(forKey: SettingsKey.countdownTicks) }
     static var finishPing: Bool { d.bool(forKey: SettingsKey.finishPing) }
+    static var voicePrompts: Bool { d.bool(forKey: SettingsKey.voicePrompts) }
+    static var voicePreview: Bool { d.bool(forKey: SettingsKey.voicePreview) }
     static var keepAwake: Bool { d.bool(forKey: SettingsKey.keepAwake) }
 }

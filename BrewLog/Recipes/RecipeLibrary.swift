@@ -61,7 +61,8 @@ struct EquipmentPreset: Identifiable, Hashable {
                         range: String = "", notes: String = "", start: Double? = nil) -> EquipmentPreset {
         EquipmentPreset(name: name, type: .grinder,
                         grinder: GrinderSpec(unit: unit, step: step, adjustStep: adjust, finerIsLower: true, rangeNote: range,
-                                             defaultGrind: start),
+                                             defaultGrind: start,
+                                             micronsPerStep: GrindConverter.knownMicronsPerStep[name]),
                         notes: notes)
     }
 
