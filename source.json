@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.13",
+          "buildVersion": "13",
+          "date": "2026-10-19T09:06:44Z",
+          "localizedDescription": "feat(ios): extraction, water recipes, voice prompts, bean photos, label scan, grind converter\n\n- TDS and drink weight on a brew with extraction yield, verdict and a brewing\n  control chart; standalone extraction calculator (Gear -> Tools)\n- Water recipes calculator (SCA, Rao, Barista Hustle, Hendon, WoC Budapest,\n  Melbourne; dry minerals or 1000 ppm concentrates), water profiles saved as\n  gear with GH/KH and chosen per brew\n- Spoken step prompts with AVSpeechSynthesizer (Settings -> Voice), optional\n  \"Next, ...\" announcement 5 s ahead\n- Bean photos (camera or library, downsampled JPEG, roast-tinted placeholder)\n  and on-device label scan with Vision that fills the bean editor\n- Grind converter between calibrated grinders (filter starting point +\n  micrometres per step) and the recipe's grind size shown on the selected grinder\n- Backup: photos, tds, beverageWeight, waterId/waterName, waterHardness,\n  waterAlkalinity, grinder.micronsPerStep; Beanconqueror tds imported\n- Docs: data formats, parity matrix, feature request status, README\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.13/BrewLog.ipa",
+          "size": 2291145,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.12",
           "buildVersion": "12",
           "date": "2026-10-17T11:24:53Z",
@@ -65,14 +74,15 @@
         "entitlements": [],
         "privacy": {
           "NSBluetoothAlwaysUsageDescription": "BrewLog connects to your Bluetooth coffee scale to read the weight live while you brew.",
+          "NSCameraUsageDescription": "BrewLog uses the camera to photograph your coffee bag and read the details from its label. The photo stays on this device.",
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.12",
-      "versionDate": "2026-10-17T11:24:53Z",
-      "versionDescription": "feat(ios): BrewLog backup export/import and grind remembered per grinder\n\n- Settings → Backup & import: export everything as one JSON file in the format\n  shared with web and Android ({app, format, exportedAt, data, samples, machine},\n  dates in ms, lowercase ids). Import merges by id and never replaces anything;\n  it detects the wrapped format and the bare app data of Android exports.\n  Non-UUID ids from the web app map to stable UUIDs. Everything is parsed\n  leniently, sanitized and clamped (BrewLogBackup.swift).\n- Switching grinders restores that grinder's own setting (set by hand after the\n  last brew, else the history recommendation, else a starting value from the\n  preset's defaultGrind or the typical range), like Android. No filter starting\n  value for espresso.\n- Tests for the format (Linux-runnable), SwiftData import/export round trip and\n  grind memory.\n- docs: backup format in data-formats.md, parity guide with real file paths and\n  an honest feature matrix.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.12/BrewLog.ipa",
-      "size": 2034694
+      "version": "0.1.13",
+      "versionDate": "2026-10-19T09:06:44Z",
+      "versionDescription": "feat(ios): extraction, water recipes, voice prompts, bean photos, label scan, grind converter\n\n- TDS and drink weight on a brew with extraction yield, verdict and a brewing\n  control chart; standalone extraction calculator (Gear -> Tools)\n- Water recipes calculator (SCA, Rao, Barista Hustle, Hendon, WoC Budapest,\n  Melbourne; dry minerals or 1000 ppm concentrates), water profiles saved as\n  gear with GH/KH and chosen per brew\n- Spoken step prompts with AVSpeechSynthesizer (Settings -> Voice), optional\n  \"Next, ...\" announcement 5 s ahead\n- Bean photos (camera or library, downsampled JPEG, roast-tinted placeholder)\n  and on-device label scan with Vision that fills the bean editor\n- Grind converter between calibrated grinders (filter starting point +\n  micrometres per step) and the recipe's grind size shown on the selected grinder\n- Backup: photos, tds, beverageWeight, waterId/waterName, waterHardness,\n  waterAlkalinity, grinder.micronsPerStep; Beanconqueror tds imported\n- Docs: data formats, parity matrix, feature request status, README\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.13/BrewLog.ipa",
+      "size": 2291145
     }
   ],
   "news": []
