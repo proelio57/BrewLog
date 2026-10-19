@@ -250,6 +250,50 @@ final class ToolsTests: XCTestCase {
         XCTAssertEqual(StepAnnouncement.grams(1), "1 gram")
     }
 
+    // MARK: Recipe filter and valve countdown
+
+    private func recipe(_ id: String, _ method: BrewMethod, steps: [RecipeStep] = []) -> Recipe {
+        var recipe = RecipeLibrary.blankRecipe()
+        recipe.id = id
+        recipe.method = method
+        if !steps.isEmpty { recipe.steps = steps }
+        return recipe
+    }
+
+    func testRecipeFilterByBrewer() {
+        let v60 = recipe("a", .v60), any = recipe("b", .universal), shot = recipe("c", .espresso), sw = recipe("d", .hybrid)
+        XCTAssertTrue(RecipeFilter.matches(v60, method: nil))
+        XCTAssertTrue(RecipeFilter.matches(any, method: .v60), "any pour-over fits a V60")
+        XCTAssertFalse(RecipeFilter.matches(any, method: .espresso))
+        XCTAssertFalse(RecipeFilter.matches(sw, method: .v60))
+
+        let sections = RecipeFilter.sections(custom: [recipe("mine", .hybrid)], presets: [v60, any, shot, sw], method: .hybrid)
+        XCTAssertEqual(sections.map(\.title), ["My recipes", "Hario Switch", "Any pour-over"])
+        XCTAssertEqual(RecipeFilter.sections(custom: [], presets: [v60, any, shot, sw], method: nil).count, 4)
+        XCTAssertEqual(RecipeFilter.methods(in: [v60, any, shot]), [.v60, .espresso])
+    }
+
+    func testValveChanges() {
+        let switchRecipe = recipe("s", .hybrid, steps: [
+            RecipeStep(kind: .bloom, time: 0, target: 60, valve: .open, note: nil),
+            RecipeStep(kind: .pour, time: 30, target: 120, valve: .open, note: nil),
+            RecipeStep(kind: .pour, time: 75, target: 280, valve: .closed, note: nil),
+            RecipeStep(kind: .swirl, time: 90, target: nil, valve: nil, note: nil),
+            RecipeStep(kind: .openValve, time: 105, target: nil, valve: nil, note: nil),
+        ])
+        XCTAssertNil(switchRecipe.valveChange(at: 0), "the starting position isn't a change")
+        XCTAssertNil(switchRecipe.valveChange(at: 1))
+        XCTAssertEqual(switchRecipe.valveChange(at: 2), .closed)
+        XCTAssertNil(switchRecipe.valveChange(at: 3))
+        XCTAssertEqual(switchRecipe.valveChange(at: 4), .open)
+        XCTAssertNil(switchRecipe.valveChange(at: 9))
+        XCTAssertNil(recipe("v", .v60).valveChange(at: 1))
+        // Every built-in Switch recipe has at least one valve change to count down to.
+        for preset in RecipeLibrary.presets where preset.method == .hybrid {
+            XCTAssertTrue(preset.steps.indices.contains { preset.valveChange(at: $0) != nil }, preset.id)
+        }
+    }
+
     // MARK: Backup with the new fields
 
     func testBackupRoundTripsNewFields() throws {

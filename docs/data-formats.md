@@ -116,6 +116,45 @@ twice adds nothing. The same **Import** also reads recipe files and Beanconquero
   is at most 80 characters; optionally "Next, pour to 250 grams." 5 s before a step when the step before is at least
   11 s long; "Brew time reached." at the target time.
 
+## Git backup (iOS)
+
+The same BrewLog backup file, written pretty-printed (one field per line) to a repository with the provider's file
+API, one commit per change (`GitRemote.swift`):
+
+| | Read (blob sha) | Read (file) | Write |
+|---|---|---|---|
+| GitHub (`api.github.com`, Enterprise `https://<host>/api/v3`) | `GET /repos/{owner}/{repo}/contents/{path}?ref=` → `sha` | same URL, `Accept: application/vnd.github.raw+json` | `PUT` same URL `{message, content (base64), branch, sha?}` |
+| GitLab (`https://<host>/api/v4`) | `GET /projects/{owner%2Fname}/repository/files/{path%2F…}?ref=` → `blob_id` | `…/raw?ref=` | `POST` (new) / `PUT` (existing) `{branch, content, encoding: "base64", commit_message}` |
+| Gitea / Forgejo (`https://<host>/api/v1`) | `GET /repos/{owner}/{repo}/contents/{path}?ref=` → `sha` | `GET /repos/{owner}/{repo}/raw/{path}?ref=` | `POST` (new) / `PUT` (existing) `{message, content, branch, sha?}` |
+
+Auth headers: GitHub `Authorization: Bearer`, GitLab `PRIVATE-TOKEN`, Gitea `Authorization: token`. HTTPS only;
+server, repository, branch and path are validated (no `..`, path ends in `.json`). Sync: if the remote blob sha
+differs from the last one written, download and merge it (the normal import: adds, never replaces); then export
+with a fixed `exportedAt` and compare its FNV-1a hash with the last pushed one; if anything changed, write the file
+with the current blob sha (409/422 = someone else wrote in between → once more from the start). Photos only with
+"Include bean photos". Automatic sync: after saving a brew and when the app goes to the background, at most every
+2 minutes.
+
+## Widgets (iOS)
+
+The app writes `WidgetSnapshot` (last brew: recipe, date, rating, grind, ratio; current bean: name, roaster, roast
+date, remaining, bag weight; brews in the last 7 days) as JSON to the App Group's `UserDefaults` (key
+`widget.snapshot`) when it goes to the background and after a brew is saved, and reloads the widgets only when it
+changed. The group id comes from `ALTAppGroups` / `BrewLogAppGroup` in Info.plist (`group.<app bundle id>`;
+SideStore rewrites `ALTAppGroups` to the group it registered). Widget links: `brewlog://brew`, `brewlog://weigh`
+(Quick weigh), `brewlog://journal`, `brewlog://beans`.
+
+## Ask Claude (iOS)
+
+`POST https://api.anthropic.com/v1/messages` with the user's key (`x-api-key`, `anthropic-version: 2023-06-01`,
+`anthropic-beta: server-side-fallback-2026-07-01`): model `claude-opus-5-5`, `output_config.effort: "medium"`,
+`fallbacks: "default"`, tool `{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}` when web
+search is on. The prompt lists the bean (name, roaster, origin, varietal, process, roast level, days off roast,
+roaster's notes), the brewers/grinders/filters/waters and up to 15 brews of that bean (recipe, amounts,
+temperature, time, grind, rating, taste feedback, notes cut to 300 characters) and asks for the answer in the
+phone's language. `pause_turn` is continued up to three times; `refusal`, 401/403, 429 and 529 get their own
+messages. Sources are the cited pages (`citations[].url`), else the search results; only http(s) links.
+
 ## Espresso shots
 
 A brew with an espresso recipe may carry `machineSamplesData`: `[{"t": seconds, "p": bar, "c": °C, "f": ml/s}]`
@@ -192,6 +231,8 @@ Android and web still need the iOS tools (logic and test cases to port: `BrewLog
 - [ ] Water recipes calculator, water profiles (`waterHardness`, `waterAlkalinity`) and `waterId` / `waterName` on brews
 - [ ] Grind converter, `micronsPerStep` in the grinder settings, recipe grind size on the selected grinder
 - [ ] Spoken step prompts (Android: `TextToSpeech`, web: `speechSynthesis`)
+- [ ] Recipe filter by brewer type, valve countdown before Switch valve steps (`Recipe.valveChange`)
+- [ ] Home screen widgets (Android: Glance), Git backup (same file and APIs as above), Ask Claude
 - [ ] Bean photos (`photos` in the backup) and the label scan (Android: ML Kit text recognition on the device;
   web: photo only, no on-device text recognition)
 

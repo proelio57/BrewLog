@@ -6,6 +6,8 @@ import WidgetKit
 struct BrewLogWidgets: WidgetBundle {
     var body: some Widget {
         BrewLiveActivityWidget()
+        BrewLogStatusWidget()
+        BrewLogQuickWidget()
     }
 }
 

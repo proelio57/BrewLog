@@ -20,5 +20,24 @@
 	<!-- Where online recipe updates are downloaded from. Set by CI; empty = off. -->
 	<key>BrewLogRecipeFeedURL</key>
 	<string>$(RECIPE_FEED_URL)</string>
+	<!-- App Group shared with the widgets. SideStore/AltStore rewrite ALTAppGroups to the group they registered. -->
+	<key>ALTAppGroups</key>
+	<array>
+		<string>$(BREWLOG_APP_GROUP)</string>
+	</array>
+	<key>BrewLogAppGroup</key>
+	<string>$(BREWLOG_APP_GROUP)</string>
+	<!-- brewlog:// links from the widgets. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>brewlog</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

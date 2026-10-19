@@ -7,25 +7,22 @@ struct RecipeListView: View {
     @Query(sort: \SavedRecipe.createdAt, order: .reverse) private var saved: [SavedRecipe]
     @State private var newRecipe: Recipe?
     @State private var showImport = false
+    @AppStorage(SettingsKey.recipeFilter) private var filterRaw = ""
 
     var body: some View {
         NavigationStack {
             List {
                 let custom = saved.compactMap(\.recipe)
-                if !custom.isEmpty {
-                    Section("My recipes") {
-                        ForEach(custom) { recipe in
-                            NavigationLink { RecipeDetailView(recipe: recipe) } label: { RecipeRow(recipe: recipe) }
-                        }
-                    }
+                Section {
+                    MethodFilterBar(recipes: custom + RecipeLibrary.presets, selection: methodBinding($filterRaw))
                 }
-                ForEach(BrewMethod.allCases) { method in
-                    let recipes = RecipeLibrary.presets.filter { $0.method == method }
-                    if !recipes.isEmpty {
-                        Section(method.displayName) {
-                            ForEach(recipes) { recipe in
-                                NavigationLink { RecipeDetailView(recipe: recipe) } label: { RecipeRow(recipe: recipe) }
-                            }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                ForEach(RecipeFilter.sections(custom: custom, presets: RecipeLibrary.presets,
+                                              method: BrewMethod(rawValue: filterRaw)), id: \.title) { section in
+                    Section(section.title) {
+                        ForEach(section.recipes) { recipe in
+                            NavigationLink { RecipeDetailView(recipe: recipe) } label: { RecipeRow(recipe: recipe) }
                         }
                     }
                 }
@@ -90,22 +87,37 @@ struct RecipePickerView: View {
     @Environment(BrewSetup.self) private var setup
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \SavedRecipe.createdAt, order: .reverse) private var saved: [SavedRecipe]
+    @Query(sort: \Equipment.name) private var equipment: [Equipment]
+    @AppStorage(SettingsKey.recipeFilter) private var filterRaw = ""
+    @State private var appeared = false
+
+    /// The type of the brewer selected on the Brew tab.
+    private var brewerMethod: BrewMethod? {
+        equipment.first { $0.id == setup.brewerID && $0.type == .brewer }?.method
+    }
 
     var body: some View {
         List {
             let custom = saved.compactMap(\.recipe)
-            if !custom.isEmpty {
-                Section("My recipes") { ForEach(custom) { row($0) } }
+            Section {
+                MethodFilterBar(recipes: custom + RecipeLibrary.presets, selection: methodBinding($filterRaw),
+                                brewerMethod: brewerMethod)
             }
-            ForEach(BrewMethod.allCases) { method in
-                let recipes = RecipeLibrary.presets.filter { $0.method == method }
-                if !recipes.isEmpty {
-                    Section(method.displayName) { ForEach(recipes) { row($0) } }
-                }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            ForEach(RecipeFilter.sections(custom: custom, presets: RecipeLibrary.presets,
+                                          method: BrewMethod(rawValue: filterRaw)), id: \.title) { section in
+                Section(section.title) { ForEach(section.recipes) { row($0) } }
             }
         }
         .navigationTitle("Choose recipe")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            // Start with the recipes for the brewer you've selected.
+            guard !appeared else { return }
+            appeared = true
+            if let brewerMethod, brewerMethod != .universal { filterRaw = brewerMethod.rawValue }
+        }
     }
 
     private func row(_ recipe: Recipe) -> some View {
@@ -123,6 +135,39 @@ struct RecipePickerView: View {
         }
         .buttonStyle(.plain)
     }
+}
+
+/// "All" plus one chip per brewer type. Tapping the selected chip again shows all recipes.
+struct MethodFilterBar: View {
+    let recipes: [Recipe]
+    @Binding var selection: BrewMethod?
+    var brewerMethod: BrewMethod? = nil
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Button { selection = nil } label: { Chip(title: "All", isSelected: selection == nil) }
+                ForEach(RecipeFilter.methods(in: recipes)) { method in
+                    Button {
+                        selection = selection == method ? nil : method
+                        Haptics.tap()
+                    } label: {
+                        Chip(title: method == brewerMethod ? "\(method.displayName) · yours" : method.displayName,
+                             symbol: method.symbol, isSelected: selection == method)
+                    }
+                    .accessibilityIdentifier("recipes.filter.\(method.rawValue)")
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+        }
+    }
+}
+
+/// The stored filter ("" = all) as a method.
+func methodBinding(_ raw: Binding<String>) -> Binding<BrewMethod?> {
+    Binding { BrewMethod(rawValue: raw.wrappedValue) } set: { raw.wrappedValue = $0?.rawValue ?? "" }
 }
 
 // MARK: - Detail

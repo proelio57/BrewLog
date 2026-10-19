@@ -83,6 +83,9 @@ struct BackupSection: View {
                 Label("Import…", systemImage: "square.and.arrow.down")
             }
             .fileImport(isPresented: $showImport)
+            NavigationLink { GitBackupView() } label: {
+                Label("Git backup", systemImage: "arrow.triangle.branch")
+            }
             if let message {
                 Text(message).font(.caption).foregroundStyle(.secondary)
             }

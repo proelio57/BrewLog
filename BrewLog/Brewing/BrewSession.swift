@@ -395,12 +395,17 @@ final class BrewSession {
         }
     }
 
+    /// 3-2-1 ticks before each step, or (by default) only before the valve has to be opened or closed.
     private func checkCountdownTicks() {
-        guard AppSettings.countdownTicks, let remaining = timeToNextStep else { return }
+        guard let next = nextStepIndex, let remaining = timeToNextStep else { return }
+        let valve = AppSettings.valveCountdown && recipe.valveChange(at: next) != nil
+        guard AppSettings.countdownTicks || valve else { return }
         let second = Int(remaining.rounded(.up))
         if (1...3).contains(second), second != lastTickSecond, remaining < Double(second) {
             lastTickSecond = second
-            if Double(second) - remaining < 0.2 { sound.play(.tick) }
+            guard Double(second) - remaining < 0.2 else { return }
+            // Valve ticks also buzz, so you notice them with the kettle in your hand.
+            if valve { sound.cue(.tick) } else { sound.play(.tick) }
         }
     }
 

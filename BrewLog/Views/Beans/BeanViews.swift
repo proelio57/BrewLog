@@ -119,6 +119,7 @@ struct BeanEditorView: View {
     @State private var remaining: Double = 250
     @State private var isArchived = false
     @State private var photo: Data?
+    @State private var showAdvice = false
     @State private var loaded = false
 
     init(bean: Bean?, onCreate: ((Bean) -> Void)? = nil) {
@@ -129,6 +130,16 @@ struct BeanEditorView: View {
     var body: some View {
         Form {
             BeanPhotoSection(photo: $photo, roast: roastLevel, onScan: apply)
+            if bean != nil {
+                Section {
+                    Button { showAdvice = true } label: {
+                        Label("Ask Claude how to brew it", systemImage: "sparkles")
+                    }
+                    .accessibilityIdentifier("bean.askClaude")
+                } footer: {
+                    Text("Best recipe, ratio and grind for your gear, from your brews and what others say about this coffee. Needs your API key in Settings → AI.")
+                }
+            }
             Section("Coffee") {
                 TextField("Name (e.g. Ethiopia Guji)", text: $name)
                 TextField("Roaster", text: $roaster)
@@ -196,6 +207,9 @@ struct BeanEditorView: View {
             }
         }
         .onAppear(perform: load)
+        .sheet(isPresented: $showAdvice) {
+            if let bean { NavigationStack { BeanAdviceView(bean: bean) } }
+        }
     }
 
     private func gramsRow(_ title: String, value: Binding<Double>) -> some View {

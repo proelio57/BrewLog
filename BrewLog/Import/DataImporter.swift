@@ -181,7 +181,8 @@ enum DataImporter {
     }
 
     /// Everything as one BrewLog backup file, the format shared with Android and the web app.
-    static func exportBackup(from context: ModelContext, exportedAt: Date = Date()) throws -> Data {
+    static func exportBackup(from context: ModelContext, exportedAt: Date = Date(), includePhotos: Bool = true,
+                             pretty: Bool = false) throws -> Data {
         let id = BrewLogBackup.idString
         var backup = BrewLogBackup()
         let beans = try context.fetch(FetchDescriptor<Bean>(sortBy: [SortDescriptor(\.createdAt)]))
@@ -192,7 +193,7 @@ enum DataImporter {
                 notes: $0.notes, bagWeight: $0.bagWeight, remaining: $0.remaining, isArchived: $0.isArchived,
                 createdAt: $0.createdAt, externalId: $0.externalID)
         }
-        for bean in beans {
+        for bean in beans where includePhotos {
             if let photo = bean.photo, BrewLogBackup.isPhoto(photo) { backup.photos[id(bean.id)] = photo }
         }
         backup.equipment = try context.fetch(FetchDescriptor<Equipment>(sortBy: [SortDescriptor(\.createdAt)])).map {
@@ -221,7 +222,7 @@ enum DataImporter {
         }
         backup.customRecipes = try context.fetch(FetchDescriptor<SavedRecipe>(sortBy: [SortDescriptor(\.createdAt)]))
             .compactMap(\.recipe)
-        return try backup.encoded(exportedAt: exportedAt)
+        return try backup.encoded(exportedAt: exportedAt, pretty: pretty)
     }
 
     /// Suggested file name without extension, e.g. "brewlog-backup-2026-10-17" (same as the web app).

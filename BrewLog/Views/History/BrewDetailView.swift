@@ -55,6 +55,8 @@ struct BrewDetailView: View {
                     Button("Save") {
                         storeSuggestion(analysis)
                         try? context.save()
+                        WidgetSync.update(context: context, selectedBeanID: setup.beanID)
+                        GitSync.shared.syncIfEnabled(context: context)
                         onDone?()
                     }
                     .fontWeight(.semibold)

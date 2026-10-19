@@ -42,9 +42,11 @@ struct BrewLogBackup: Equatable {
         return try decoder.decode(Envelope.self, from: data).backup
     }
 
-    func encoded(exportedAt: Date = Date()) throws -> Data {
+    /// `pretty` writes one field per line, so a backup kept in Git shows readable diffs.
+    func encoded(exportedAt: Date = Date(), pretty: Bool = false) throws -> Data {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        encoder.outputFormatting = pretty ? [.sortedKeys, .withoutEscapingSlashes, .prettyPrinted]
+                                          : [.sortedKeys, .withoutEscapingSlashes]
         encoder.dateEncodingStrategy = .custom { date, encoder in
             var container = encoder.singleValueContainer()
             try container.encode(Int64((date.timeIntervalSince1970.clamped(0, Limits.maxDate.timeIntervalSince1970) * 1000).rounded()))

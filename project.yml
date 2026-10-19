@@ -26,6 +26,11 @@ targets:
         buildPhase: resources
     dependencies:
       - target: BrewLogWidgets
+    entitlements:
+      path: BrewLog/BrewLog.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - $(BREWLOG_APP_GROUP)
     configFiles:
       Debug: Config/Base.xcconfig
       Release: Config/Base.xcconfig
@@ -35,6 +40,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         # Live Activities, background modes and the recipe feed URL (merged with the generated keys)
         INFOPLIST_FILE: BrewLog/Info.plist
+        BREWLOG_APP_GROUP: group.$(PRODUCT_BUNDLE_IDENTIFIER)
         INFOPLIST_KEY_CFBundleDisplayName: BrewLog
         INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "BrewLog connects to your Bluetooth coffee scale to read the weight live while you brew."
         INFOPLIST_KEY_NSCameraUsageDescription: "BrewLog uses the camera to photograph your coffee bag and read the details from its label. The photo stays on this device."
@@ -56,6 +62,11 @@ targets:
     sources:
       - path: BrewLogWidgets
       - path: ActivityShared
+    entitlements:
+      path: BrewLogWidgets/BrewLogWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - $(BREWLOG_APP_GROUP)
     configFiles:
       Debug: Config/Base.xcconfig
       Release: Config/Base.xcconfig
@@ -66,6 +77,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: BrewLogWidgets/Info.plist
+        # The app's group: the extension's bundle id without ".LiveActivity".
+        BREWLOG_APP_GROUP: group.$(PRODUCT_BUNDLE_IDENTIFIER:base)
         INFOPLIST_KEY_CFBundleDisplayName: BrewLog
         CODE_SIGN_STYLE: Automatic
         SKIP_INSTALL: YES

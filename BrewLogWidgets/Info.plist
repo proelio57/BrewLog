@@ -7,5 +7,12 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
+	<!-- App Group shared with the widgets. SideStore/AltStore rewrite ALTAppGroups to the group they registered. -->
+	<key>ALTAppGroups</key>
+	<array>
+		<string>$(BREWLOG_APP_GROUP)</string>
+	</array>
+	<key>BrewLogAppGroup</key>
+	<string>$(BREWLOG_APP_GROUP)</string>
 </dict>
 </plist>

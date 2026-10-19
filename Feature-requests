@@ -3,3 +3,10 @@ save profile and journal in git
 for hario switch additional beeps to countdown when needing to open or close
 feature to connect llm to ask what best for those beans and if there are any communith posts about those beans and whats best for them
 widgets on lock and home screen
+
+Status (iOS done, Android and web open; details in docs/ai-parity-guide.md):
+- Recipes by gear type: filter chips on the Recipes tab and the recipe picker, starting with your brewer's type.
+- Profile and journal in Git: Settings → Backup & import → Git backup (GitHub, GitLab, Gitea/Forgejo).
+- Hario Switch: 3-2-1 ticks with haptics before opening or closing the valve (Settings → Brew assistant).
+- LLM for beans: "Ask Claude how to brew it" in the bean editor, with web search for community posts (own API key).
+- Widgets: "Beans & last brew" and "Quick start" on the Home and Lock Screen.

@@ -316,6 +316,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.soundVolume) private var soundVolume = 0.8
     @AppStorage(SettingsKey.silentModeSound) private var silentModeSound = true
     @AppStorage(SettingsKey.countdownTicks) private var countdownTicks = false
+    @AppStorage(SettingsKey.valveCountdown) private var valveCountdown = true
     @AppStorage(SettingsKey.finishPing) private var finishPing = true
     @AppStorage(SettingsKey.voicePrompts) private var voicePrompts = false
     @AppStorage(SettingsKey.voicePreview) private var voicePreview = true
@@ -353,12 +354,15 @@ struct SettingsView: View {
                     }
                 }
                 Toggle("3-2-1 ticks before each step", isOn: $countdownTicks)
+                if !countdownTicks {
+                    Toggle("3-2-1 ticks before opening or closing the valve", isOn: $valveCountdown)
+                }
                 Toggle("Chime at target brew time", isOn: $finishPing)
                 Toggle("Keep screen on while brewing", isOn: $keepAwake)
             } header: {
                 Text("Brew assistant")
             } footer: {
-                Text("Automatic buffer = your pour rate × reaction time + 1 g, so you hear the ping early enough to stop right on target. Increase the reaction time if you often overpour.")
+                Text("Automatic buffer = your pour rate × reaction time + 1 g, so you hear the ping early enough to stop right on target. Increase the reaction time if you often overpour. Valve ticks (Hario Switch) count down to the moment you open or close the valve.")
             }
 
             voiceSection
@@ -409,14 +413,17 @@ struct SettingsView: View {
 
             BackupSection()
 
+            AISettingsSection()
+
             Section {
                 LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
             } header: {
                 Text("About")
             } footer: {
-                Text(RecipeFeed.feedURL == nil
-                     ? "BrewLog has no account, no analytics and no network access. Everything stays on this device."
-                     : "BrewLog has no account and no analytics. The only network access is downloading the recipe list. Everything else stays on this device.")
+                Text((RecipeFeed.feedURL == nil
+                      ? "BrewLog has no account, no analytics and no network access of its own. Everything stays on this device"
+                      : "BrewLog has no account and no analytics. Its own network access is downloading the recipe list. Everything else stays on this device")
+                     + ", unless you turn on Git backup or ask Claude about a bean.")
             }
         }
         .navigationTitle("Settings")

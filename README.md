@@ -35,6 +35,11 @@ A pour-over brewing companion for iPhone, with matching [Android](android/README
 - **Grind tracking**: grind is logged as a number on your grinder's scale. The next brew of the same bean is **pre-filled with the grind the last review suggested**. Each bean shows a grind log. Switching grinders brings back that grinder's own last setting (or a sensible starting point), never the number from the other grinder.
 - **Beans**: roaster, origin, process, roast level and date (days off roast), bag weight with automatic deduction. Add beans before or after brewing. Add a **photo** of the bag (camera or library), or **scan the label**: BrewLog reads name, roaster, origin, process, varietal, roast date and weight from the bag. The text is recognized on the iPhone, nothing is uploaded (iOS).
 - **Tools** (Gear tab, iOS): **extraction calculator** for refractometer readings (TDS → extraction yield with a brewing control chart, also on every brew), **water recipes** (SCA, Rao, Barista Hustle and more, as grams of Epsom salt, calcium chloride and baking soda or as concentrates, saved as water profiles you pick per brew) and a **grind converter** between grinders. The recipe's grind size is also shown as a setting on your grinder.
+- **Recipes by brewer**: filter chips (V60, Hario Switch, flat bottom, espresso) on the Recipes tab and when picking a recipe, which starts with your brewer's type (iOS).
+- **Hario Switch**: 3-2-1 ticks with a buzz before you have to open or close the valve (iOS).
+- **Widgets** (iOS): your current beans (days off roast, grams left) and last brew on the Home and Lock Screen, plus a Quick start widget for Brew and Weigh.
+- **Git backup** (iOS, optional): keeps your journal, gear, beans and recipes as a JSON file in your own GitHub, GitLab or Gitea repository, one commit per change, merged across devices.
+- **Ask Claude** (iOS, optional, your own Anthropic API key): how to brew a bean with your gear, based on your brews of it and what the roaster and the community say about it (web search, with sources).
 - **Spoken step prompts** (iOS, Settings → Voice): "Pour to 150 grams." at each step, optionally "Next, …" a few seconds ahead, so you can keep your eyes on the kettle.
 - **Journal**: every brew is saved with its curve, rating, taste feedback, notes, analysis and a "Brew again with suggestions" button. Entered something wrong? **Edit** corrects date, recipe, dose, water, time, temperature and gear afterwards, and the analysis updates.
 - **Lock Screen & Dynamic Island**: leave the app while brewing and a Live Activity shows the timer, the current step, a countdown to the next one and the live weight. Cues keep playing in the background.
@@ -136,6 +141,7 @@ The documented XOR checksum matches the tare command, but the **timer commands u
 ## Security & privacy
 
 - **No accounts, no analytics, no third-party dependencies.** All data stays on the device in the app sandbox, protected by iOS Data Protection. A privacy manifest (`PrivacyInfo.xcprivacy`) declares no tracking and no data collection.
+- **Optional network features**: Git backup talks only to the repository you enter (token in the Keychain). "Ask Claude" sends only the bean you ask about, your gear and your brews of that bean to Anthropic with your own key, and only when you tap it.
 - **Camera**: only when you photograph a bag. Label text is recognized on the device with Apple Vision; photos stay in the app (and in your own backup file).
 - **Network**: the only request is the optional download of the public recipe list (HTTPS, max 1 MB, validated like any imported recipe, can be turned off in Settings). Builds without `RECIPE_FEED_URL` make no network requests at all.
 - **Imported files are untrusted**: size-limited (200 MB, 100 MB per ZIP entry), parsed leniently and then sanitized and clamped like everything you type.

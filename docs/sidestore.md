@@ -57,6 +57,10 @@ write* on that repository. Every push to GitLab then reaches GitHub within minut
 
 ## Good to know
 
+- **Widgets** need an App Group shared by the app and the widget extension. The CI build writes the entitlement
+  into the unsigned IPA with `ldid` (`scripts/build-ipa.sh`); SideStore registers the group for your Apple ID and
+  updates `ALTAppGroups` in Info.plist, which the app reads. If the widgets only say "Open BrewLog once", the
+  group is missing: reinstall from the source, then open the app once.
 - **Version numbers**: `MARKETING_VERSION` from `project.yml` plus the run number, e.g. `0.1.42`. Raise
   `MARKETING_VERSION` (e.g. to `0.2`) for bigger releases; the run number keeps every build unique.
 - **Changelog**: the message of the last commit is shown in SideStore.
