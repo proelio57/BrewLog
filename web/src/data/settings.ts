@@ -27,6 +27,7 @@ export function loadSettings(): AppSettings {
     soundVolume: num('soundVolume', 0.1, 1),
     silentModeSound: bool('silentModeSound'),
     countdownTicks: bool('countdownTicks'),
+    weighBeansFirst: bool('weighBeansFirst'),
     finishPing: bool('finishPing'),
     keepAwake: bool('keepAwake'),
     onboardingDone: bool('onboardingDone'),

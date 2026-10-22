@@ -3,6 +3,7 @@ package com.brewlog.app.analysis
 import com.brewlog.app.domain.Bean
 import com.brewlog.app.domain.Brew
 import com.brewlog.app.domain.Equipment
+import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.TasteFeedback
 import com.brewlog.app.domain.WeightSample
 
@@ -19,7 +20,12 @@ fun Brew.relatedHistory(brews: List<Brew>): List<Brew> {
 /** Days off roast at the time of brewing. */
 fun Brew.daysOffRoast(bean: Bean?): Int? = bean?.roastDate?.let { ((date - it) / 86_400_000L).toInt() }
 
-fun Brew.analysisInput(allBrews: List<Brew>, bean: Bean?, samples: List<WeightSample>): AnalysisInput? {
+fun Brew.analysisInput(
+    allBrews: List<Brew>,
+    bean: Bean?,
+    samples: List<WeightSample>,
+    alternatives: List<Recipe> = emptyList(),
+): AnalysisInput? {
     val recipe = recipe ?: return null
     val grinder = grinderSpec?.let { GrinderContext(grinderName.ifEmpty { "grinder" }, it, grindValue) }
     val history = relatedHistory(allBrews).map {
@@ -41,11 +47,12 @@ fun Brew.analysisInput(allBrews: List<Brew>, bean: Bean?, samples: List<WeightSa
         grinder = grinder,
         feedback = feedback,
         history = history,
+        alternatives = alternatives,
     )
 }
 
-fun Brew.analyze(allBrews: List<Brew>, bean: Bean?, samples: List<WeightSample>): BrewAnalysis? =
-    analysisInput(allBrews, bean, samples)?.let(BrewAnalyzer::analyze)
+fun Brew.analyze(allBrews: List<Brew>, bean: Bean?, samples: List<WeightSample>, alternatives: List<Recipe> = emptyList()): BrewAnalysis? =
+    analysisInput(allBrews, bean, samples, alternatives)?.let(BrewAnalyzer::analyze)
 
 data class GrindRecommendation(val value: Double, val reason: String)
 

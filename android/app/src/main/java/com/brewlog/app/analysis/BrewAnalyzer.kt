@@ -3,6 +3,7 @@ package com.brewlog.app.analysis
 import com.brewlog.app.domain.FilterFlow
 import com.brewlog.app.domain.GrinderSpec
 import com.brewlog.app.domain.Recipe
+import com.brewlog.app.domain.RecipeFilter
 import com.brewlog.app.domain.RecipeStep
 import com.brewlog.app.domain.RoastLevel
 import com.brewlog.app.domain.StepKind
@@ -54,6 +55,8 @@ data class AnalysisInput(
     val feedback: Set<TasteFeedback>,
     /** Earlier brews with the same bean and grinder, newest first (excluding the analysed brew). */
     val history: List<PastBrew>,
+    /** Recipes BrewLog may point to (built-in list); the brewed recipe itself is never suggested. */
+    val alternatives: List<Recipe> = emptyList(),
 )
 
 enum class FindingLevel { GOOD, INFO, WARNING }
@@ -619,8 +622,7 @@ object BrewAnalyzer {
             add("water", "Check your water",
                 "Distilled or very soft water tastes flat, and very hard water dulls acidity. Aim for about 50–100 ppm hardness " +
                     "(e.g. a light-roast mineral recipe or a low-mineral bottled water).", 60)
-            add("clarity", "Try a recipe with more clarity",
-                "Rao V60 or a fast paper like CAFEC T-92 or Abaca+ brings out brighter, more defined flavours.", 45)
+            clarityAdvice(recipe, input)?.let { (title, detail) -> add("clarity", title, detail, 45) }
         }
 
         // History hint: point to the best-rated brew of this bean
@@ -833,5 +835,16 @@ object BrewAnalyzer {
         val nearest = candidates.minByOrNull { abs(it - current) } ?: return null
         val mid = roundHalfAway((current + nearest) / 2 / spec.step) * spec.step
         return if (mid == current || mid == nearest) null else mid
+    }
+
+    /** "Flat" cup: point to a clearer recipe for the same brewer (never the one just brewed) and/or a fast paper. */
+    fun clarityAdvice(recipe: Recipe, input: AnalysisInput): Pair<String, String>? {
+        val alternative = RecipeFilter.clearerAlternative(recipe, input.alternatives)
+        val paper = if (input.filterFlow == FilterFlow.FAST) null
+        else "A fast paper like CAFEC T-92 or Abaca+ brings out brighter, more defined flavours."
+        if (alternative == null) return paper?.let { "Try a faster paper" to it }
+        val by = if (alternative.author.isEmpty()) "" else " by ${alternative.author}"
+        val detail = "${alternative.name}$by is cleaner and brighter than ${recipe.name}." + (paper?.let { " $it" } ?: "")
+        return "Try ${alternative.name} for more clarity" to detail
     }
 }

@@ -240,6 +240,8 @@ export interface AppSettings {
   soundVolume: number
   silentModeSound: boolean
   countdownTicks: boolean
+  /** With a scale, a brew starts by weighing the beans (can be skipped). */
+  weighBeansFirst: boolean
   finishPing: boolean
   keepAwake: boolean
   onboardingDone: boolean
@@ -265,6 +267,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   soundVolume: 0.8,
   silentModeSound: true,
   countdownTicks: false,
+  weighBeansFirst: true,
   finishPing: true,
   keepAwake: true,
   onboardingDone: false,

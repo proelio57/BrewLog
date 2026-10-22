@@ -1,6 +1,6 @@
 import { ChartLine, Coffee, FileText, Leaf, Pencil, PlusCircle, RotateCcw, Sparkles, Thermometer, Timer, Droplet, SlidersHorizontal, Wrench } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { allRecipes, goBack, navigate, repository, setup } from '../app'
+import { allRecipes, goBack, navigate, presetRecipes, repository, setup } from '../app'
 import { LEAN_TITLES, weightDelta, type BrewAnalysis } from '../analysis/analyzer'
 import { analyzeBrew } from '../analysis/recommender'
 import { useStore } from '../data/store'
@@ -29,7 +29,7 @@ export function BrewDetail({ brewId, isNew }: { brewId: string; isNew: boolean }
   }, [brew])
 
   const bean = brew ? data.beans.find((b) => b.id === brew.beanId) ?? null : null
-  const analysis = brew ? analyzeBrew(brew, data.brews, bean, samples, machineSamples) : null
+  const analysis = brew ? analyzeBrew(brew, data.brews, bean, samples, machineSamples, presetRecipes()) : null
   const espresso = brew?.recipe?.method === 'espresso'
 
   // Remember the grind the analysis suggests, so the next brew of this bean starts there.

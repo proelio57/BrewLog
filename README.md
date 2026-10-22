@@ -16,6 +16,7 @@ A pour-over brewing companion for iPhone, with matching [Android](android/README
 - **Quick weigh**: just a scale and timer, with no recipe and nothing saved. Big weight readout, flow, tare, and a timer that starts by itself when you pour (it waits for a real zero after taring). Open it from the **Weigh** button on the Brew tab.
 - **BOOKOO Themis Mini over Bluetooth**: live weight, flow and battery, auto-reconnect, tare and timer control. A **demo scale** simulates realistic pours, so you can try everything without hardware or in the Simulator.
 - **Brew assistant**
+  - With a scale connected, a brew starts by **weighing the beans**: the scale is tared, a bar fills up to your dose and pings when you hit it. Tap **Use 15.2 g** to save what you actually weighed (the ratio and the bag deduction use it), or skip it. Switch it off in Settings → Brew assistant → *Weigh the beans first*.
   - Press **Ready** and the scale is tared. The timer **starts automatically when you start pouring** (backdated to the moment the weight left zero).
   - The first pour at 0:00 is silent. Later steps get a soft **two-note chime** exactly when they start (0:30, 1:00 …).
   - During each pour, a short **ping just before the target weight**. The buffer is either automatic (`flow × reaction time + 1 g`) or a fixed number of grams, so you stop on target instead of overpouring.
@@ -66,7 +67,7 @@ After a brew you rate it (★1–5) and tag the taste: *Perfect, Too sour, Too b
 | Sour **and** bitter | uneven extraction (channeling) | fast pours | centre pours, swirl to flatten, reduce fines |
 | Dry / astringent | channeling, fines | fast pours, slow drawdown | gentler pours, coarser, avoid walls, rinse paper |
 | Weak / strong | brew ratio | final ratio | dose ±1 g, 4:6: number of pours, Switch: steep time |
-| Flat | stale beans, cool or poor water | days off roast, temperature | fresher beans, hotter water, 50–100 ppm hardness water |
+| Flat | stale beans, cool or poor water | days off roast, temperature | fresher beans, hotter water, 50–100 ppm hardness water, a clearer recipe for the same brewer (never the one you just brewed) or a faster paper |
 
 Grind advice is concrete. A typical result: *"Grind finer: go from 24 clicks to 22 clicks on your Comandante C40"*. The step size comes from your grinder's settings, and a very far-off time doubles it. If an earlier brew of the same bean overshot in the other direction, it **splits the difference** (24 sour, 18 bitter → try 21). If Finish is tapped right after the last pour, time-based advice is skipped because the drawdown wasn't recorded.
 

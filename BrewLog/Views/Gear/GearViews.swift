@@ -317,6 +317,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.silentModeSound) private var silentModeSound = true
     @AppStorage(SettingsKey.countdownTicks) private var countdownTicks = false
     @AppStorage(SettingsKey.valveCountdown) private var valveCountdown = true
+    @AppStorage(SettingsKey.weighBeansFirst) private var weighBeansFirst = true
     @AppStorage(SettingsKey.finishPing) private var finishPing = true
     @AppStorage(SettingsKey.voicePrompts) private var voicePrompts = false
     @AppStorage(SettingsKey.voicePreview) private var voicePreview = true
@@ -357,12 +358,13 @@ struct SettingsView: View {
                 if !countdownTicks {
                     Toggle("3-2-1 ticks before opening or closing the valve", isOn: $valveCountdown)
                 }
+                Toggle("Weigh the beans first", isOn: $weighBeansFirst)
                 Toggle("Chime at target brew time", isOn: $finishPing)
                 Toggle("Keep screen on while brewing", isOn: $keepAwake)
             } header: {
                 Text("Brew assistant")
             } footer: {
-                Text("Automatic buffer = your pour rate × reaction time + 1 g, so you hear the ping early enough to stop right on target. Increase the reaction time if you often overpour. Valve ticks (Hario Switch) count down to the moment you open or close the valve.")
+                Text("Automatic buffer = your pour rate × reaction time + 1 g, so you hear the ping early enough to stop right on target. Increase the reaction time if you often overpour. Valve ticks (Hario Switch) count down to the moment you open or close the valve. With a scale connected, a brew starts by weighing the beans (you can skip it).")
             }
 
             voiceSection

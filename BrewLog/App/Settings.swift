@@ -12,6 +12,7 @@ enum SettingsKey {
     static let silentModeSound = "silentModeSound"
     static let countdownTicks = "countdownTicks"
     static let valveCountdown = "valveCountdown"
+    static let weighBeansFirst = "weighBeansFirst"
     static let finishPing = "finishPing"
     static let voicePrompts = "voicePrompts"
     static let voicePreview = "voicePreview"
@@ -57,6 +58,7 @@ enum AppSettings {
             SettingsKey.silentModeSound: true,
             SettingsKey.countdownTicks: false,
             SettingsKey.valveCountdown: true,
+            SettingsKey.weighBeansFirst: true,
             SettingsKey.finishPing: true,
             SettingsKey.voicePrompts: false,
             SettingsKey.voicePreview: true,
@@ -78,6 +80,7 @@ enum AppSettings {
     static var silentModeSound: Bool { d.bool(forKey: SettingsKey.silentModeSound) }
     static var countdownTicks: Bool { d.bool(forKey: SettingsKey.countdownTicks) }
     static var valveCountdown: Bool { d.bool(forKey: SettingsKey.valveCountdown) }
+    static var weighBeansFirst: Bool { d.bool(forKey: SettingsKey.weighBeansFirst) }
     static var finishPing: Bool { d.bool(forKey: SettingsKey.finishPing) }
     static var voicePrompts: Bool { d.bool(forKey: SettingsKey.voicePrompts) }
     static var voicePreview: Bool { d.bool(forKey: SettingsKey.voicePreview) }

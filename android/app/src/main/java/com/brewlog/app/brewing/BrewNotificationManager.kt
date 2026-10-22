@@ -46,7 +46,7 @@ object BrewNotificationManager {
 
         val currentStep = snapshot.currentStepIndex?.let { config.recipe.steps.getOrNull(it) }
         val stepTitle = currentStep?.headline ?: "Brewing"
-        val weightText = if (snapshot.usesScale) " · ${(if (snapshot.phase == BrewPhase.PREPARING) snapshot.weight else maxOf(snapshot.weight, 0.0)).toInt()} g" else ""
+        val weightText = if (snapshot.usesScale) " · ${(if (snapshot.phase == BrewPhase.PREPARING || snapshot.phase == BrewPhase.DOSING) snapshot.weight else maxOf(snapshot.weight, 0.0)).toInt()} g" else ""
         val content = "${snapshot.elapsed.mmss()} · $stepTitle$weightText"
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)

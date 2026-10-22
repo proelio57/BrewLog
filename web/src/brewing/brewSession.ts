@@ -3,6 +3,7 @@ import { roundHalfAway } from '../domain/format'
 import type { AppSettings, MachineSample, WeightSample } from '../domain/models'
 import { isPour, type Recipe } from '../domain/recipe'
 import { LIMITS } from '../domain/validation'
+import { acceptedDose, doseStatus, type DoseStatus } from './dosing'
 import { type GaggiMateStatus, hasWeight, isBrewing } from '../machine/gaggimate'
 import type { MachineManager } from '../machine/machineManager'
 import type { PressureMonitor } from '../scale/pressure'
@@ -11,7 +12,7 @@ import { type ScaleCommands, monotonicMillis } from '../scale/scaleManager'
 // 1:1 port of BrewSession.swift / BrewSession.kt.
 
 export type BrewCue = 'target' | 'nextStep' | 'finish' | 'tick'
-export type BrewPhase = 'preparing' | 'armed' | 'brewing' | 'finished'
+export type BrewPhase = 'dosing' | 'preparing' | 'armed' | 'brewing' | 'finished'
 
 /** Immutable snapshot of the live brew for the UI. */
 export interface BrewSnapshot {
@@ -33,6 +34,9 @@ export interface BrewSnapshot {
   flash: BrewCue | null
   /** Espresso: pressure/temperature/flow recorded during the shot. */
   machineSamples: MachineSample[]
+  /** The bean dose read from the scale, null when the beans weren't weighed. */
+  weighedDose: number | null
+  doseStatus: DoseStatus
 }
 
 /** Hard limits so a forgotten brew or a misbehaving device can't grow memory without bound. */
@@ -86,6 +90,9 @@ export class BrewSession {
   private lastMachineSampleT = -1
   /** The weight comes from the scale connected to the espresso machine instead of BrewLog's own connection. */
   private weighsViaMachine = false
+  private weighedDose: number | null = null
+  private dosePinged = false
+  private prepared = false
   readonly state: Store<BrewSnapshot>
 
   constructor(
@@ -140,6 +147,54 @@ export class BrewSession {
     return () => cleanups.forEach((cleanup) => cleanup?.())
   }
 
+  /** The planned bean dose (the recipe is already scaled to it). */
+  get plannedDose(): number {
+    return this.recipe.dose
+  }
+
+  /** The dose to save with the brew. */
+  get dose(): number {
+    return this.weighedDose ?? this.plannedDose
+  }
+
+  /** Weighing the beans needs BrewLog's own scale. */
+  get canWeighBeans(): boolean {
+    return this.scale.isReady && (this.phase === 'preparing' || this.phase === 'dosing')
+  }
+
+  /** Called once when the live screen opens: starts by weighing the beans if that's switched on. */
+  prepare(): void {
+    // Only once per brew, so re-mounting the screen doesn't ask again.
+    if (this.prepared) return
+    this.prepared = true
+    if (this.settings().weighBeansFirst) this.weighBeans()
+  }
+
+  /** Tare the scale and weigh the beans against the planned dose. */
+  weighBeans(): void {
+    if (!this.scale.isReady || this.phase !== 'preparing') return
+    this.phase = 'dosing'
+    this.dosePinged = false
+    this.scale.prepareForDosing(this.plannedDose)
+    this.publish()
+  }
+
+  /** Keep what is on the scale as the dose for this brew. */
+  acceptDose(): void {
+    if (this.phase !== 'dosing') return
+    this.weighedDose = acceptedDose(this.weight, this.plannedDose)
+    this.scale.dosingFinished()
+    this.phase = 'preparing'
+    this.publish()
+  }
+
+  skipDosing(): void {
+    if (this.phase !== 'dosing') return
+    this.scale.dosingFinished()
+    this.phase = 'preparing'
+    this.publish()
+  }
+
   /** "Ready": tare the scale and wait for the first pour. */
   ready(): void {
     this.weighsViaMachine = !this.scale.isReady && this.isEspresso && !!this.machine?.isConnected && hasWeight(this.machine.status)
@@ -164,7 +219,8 @@ export class BrewSession {
 
   private machineShot(started: boolean, atMs: number): void {
     if (started) {
-      if (this.phase === 'preparing') {
+      if (this.phase === 'preparing' || this.phase === 'dosing') {
+        this.skipDosing()
         this.ready()
         this.begin(atMs)
       } else if (this.phase === 'armed') {
@@ -221,6 +277,7 @@ export class BrewSession {
 
   /** Brew discarded mid-way: stop the scale timer / demo simulation too. */
   discard(): void {
+    if (this.phase === 'dosing') this.scale.dosingFinished()
     if (this.usesScale && !this.weighsViaMachine && (this.phase === 'armed' || this.phase === 'brewing')) this.scale.brewFinished()
     if (this.isEspresso) {
       this.machine?.cancelShot()
@@ -236,7 +293,13 @@ export class BrewSession {
     while (this.recent.length > MAX_RECENT_READINGS) this.recent.shift()
     this.flowRate = slope(this.recent, 1.2, atMs)
 
-    if (this.phase === 'armed') {
+    if (this.phase === 'dosing') {
+      // One ping when the dose is reached, so you can stop adding beans without staring at the number.
+      if (!this.dosePinged && doseStatus(grams, this.plannedDose) === 'onTarget') {
+        this.dosePinged = true
+        this.onCue('target')
+      }
+    } else if (this.phase === 'armed') {
       if (!this.usesScale || this.armMs == null) return
       if (!this.zeroConfirmed) {
         if (Math.abs(grams) < 1 && atMs - this.armMs > 250) {
@@ -430,6 +493,8 @@ export class BrewSession {
       pingLead: this.pingLead(),
       flash: this.flash,
       machineSamples: this.machineSamples.slice(),
+      weighedDose: this.weighedDose,
+      doseStatus: doseStatus(this.weight, this.plannedDose),
     }
   }
 

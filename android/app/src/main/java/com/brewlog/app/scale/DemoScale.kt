@@ -62,6 +62,14 @@ class DemoScale(private val scope: CoroutineScope, private val onWeight: (Double
         pourStart = monotonicMillis() + (delaySeconds * 1000).toLong()
     }
 
+    /** Beans trickling into a cup, ending a little off the dose like a real hand would. */
+    fun simulateDose(dose: Double, delaySeconds: Double = 1.5) {
+        weight = 0.0
+        plan = listOf(PlannedPour(start = 0.0, goal = max(dose + Random.nextDouble(-0.3, 0.4), 0.0), rate = Random.nextDouble(1.5, 2.5)))
+        endTime = 60.0
+        pourStart = monotonicMillis() + (delaySeconds * 1000).toLong()
+    }
+
     fun stopSimulation() {
         plan = emptyList()
         pourStart = null

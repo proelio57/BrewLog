@@ -231,9 +231,10 @@ export function SettingsScreen() {
             </>
           )}
           <Toggle label="3-2-1 ticks before each step" checked={s.countdownTicks} onChange={(v) => change({ countdownTicks: v })} />
+          <Toggle label="Weigh the beans first" checked={s.weighBeansFirst} onChange={(v) => change({ weighBeansFirst: v })} />
           <Toggle label="Chime at target brew time" checked={s.finishPing} onChange={(v) => change({ finishPing: v })} />
           <Toggle label="Keep screen on while brewing" checked={s.keepAwake} onChange={(v) => change({ keepAwake: v })} />
-          <div className="small muted">Automatic buffer = your pour rate × reaction time + 1 g, so you hear the ping early enough to stop right on target. Increase the reaction time if you often overpour.</div>
+          <div className="small muted">Automatic buffer = your pour rate × reaction time + 1 g, so you hear the ping early enough to stop right on target. Increase the reaction time if you often overpour. With a scale connected, a brew starts by weighing the beans (you can skip it).</div>
         </Card>
 
         <SectionHeader title="Sound & vibration" />

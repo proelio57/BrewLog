@@ -4,6 +4,7 @@ import {
   adjustGrind, formatGrind, formatGrindDelta, roastIndex as indexOfRoast,
 } from '../domain/models'
 import { pourSteps, ratio as recipeRatio, ratioText, isPour, type Recipe, type RecipeStep } from '../domain/recipe'
+import { clearerAlternative } from '../domain/recipeFilter'
 import { analyzeEspresso } from './espresso'
 
 // Rule-based (no AI) brew analysis. 1:1 port of BrewAnalyzer.swift / BrewAnalyzer.kt.
@@ -40,6 +41,8 @@ export interface AnalysisInput {
   history: PastBrew[]
   /** Espresso: pressure, temperature and flow from the machine or pressure sensor. */
   machine?: MachineSample[]
+  /** Recipes BrewLog may point to (built-in list); the brewed recipe itself is never suggested. */
+  alternatives?: Recipe[]
 }
 
 export type FindingLevel = 'good' | 'info' | 'warning'
@@ -594,7 +597,8 @@ export function analyze(input: AnalysisInput): BrewAnalysis {
     if (tempLow) add('temp-up', 'Use hotter water', 'More heat extracts more aromatics and sweetness.', 85, [`Water was ${Math.trunc(input.waterTemp)} °C`])
     if (timeShort) grindSuggestion(false, 75, [timeEvidence])
     add('water', 'Check your water', 'Distilled or very soft water tastes flat, and very hard water dulls acidity. Aim for about 50–100 ppm hardness (e.g. a light-roast mineral recipe or a low-mineral bottled water).', 60)
-    add('clarity', 'Try a recipe with more clarity', 'Rao V60 or a fast paper like CAFEC T-92 or Abaca+ brings out brighter, more defined flavours.', 45)
+    const advice = clarityAdvice(recipe, input)
+    if (advice) add('clarity', advice.title, advice.detail, 45)
   }
 
   // History hint: point to the best-rated brew of this bean
@@ -660,4 +664,16 @@ export function bracketed(coarser: boolean, current: number, grinder: GrinderCon
   const nearest = candidates.reduce((a, b) => (Math.abs(b - current) < Math.abs(a - current) ? b : a))
   const mid = roundHalfAway((current + nearest) / 2 / spec.step) * spec.step
   return mid === current || mid === nearest ? null : mid
+}
+
+/** "Flat" cup: point to a clearer recipe for the same brewer (never the one just brewed) and/or a fast paper. */
+export function clarityAdvice(recipe: Recipe, input: AnalysisInput): { title: string; detail: string } | null {
+  const alternative = clearerAlternative(recipe, input.alternatives ?? [])
+  const paper = input.filterFlow === 'fast' ? null : 'A fast paper like CAFEC T-92 or Abaca+ brings out brighter, more defined flavours.'
+  if (!alternative) return paper ? { title: 'Try a faster paper', detail: paper } : null
+  const by = alternative.author ? ` by ${alternative.author}` : ''
+  return {
+    title: `Try ${alternative.name} for more clarity`,
+    detail: `${alternative.name}${by} is cleaner and brighter than ${recipe.name}.${paper ? ` ${paper}` : ''}`,
+  }
 }

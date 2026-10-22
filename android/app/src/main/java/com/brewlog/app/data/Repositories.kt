@@ -45,6 +45,7 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             .putFloat("soundVolume", next.soundVolume.toFloat())
             .putBoolean("silentModeSound", next.silentModeSound)
             .putBoolean("countdownTicks", next.countdownTicks)
+            .putBoolean("weighBeansFirst", next.weighBeansFirst)
             .putBoolean("finishPing", next.finishPing)
             .putBoolean("keepAwake", next.keepAwake)
             .putBoolean("onboardingDone", next.onboardingDone)
@@ -68,6 +69,7 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             soundVolume = prefs.getFloat("soundVolume", d.soundVolume.toFloat()).toDouble().coerceIn(0.1, 1.0),
             silentModeSound = prefs.getBoolean("silentModeSound", d.silentModeSound),
             countdownTicks = prefs.getBoolean("countdownTicks", d.countdownTicks),
+            weighBeansFirst = prefs.getBoolean("weighBeansFirst", d.weighBeansFirst),
             finishPing = prefs.getBoolean("finishPing", d.finishPing),
             keepAwake = prefs.getBoolean("keepAwake", d.keepAwake),
             onboardingDone = prefs.getBoolean("onboardingDone", d.onboardingDone),

@@ -6,6 +6,8 @@ import UIKit
 @Observable
 final class BrewSession {
     enum Phase: Equatable {
+        /// Weighing the beans on the tared scale (optional, before the brewer goes on).
+        case dosing
         /// Waiting for the user to put the brewer on the scale and press Ready.
         case preparing
         /// Tared. Waiting for the first pour (scale) or a manual start.
@@ -30,6 +32,8 @@ final class BrewSession {
     private(set) var flash: BrewCue?
     /// Espresso: pressure, temperature and flow recorded from the machine during the shot.
     private(set) var machineSamples: [MachineSample] = []
+    /// The bean dose read from the scale when the beans were weighed, nil when they weren't.
+    private(set) var weighedDose: Double?
 
     @ObservationIgnored private let scale: ScaleManager
     @ObservationIgnored private let sound: SoundPlayer
@@ -47,6 +51,8 @@ final class BrewSession {
     @ObservationIgnored private var lastSampleT: Double = -1
     @ObservationIgnored private var retareSent = false
     @ObservationIgnored private var finishPinged = false
+    @ObservationIgnored private var dosePinged = false
+    @ObservationIgnored private var prepared = false
     @ObservationIgnored private var lastTickSecond: Int?
     @ObservationIgnored private let pourIndices: [Int]
     @ObservationIgnored private let liveActivity = BrewLiveActivity()
@@ -79,6 +85,11 @@ final class BrewSession {
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
         if AppSettings.keepAwake { UIApplication.shared.isIdleTimerDisabled = true }
+        // Only once per brew, so the view appearing again doesn't ask again.
+        if !prepared {
+            prepared = true
+            if AppSettings.weighBeansFirst { weighBeans() }
+        }
     }
 
     func deactivate() {
@@ -92,12 +103,50 @@ final class BrewSession {
             monitor.onPressure = nil
             monitor.shotFinished()
         }
+        if phase == .dosing { scale.dosingFinished() }
         // Brew discarded mid-way: stop the scale timer / demo simulation too.
         if usesScale && !weighsViaMachine && (phase == .armed || phase == .brewing) { scale.brewFinished() }
         liveActivity.end(nil)
         voice.stop()
         sound.stop()
         UIApplication.shared.isIdleTimerDisabled = false
+    }
+
+    // MARK: Weighing the beans
+
+    /// The planned bean dose (the recipe is already scaled to it).
+    var plannedDose: Double { recipe.dose }
+
+    /// The dose to save with the brew.
+    var dose: Double { weighedDose ?? plannedDose }
+
+    /// Weighing the beans needs BrewLog's own scale.
+    var canWeighBeans: Bool { scale.isReady && (phase == .preparing || phase == .dosing) }
+
+    var doseStatus: BeanDosing.Status { BeanDosing.status(weight: weight, dose: plannedDose) }
+
+    /// Tare the scale and weigh the beans against the planned dose.
+    func weighBeans() {
+        guard scale.isReady, phase == .preparing else { return }
+        phase = .dosing
+        dosePinged = false
+        scale.prepareForDosing(dose: plannedDose)
+        Haptics.tap()
+    }
+
+    /// Keep what is on the scale as the dose for this brew.
+    func acceptDose() {
+        guard phase == .dosing else { return }
+        weighedDose = BeanDosing.acceptedDose(weight: weight, planned: plannedDose)
+        scale.dosingFinished()
+        phase = .preparing
+        Haptics.tap()
+    }
+
+    func skipDosing() {
+        guard phase == .dosing else { return }
+        scale.dosingFinished()
+        phase = .preparing
     }
 
     /// "Ready": tare the scale and wait for the first pour.
@@ -132,7 +181,8 @@ final class BrewSession {
     private func machineShot(started: Bool, at date: Date) {
         if started {
             switch phase {
-            case .preparing:
+            case .dosing, .preparing:
+                skipDosing()
                 ready()
                 begin(at: date)
             case .armed:
@@ -299,6 +349,12 @@ final class BrewSession {
                     if reading.grams > 0.3 { onset = reading.date } else { break }
                 }
                 begin(at: onset)
+            }
+        case .dosing:
+            // One ping when the dose is reached, so you can stop adding beans without staring at the number.
+            if !dosePinged && doseStatus == .onTarget {
+                dosePinged = true
+                sound.cue(.target)
             }
         case .brewing:
             guard let startDate else { return }

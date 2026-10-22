@@ -1,4 +1,6 @@
 import { type Bean, type Brew, type Equipment, type MachineSample, type WeightSample, formatGrind } from '../domain/models'
+import { PRESET_RECIPES } from '../domain/library'
+import type { Recipe } from '../domain/recipe'
 import { type AnalysisInput, type BrewAnalysis, type GrinderContext, analyze } from './analyzer'
 
 // Port of BrewAnalysis+Brew.swift / GrindRecommender.kt.
@@ -15,7 +17,8 @@ export function relatedHistory(brew: Brew, brews: Brew[]): Brew[] {
 export const brewDaysOffRoast = (brew: Brew, bean: Bean | null): number | null =>
   bean?.roastDate != null ? Math.floor((brew.date - bean.roastDate) / 86_400_000) : null
 
-export function analysisInput(brew: Brew, allBrews: Brew[], bean: Bean | null, samples: WeightSample[], machine: MachineSample[] = []): AnalysisInput | null {
+export function analysisInput(brew: Brew, allBrews: Brew[], bean: Bean | null, samples: WeightSample[], machine: MachineSample[] = [],
+  alternatives: Recipe[] = PRESET_RECIPES): AnalysisInput | null {
   if (!brew.recipe) return null
   const grinder: GrinderContext | null = brew.grinderSpec
     ? { name: brew.grinderName || 'grinder', spec: brew.grinderSpec, currentValue: brew.grindValue }
@@ -29,11 +32,13 @@ export function analysisInput(brew: Brew, allBrews: Brew[], bean: Bean | null, s
       date: b.date, recipeId: b.recipeId, grindValue: b.grindValue, rating: b.rating, feedback: b.feedback, totalTime: b.totalTime,
     })),
     machine,
+    alternatives,
   }
 }
 
-export function analyzeBrew(brew: Brew, allBrews: Brew[], bean: Bean | null, samples: WeightSample[], machine: MachineSample[] = []): BrewAnalysis | null {
-  const input = analysisInput(brew, allBrews, bean, samples, machine)
+export function analyzeBrew(brew: Brew, allBrews: Brew[], bean: Bean | null, samples: WeightSample[], machine: MachineSample[] = [],
+  alternatives: Recipe[] = PRESET_RECIPES): BrewAnalysis | null {
+  const input = analysisInput(brew, allBrews, bean, samples, machine, alternatives)
   return input ? analyze(input) : null
 }
 

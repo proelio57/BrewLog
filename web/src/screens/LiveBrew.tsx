@@ -1,5 +1,6 @@
 import { CircleCheck, Droplet, Gauge, Play, Scale, Square, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import { doseProgress, type DoseStatus } from '../brewing/dosing'
 import { goBack, live, machine, navigate, pressure, repository, scale, settings, wakeLock, type BrewConfig } from '../app'
 import type { BrewSession, BrewSnapshot } from '../brewing/brewSession'
 import { useStore } from '../data/store'
@@ -39,7 +40,7 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
     session.finish()
     const brew: Brew = {
       id: newId(), date: Date.now(), recipeId: config.recipe.id, recipeName: config.recipe.name, recipe: config.recipe,
-      dose: config.dose, targetWater: config.recipe.water, finalWeight: session.finalWeight, totalTime: session.elapsed,
+      dose: session.dose, targetWater: config.recipe.water, finalWeight: session.finalWeight, totalTime: session.elapsed,
       waterTemp: config.waterTemp, grindSetting: config.grindText, grindValue: config.grindValue, suggestedGrind: null,
       brewerId: config.brewer?.id ?? null, brewerName: config.brewer?.name ?? '',
       grinderId: config.grinder?.id ?? null, grinderName: config.grinder?.name ?? '', grinderSpec: config.grinder?.grinder ?? null,
@@ -57,6 +58,7 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
     const unsubscribe = scale.onReading((grams, time) => session.ingest(grams, time))
     const detach = session.attach()
     const timer = setInterval(() => session.tick(), 50)
+    session.prepare()
     return () => {
       unsubscribe()
       detach()
@@ -90,7 +92,7 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
         <button className="icon-btn filled" aria-label="Close" onClick={confirmClose}><X size={22} /></button>
         <div className="grow" style={{ textAlign: 'center' }}>
           <div className="title">{config.recipe.name}</div>
-          <div className="small muted">{grams1(config.dose)} : {grams(config.recipe.water)} · {Math.round(config.waterTemp)} °C</div>
+          <div className="small muted">{grams1(snapshot.weighedDose ?? config.dose)} : {grams(config.recipe.water)} · {Math.round(config.waterTemp)} °C</div>
         </div>
         <span className="row" style={{ width: 40, justifyContent: 'center', gap: 4 }}>
           <span style={{ width: 8, height: 8, borderRadius: 4, background: scaleLive ? 'var(--good)' : 'var(--muted)' }} />
@@ -108,7 +110,7 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
           <div className="readout-label">WEIGHT</div>
           {snapshot.usesScale ? (
             <>
-              <div className="readout">{scaleReadout(snapshot.phase === 'preparing' ? snapshot.weight : Math.max(snapshot.weight, 0))}</div>
+              <div className="readout">{scaleReadout(snapshot.phase === 'preparing' || snapshot.phase === 'dosing' ? snapshot.weight : Math.max(snapshot.weight, 0))}</div>
               <div className="small muted tnum">{fmt1(Math.max(snapshot.flowRate, 0))} g/s</div>
             </>
           ) : (
@@ -133,6 +135,7 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
         </div>
       )}
 
+      {snapshot.phase === 'dosing' && <DoseCard weight={snapshot.weight} dose={session.plannedDose} status={snapshot.doseStatus} />}
       {snapshot.phase === 'preparing' && (
         <Card>
           <div className="row">
@@ -166,7 +169,7 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
           <BrewChart samples={snapshot.samples} recipe={config.recipe} currentTime={snapshot.elapsed} height={showMachine ? 120 : 160} />
           {session.hasPressure && <MachineChart samples={snapshot.machineSamples} targetPressure={config.recipe.pressure} currentTime={snapshot.elapsed} height={90} />}
         </>
-        : <Preparation config={config} />}
+        : <Preparation config={config} dose={snapshot.weighedDose ?? config.dose} />}
 
       <div className="steps-strip">
         {config.recipe.steps.map((step, index) => {
@@ -188,6 +191,14 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
       </div>
 
       <div className="grow" />
+      {snapshot.phase === 'dosing' && <>
+        <button className="link" style={{ alignSelf: 'center', padding: 12 }} onClick={() => session.skipDosing()}>Skip weighing</button>
+        <button className="btn-primary" disabled={snapshot.doseStatus === 'empty'} style={{ opacity: snapshot.doseStatus === 'empty' ? 0.5 : 1 }}
+          onClick={() => session.acceptDose()}><Scale size={20} />{snapshot.doseStatus === 'empty' ? 'Add the beans' : `Use ${grams1(Math.max(snapshot.weight, 0))} of beans`}</button>
+      </>}
+      {snapshot.phase === 'preparing' && session.canWeighBeans && snapshot.weighedDose == null && (
+        <button className="link" style={{ alignSelf: 'center', padding: 12 }} onClick={() => session.weighBeans()}>Weigh the beans</button>
+      )}
       {snapshot.phase === 'preparing' && <button className="btn-primary" onClick={() => session.ready()}><CircleCheck size={20} />Ready</button>}
       {snapshot.phase === 'armed' && (espresso
         ? <button className="btn-primary" onClick={() => session.startShot()}><Play size={20} />{session.followsMachine ? `Start shot on ${machine.displayName}` : 'Start shot'}</button>
@@ -290,17 +301,39 @@ function preparingHint(session: BrewSession, usesScale: boolean): string {
     : 'No scale connected. Press Ready, then start the timer when you pour.'
 }
 
-function Preparation({ config }: { config: BrewConfig }) {
+function DoseCard({ weight, dose, status }: { weight: number; dose: number; status: DoseStatus }) {
+  const color = status === 'onTarget' ? 'var(--good)' : status === 'over' ? 'var(--warn)' : 'var(--accent)'
+  const hint = status === 'empty' ? "Put a cup on the scale (it's tared) and add the beans."
+    : status === 'under' ? `${fmt1(dose - weight)} g to go`
+      : status === 'onTarget' ? 'On target'
+        : `${fmt1(weight - dose)} g too much. Take a few beans out, or keep it.`
+  return (
+    <Card>
+      <div className="row">
+        {status === 'onTarget' ? <CircleCheck size={32} color={color} /> : <Scale size={32} className="accent" />}
+        <div>
+          <div className="title">Weigh {grams1(dose)} of beans</div>
+          <div className="small muted tnum">{hint}</div>
+        </div>
+      </div>
+      <div className="progress" aria-label="Bean dose">
+        <div className="fill" style={{ width: `${doseProgress(weight, dose) * 100}%`, background: color }} />
+      </div>
+    </Card>
+  )
+}
+
+function Preparation({ config, dose }: { config: BrewConfig; dose: number }) {
   const grind = config.grindValue != null && config.grinder ? `, ground at ${formatGrind(config.grinder.grinder, config.grindValue)}`
     : config.grindText ? `, ground ${config.grindText}` : ''
   const items = config.recipe.method === 'espresso' ? [
-    `Grind ${grams1(config.dose)} of coffee${grind}`,
+    `Grind ${grams1(dose)} of coffee${grind}`,
     'Distribute (WDT) and tamp level',
     'Flush the group head, lock in the portafilter',
     `Brew at ${Math.round(config.waterTemp)} °C, stop at ${grams(config.recipe.water)}`,
   ] : [
     'Rinse the paper with hot water and discard it',
-    `Add ${grams1(config.dose)} of coffee${grind}`,
+    `Add ${grams1(dose)} of coffee${grind}`,
     'Shake or swirl to level the bed',
     `Water at ${Math.round(config.waterTemp)} °C`,
   ]

@@ -258,6 +258,8 @@ class BrewSessionTest {
         override val isReady = true
         override fun tare() { commands += "tare" }
         override fun prepareForBrew(recipe: Recipe) { commands += "prepare" }
+        override fun prepareForDosing(dose: Double) { commands += "dose" }
+        override fun dosingFinished() { commands += "doseDone" }
         override fun brewStarted() { commands += "start" }
         override fun brewFinished() { commands += "stop" }
     }

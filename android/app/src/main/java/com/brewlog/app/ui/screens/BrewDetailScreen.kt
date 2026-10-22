@@ -93,7 +93,7 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
     }
     val samples = remember(brewId) { repo.samples(brewId) }
     val bean = data.beans.firstOrNull { it.id == brew.beanId }
-    val analysis = brew.analyze(data.brews, bean, samples)
+    val analysis = brew.analyze(data.brews, bean, samples, container.presets)
 
     // Remember the grind the analysis suggests, so the next brew of this bean starts there.
     LaunchedEffect(analysis?.suggestedGrind) {
