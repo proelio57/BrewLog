@@ -47,6 +47,10 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             .putBoolean("silentModeSound", next.silentModeSound)
             .putBoolean("countdownTicks", next.countdownTicks)
             .putBoolean("weighBeansFirst", next.weighBeansFirst)
+            .putBoolean("valveCountdown", next.valveCountdown)
+            .putBoolean("voicePrompts", next.voicePrompts)
+            .putBoolean("voicePreview", next.voicePreview)
+            .putString("recipeFilter", next.recipeFilter)
             .putBoolean("finishPing", next.finishPing)
             .putBoolean("keepAwake", next.keepAwake)
             .putBoolean("onboardingDone", next.onboardingDone)
@@ -71,6 +75,10 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             silentModeSound = prefs.getBoolean("silentModeSound", d.silentModeSound),
             countdownTicks = prefs.getBoolean("countdownTicks", d.countdownTicks),
             weighBeansFirst = prefs.getBoolean("weighBeansFirst", d.weighBeansFirst),
+            valveCountdown = prefs.getBoolean("valveCountdown", d.valveCountdown),
+            voicePrompts = prefs.getBoolean("voicePrompts", d.voicePrompts),
+            voicePreview = prefs.getBoolean("voicePreview", d.voicePreview),
+            recipeFilter = prefs.getString("recipeFilter", d.recipeFilter) ?: "",
             finishPing = prefs.getBoolean("finishPing", d.finishPing),
             keepAwake = prefs.getBoolean("keepAwake", d.keepAwake),
             onboardingDone = prefs.getBoolean("onboardingDone", d.onboardingDone),

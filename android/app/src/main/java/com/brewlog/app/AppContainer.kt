@@ -67,6 +67,8 @@ class AppContainer(context: Context) {
     /** The live brew survives configuration changes because it lives here, not in the UI. */
     var activeBrew: Pair<BrewConfig, BrewSession>? = null
 
+    val voice = com.brewlog.app.audio.VoicePrompter(context, { settings.current })
+
     fun cue(cue: BrewCue) {
         sound.play(cue)
         haptics.play(cue)

@@ -403,11 +403,33 @@ fun SettingsScreen(nav: NavHostController) {
                             valueRange = 0.2f..1.5f, steps = 12)
                     }
                     SwitchRow("3-2-1 ticks before each step", settings.countdownTicks) { v -> update { it.copy(countdownTicks = v) } }
+                    if (!settings.countdownTicks) {
+                        SwitchRow("3-2-1 ticks before opening or closing the valve", settings.valveCountdown) { v -> update { it.copy(valveCountdown = v) } }
+                    }
                     SwitchRow("Weigh the beans first", settings.weighBeansFirst) { v -> update { it.copy(weighBeansFirst = v) } }
                     SwitchRow("Chime at target brew time", settings.finishPing) { v -> update { it.copy(finishPing = v) } }
                     SwitchRow("Keep screen on while brewing", settings.keepAwake) { v -> update { it.copy(keepAwake = v) } }
                     Text("Automatic buffer = your pour rate × reaction time + 1 g, so you hear the ping early enough to stop right on target. " +
-                        "Increase the reaction time if you often overpour. With a scale connected, a brew starts by weighing the beans (you can skip it).",
+                        "Increase the reaction time if you often overpour. Valve ticks (Hario Switch) count down to the moment you open or close the valve. " +
+                        "With a scale connected, a brew starts by weighing the beans (you can skip it).",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            item {
+                SectionHeader("Voice")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    SwitchRow("Spoken step prompts", settings.voicePrompts) { v -> update { it.copy(voicePrompts = v) } }
+                    if (settings.voicePrompts) {
+                        SwitchRow("Announce the next step ahead", settings.voicePreview) { v -> update { it.copy(voicePreview = v) } }
+                        val voice = LocalContainer.current.voice
+                        TextButton(onClick = {
+                            voice.say(com.brewlog.app.domain.StepAnnouncement.text(
+                                com.brewlog.app.domain.RecipeStep(com.brewlog.app.domain.StepKind.BLOOM, 0.0, 45.0)), force = true)
+                        }) { Text("Test voice") }
+                    }
+                    Text("Reads each step out loud (\"Pour to 150 grams.\"), so you can keep your eyes on the kettle. " +
+                        "Uses the phone's text-to-speech, nothing leaves the device.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

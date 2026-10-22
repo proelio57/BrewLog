@@ -111,6 +111,7 @@ fun LiveBrewScreen(nav: NavHostController) {
     fun close() {
         if (pressureReady) container.pressure.brewFinished()
         session.discard()
+        container.voice.stop()
         container.activeBrew = null
         nav.popBackStack()
     }

@@ -147,6 +147,7 @@ fun BrewSetupScreen(nav: NavHostController) {
                         machine = container.machine,
                         monitorReady = { container.pressure.ready.value },
                         prepareMonitor = { container.pressure.prepareForBrew(it) },
+                        onSpeak = { container.voice.say(it) },
                     )
                     nav.navigate(Routes.LIVE)
                 }

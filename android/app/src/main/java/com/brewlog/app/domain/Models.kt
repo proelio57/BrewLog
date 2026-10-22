@@ -288,6 +288,13 @@ data class AppSettings(
     val countdownTicks: Boolean = false,
     /** With a scale, a brew starts by weighing the beans (can be skipped). */
     val weighBeansFirst: Boolean = true,
+    /** Hario Switch: 3-2-1 ticks before the valve opens or closes, even when ticks before every step are off. */
+    val valveCountdown: Boolean = true,
+    val voicePrompts: Boolean = false,
+    /** Announce the next step a few seconds ahead. */
+    val voicePreview: Boolean = true,
+    /** Recipe list filter by brewer type (raw value, "" = all). */
+    val recipeFilter: String = "",
     val finishPing: Boolean = true,
     val keepAwake: Boolean = true,
     val onboardingDone: Boolean = false,

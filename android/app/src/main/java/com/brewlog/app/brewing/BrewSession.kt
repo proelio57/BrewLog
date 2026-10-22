@@ -7,8 +7,10 @@ import com.brewlog.app.machine.GaggiMateStatus
 import com.brewlog.app.machine.MachineManager
 import com.brewlog.app.domain.PingLeadMode
 import com.brewlog.app.domain.Recipe
+import com.brewlog.app.domain.StepAnnouncement
 import com.brewlog.app.domain.WeightSample
 import com.brewlog.app.domain.roundHalfAway
+import com.brewlog.app.domain.valveChange
 import com.brewlog.app.scale.ScaleCommands
 import com.brewlog.app.scale.monotonicMillis
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,6 +76,8 @@ class BrewSession(
     /** Live pressure from the BOOKOO Espresso Monitor is available (readings arrive via [monitorReading]). */
     private val monitorReady: () -> Boolean = { false },
     private val prepareMonitor: (Recipe) -> Unit = {},
+    /** Spoken step prompts (only called when they are switched on). */
+    private val onSpeak: (String) -> Unit = {},
 ) {
     val isEspresso: Boolean get() = recipe.isEspresso
 
@@ -117,6 +121,7 @@ class BrewSession(
     private var weighedDose: Double? = null
     private var dosePinged = false
     private var prepared = false
+    private val previewed = HashSet<Int>()
     private val pourIndices: List<Int> =
         recipe.steps.indices.filter { recipe.steps[it].kind.isPour && recipe.steps[it].target != null }
 
@@ -333,6 +338,7 @@ class BrewSession(
                 return
             }
             checkStepStarts()
+            checkStepPreview()
             checkCountdownTicks()
             checkFinishPing()
         }
@@ -352,6 +358,7 @@ class BrewSession(
         if (usesScale && !weighsViaMachine) scale.brewStarted()
         // The first step at 0:00 is silent; just mark it as started.
         recipe.steps.forEachIndexed { index, step -> if (step.time <= 0) startPinged.add(index) }
+        recipe.steps.firstOrNull { it.time <= 0 }?.let { speak(StepAnnouncement.text(it)) }
         publish()
     }
 
@@ -360,13 +367,38 @@ class BrewSession(
             if (step.time > 0 && step.time <= elapsed && index !in startPinged) {
                 startPinged.add(index)
                 // Don't replay cues that were missed (e.g. app was in the background)
-                if (elapsed - step.time < 2) fire(BrewCue.NEXT_STEP)
+                if (elapsed - step.time < 2) {
+                    fire(BrewCue.NEXT_STEP)
+                    speak(StepAnnouncement.text(step))
+                }
             }
         }
     }
 
+    /** "Next, pour to 250 grams." a few seconds ahead, when there's a calm moment for it. */
+    private fun checkStepPreview() {
+        val s = settings()
+        if (!s.voicePrompts || !s.voicePreview) return
+        val next = nextStepIndex() ?: return
+        val remaining = timeToNextStep() ?: return
+        if (next in previewed || remaining > StepAnnouncement.LEAD_TIME) return
+        previewed.add(next)
+        val previousStart = currentStepIndex()?.let { recipe.steps[it].time } ?: 0.0
+        val gap = recipe.steps[next].time - previousStart
+        if (remaining > StepAnnouncement.LEAD_TIME - 1 && gap >= StepAnnouncement.LEAD_TIME + 6) {
+            speak(StepAnnouncement.preview(recipe.steps[next]))
+        }
+    }
+
+    private fun speak(text: String) {
+        if (settings().voicePrompts) onSpeak(text)
+    }
+
     private fun checkCountdownTicks() {
-        if (!settings().countdownTicks) return
+        val next = nextStepIndex() ?: return
+        // Hario Switch: tick before the valve opens or closes even when ticks before every step are off.
+        val valve = settings().valveCountdown && recipe.valveChange(next) != null
+        if (!settings().countdownTicks && !valve) return
         val remaining = timeToNextStep() ?: return
         val second = ceil(remaining).toInt()
         if (second in 1..3 && second != lastTickSecond && remaining < second) {
@@ -380,7 +412,10 @@ class BrewSession(
         finishPinged = true
         // Skip if a recipe step already chimes at this moment (e.g. "remove dripper")
         if (recipe.steps.any { abs(it.time - recipe.targetTime) < 1.5 }) return
-        if (elapsed - recipe.targetTime < 2) fire(BrewCue.FINISH)
+        if (elapsed - recipe.targetTime < 2) {
+            fire(BrewCue.FINISH)
+            speak(StepAnnouncement.FINISHED)
+        }
     }
 
     private fun checkTargetPing() {
