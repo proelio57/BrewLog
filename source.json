@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.17",
+          "buildVersion": "17",
+          "date": "2026-10-22T21:55:14Z",
+          "localizedDescription": "Merge pull request #3 from proelio57/feature/weigh-beans-recipe-advice\n\nWeigh the beans before brewing; recipe advice never repeats the brewed recipe",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.17/BrewLog.ipa",
+          "size": 2743549,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.14",
           "buildVersion": "14",
           "date": "2026-10-19T09:15:03Z",
@@ -87,11 +96,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.14",
-      "versionDate": "2026-10-19T09:15:03Z",
-      "versionDescription": "feat(ios): recipe filter, Switch valve countdown, widgets, Git backup, Ask Claude\n\nFrom Feature-requests:\n- Recipes by gear type: filter chips on the Recipes tab and the recipe\n  picker, which starts with the selected brewer's type\n- Hario Switch: 3-2-1 ticks with haptics before every valve change\n- Home and Lock Screen widgets (beans & last brew, quick start) via an App\n  Group; ldid adds the entitlement to the unsigned IPA, SideStore rewrites\n  ALTAppGroups; brewlog:// links\n- Git backup to GitHub, GitLab or Gitea/Forgejo: download + merge, commit\n  when changed, optional auto sync; token in the Keychain\n- Ask Claude for a bean with the user's own API key: brewing advice from\n  the bean, gear and brews, web search for community posts with sources\n\nDocs: parity guide, data formats, SideStore, README, Feature-requests status.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.14/BrewLog.ipa",
-      "size": 2723705
+      "version": "0.1.17",
+      "versionDate": "2026-10-22T21:55:14Z",
+      "versionDescription": "Merge pull request #3 from proelio57/feature/weigh-beans-recipe-advice\n\nWeigh the beans before brewing; recipe advice never repeats the brewed recipe",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.17/BrewLog.ipa",
+      "size": 2743549
     }
   ],
   "news": []
