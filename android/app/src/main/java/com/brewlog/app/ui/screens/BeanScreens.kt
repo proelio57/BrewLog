@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material3.AlertDialog
@@ -161,6 +162,7 @@ fun BeanEditorScreen(nav: NavHostController, beanId: String) {
         title = if (isNew) "New beans" else "Edit beans",
         onBack = { nav.popBackStack() },
         actions = {
+            if (!isNew) IconButton(onClick = { nav.navigate(Routes.beanAdvice(beanId)) }) { Icon(Icons.Filled.AutoAwesome, contentDescription = "Ask Claude how to brew it") }
             if (!isNew) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }
             TextButton(onClick = ::save, enabled = name.sanitized(InputLimits.MAX_NAME_LENGTH).isNotEmpty()) { Text("Save", fontWeight = FontWeight.SemiBold) }
         },

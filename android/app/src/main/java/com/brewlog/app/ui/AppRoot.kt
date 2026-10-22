@@ -29,6 +29,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.brewlog.app.LocalContainer
+import com.brewlog.app.ui.screens.AiSettingsScreen
+import com.brewlog.app.ui.screens.BeanAdviceScreen
 import com.brewlog.app.ui.screens.BeanEditorScreen
 import com.brewlog.app.ui.screens.BeanListScreen
 import com.brewlog.app.ui.screens.BrewDetailScreen
@@ -76,6 +78,7 @@ object Routes {
     fun recipeEditor(id: String, duplicate: Boolean = false) = "recipeEditor/$id?duplicate=$duplicate"
     fun bean(id: String) = "bean/$id"
     fun equipment(id: String) = "equipment/$id"
+    fun beanAdvice(id: String) = "beanAdvice/$id"
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -140,6 +143,8 @@ fun AppRoot() {
             composable(Routes.TOOLS_WATER) { WaterCalculatorScreen(nav) }
             composable(Routes.TOOLS_GRIND) { GrindConverterScreen(nav) }
             composable(Routes.GIT_BACKUP) { GitBackupScreen(nav) }
+            composable(Routes.AI) { AiSettingsScreen(nav) }
+            composable("beanAdvice/{id}") { entry -> BeanAdviceScreen(nav, entry.arguments?.getString("id").orEmpty()) }
             composable(
                 "brewDetail/{id}?isNew={isNew}",
                 arguments = listOf(navArgument("isNew") { type = NavType.BoolType; defaultValue = false }),

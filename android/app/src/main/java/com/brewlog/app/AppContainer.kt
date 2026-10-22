@@ -42,6 +42,8 @@ data class BrewConfig(
 class AppContainer(context: Context) {
     val scope = MainScope()
     private val prefs = context.getSharedPreferences("brewlog", Context.MODE_PRIVATE)
+    /** Small app preferences outside AppSettings (e.g. the AI web search switch). */
+    val preferences get() = prefs
 
     val settings = SettingsRepository(prefs)
     val bundledRecipes: List<Recipe> = context.assets.open("recipes.json").bufferedReader().use { RecipeLibrary.parse(it.readText()) }

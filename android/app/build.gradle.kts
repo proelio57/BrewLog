@@ -82,6 +82,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     // WebSocket to the espresso machine (GaggiMate) in the local network.
     implementation(libs.okhttp)
+    // "Ask Claude" for a bean (opt-in, the user's own API key).
+    implementation(libs.anthropic.java)
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)
