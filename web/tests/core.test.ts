@@ -465,6 +465,8 @@ describe('brew engine', () => {
     isReady = true
     tare() { this.commands.push('tare') }
     prepareForBrew() { this.commands.push('prepare') }
+    prepareForDosing() { this.commands.push('dose') }
+    dosingFinished() { this.commands.push('doseDone') }
     brewStarted() { this.commands.push('start') }
     brewFinished() { this.commands.push('stop') }
   }

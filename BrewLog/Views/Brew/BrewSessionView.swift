@@ -90,7 +90,7 @@ struct BrewSessionView: View {
             Spacer()
             VStack(spacing: 2) {
                 Text(config.recipe.name).font(.headline)
-                Text("\(config.dose.grams1) : \(config.recipe.water.grams) · \(Int(config.waterTemp)) °C")
+                Text("\(session.dose.grams1) : \(config.recipe.water.grams) · \(Int(config.waterTemp)) °C")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -119,7 +119,7 @@ struct BrewSessionView: View {
             VStack(alignment: .trailing, spacing: 0) {
                 Text("WEIGHT").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 if session.usesScale {
-                    Text((session.phase == .preparing ? session.weight : max(session.weight, 0)).scaleReadout)
+                    Text((session.phase == .preparing || session.phase == .dosing ? session.weight : max(session.weight, 0)).scaleReadout)
                         .font(.system(size: 54, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                     Text(String(format: "%.1f g/s", max(session.flowRate, 0)))
@@ -141,6 +141,8 @@ struct BrewSessionView: View {
     @ViewBuilder
     private var stepCard: some View {
         switch session.phase {
+        case .dosing:
+            DoseCard(weight: session.weight, dose: session.plannedDose, status: session.doseStatus)
         case .preparing:
             Card {
                 HStack(spacing: 14) {
@@ -202,7 +204,7 @@ struct BrewSessionView: View {
         if session.isEspresso {
             Card {
                 VStack(alignment: .leading, spacing: 10) {
-                    Label("Grind \(config.dose.grams1) of coffee\(grindText)", systemImage: "1.circle.fill")
+                    Label("Grind \(session.dose.grams1) of coffee\(grindText)", systemImage: "1.circle.fill")
                     Label("Distribute (WDT) and tamp level", systemImage: "2.circle.fill")
                     Label("Flush the group head, lock in the portafilter", systemImage: "3.circle.fill")
                     Label("Brew at \(Int(config.waterTemp)) °C, stop at \(config.recipe.water.grams)", systemImage: "4.circle.fill")
@@ -220,7 +222,7 @@ struct BrewSessionView: View {
         Card {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Rinse the paper with hot water and discard it", systemImage: "1.circle.fill")
-                Label("Add \(config.dose.grams1) of coffee\(grindText)", systemImage: "2.circle.fill")
+                Label("Add \(session.dose.grams1) of coffee\(grindText)", systemImage: "2.circle.fill")
                 Label("Shake or swirl to level the bed", systemImage: "3.circle.fill")
                 Label("Water at \(Int(config.waterTemp)) °C", systemImage: "4.circle.fill")
             }
@@ -268,7 +270,18 @@ struct BrewSessionView: View {
     @ViewBuilder
     private var controls: some View {
         switch session.phase {
+        case .dosing:
+            Button("Skip weighing") { session.skipDosing() }
+                .font(.subheadline.weight(.semibold))
+            primaryButton(session.doseStatus == .empty ? "Add the beans" : "Use \(max(session.weight, 0).grams1) of beans",
+                          symbol: "scalemass.fill") { session.acceptDose() }
+                .disabled(session.doseStatus == .empty)
+                .opacity(session.doseStatus == .empty ? 0.5 : 1)
         case .preparing:
+            if session.canWeighBeans && session.weighedDose == nil {
+                Button("Weigh the beans", systemImage: "scalemass") { session.weighBeans() }
+                    .font(.subheadline.weight(.semibold))
+            }
             primaryButton("Ready", symbol: "checkmark.circle.fill") { session.ready() }
         case .armed:
             if session.isEspresso {
@@ -319,7 +332,7 @@ struct BrewSessionView: View {
         brew.recipeID = config.recipe.id
         brew.recipeName = config.recipe.name
         brew.recipe = config.recipe
-        brew.dose = config.dose
+        brew.dose = session.dose
         brew.targetWater = config.recipe.water
         brew.finalWeight = session.finalWeight
         brew.totalTime = session.elapsed
@@ -336,10 +349,54 @@ struct BrewSessionView: View {
         brew.machineSamples = session.machineSamples
         if let bean = config.bean {
             brew.bean = bean
-            bean.remaining = max(0, bean.remaining - config.dose)
+            bean.remaining = max(0, bean.remaining - session.dose)
         }
         try? context.save()
         withAnimation(.spring) { savedBrew = brew }
+    }
+}
+
+// MARK: - Weighing the beans
+
+private struct DoseCard: View {
+    let weight: Double
+    let dose: Double
+    let status: BeanDosing.Status
+
+    var body: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 14) {
+                    Image(systemName: status == .onTarget ? "checkmark.circle.fill" : "scalemass")
+                        .font(.title)
+                        .foregroundStyle(tint)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Weigh \(dose.grams1) of beans").font(.headline)
+                        Text(hint).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+                ProgressView(value: BeanDosing.progress(weight: weight, dose: dose))
+                    .tint(tint)
+                    .animation(.easeOut(duration: 0.2), value: weight)
+            }
+        }
+    }
+
+    private var tint: Color {
+        switch status {
+        case .empty, .under: return .accentColor
+        case .onTarget: return .green
+        case .over: return .orange
+        }
+    }
+
+    private var hint: String {
+        switch status {
+        case .empty: return "Put a cup on the scale (it's tared) and add the beans."
+        case .under: return "\(String(format: "%.1f", dose - weight)) g to go"
+        case .onTarget: return "On target"
+        case .over: return "\(String(format: "%.1f", weight - dose)) g too much. Take a few beans out, or keep it."
+        }
     }
 }
 

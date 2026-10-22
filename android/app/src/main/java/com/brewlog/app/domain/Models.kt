@@ -274,6 +274,8 @@ data class AppSettings(
     val soundVolume: Double = 0.8,
     val silentModeSound: Boolean = true,
     val countdownTicks: Boolean = false,
+    /** With a scale, a brew starts by weighing the beans (can be skipped). */
+    val weighBeansFirst: Boolean = true,
     val finishPing: Boolean = true,
     val keepAwake: Boolean = true,
     val onboardingDone: Boolean = false,

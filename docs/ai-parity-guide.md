@@ -50,7 +50,8 @@ Use this reference table to find the corresponding implementation files across p
 | **Extraction (TDS / EY)** | `Tools/Extraction.swift`, `Views/Tools/ToolViews.swift` (`ExtractionCalculatorView`, `BrewExtractionCard`, `ExtractionChart`) | – | – |
 | **Water Recipes** | `Tools/WaterChemistry.swift`, `Views/Tools/ToolViews.swift` (`WaterCalculatorView`) | – | – |
 | **Grind Converter** | `Tools/GrindConverter.swift`, `Views/Tools/ToolViews.swift` (`GrindConverterView`) | – | – |
-| **Recipe Filter by Brewer** | `Recipes/RecipeFilter.swift`, `MethodFilterBar` in `Views/Recipes/RecipeViews.swift` | – | – |
+| **Recipe Filter by Brewer** | `Recipes/RecipeFilter.swift`, `MethodFilterBar` in `Views/Recipes/RecipeViews.swift` | `domain/RecipeFilter.kt` (matching + clearer alternative only) | `domain/recipeFilter.ts` (matching + clearer alternative only) |
+| **Weigh the Beans** | `Brewing/BeanDosing.swift`, `BrewSession` (`.dosing`), `DoseCard` in `Views/Brew/BrewSessionView.swift` | `brewing/BeanDosing.kt`, `BrewSession.kt`, `DoseCard` in `ui/screens/LiveBrewScreen.kt` | `brewing/dosing.ts`, `brewSession.ts`, `DoseCard` in `screens/LiveBrew.tsx` |
 | **Home & Lock Screen Widgets** | `ActivityShared/WidgetSnapshot.swift` (shared), `App/WidgetSync.swift`, `BrewLogWidgets/HomeWidgets.swift` | – | – |
 | **Git Backup** | `Import/GitRemote.swift` (requests), `Import/GitSync.swift` (sync, Keychain), `Views/Gear/GitBackupView.swift` | – | – |
 | **Ask Claude (bean advice)** | `Tools/BeanAdvisor.swift`, `Views/Beans/BeanAdviceView.swift` | – | – |
@@ -82,12 +83,13 @@ Use this reference table to find the corresponding implementation files across p
 | **Grind Converter** | Yes | No | No | Between calibrated grinders (`defaultGrind` + `micronsPerStep`) and from the recipe's µm range to the selected grinder (shown under the grind in Brew setup). |
 | **Grind Remembered per Grinder** | Yes | Yes | No | Switching grinders restores that grinder's setting, else history, else a starting value (`defaultGrind`). |
 | **Live Brew Flow Tracking** | Yes | Yes | Yes | Weight curve, flow rate, step timing, pings. |
+| **Weigh the Beans First** | Yes | Yes | Yes | Phase `dosing` before `preparing` when a scale is ready and `weighBeansFirst` is on (default). Tare, bar to the dose, one target ping within ±0.2 g (`BeanDosing`), "Use x g" saves the weighed dose (`acceptedDose`, falls back to the plan below 0.5 g or above the dose limit) as the brew's dose; skippable, only once per brew. Demo scale simulates the beans. |
 | **Spoken Step Prompts** | Yes | No | No | Settings → Voice. Off by default. Texts in `StepAnnouncement` (port them 1:1), optional announcement 5 s ahead. |
 | **BOOKOO Scale** | Yes | Yes | Yes | Web: Web Bluetooth (Chromium browsers, not iOS Safari). |
 | **Live Activity / Timer** | Yes | Yes | No | iOS: ActivityKit / Dynamic Island. Android: ongoing notification. |
 | **Valve Countdown (Hario Switch)** | Yes | No | No | 3-2-1 ticks with haptics before every step that opens or closes the valve (`Recipe.valveChange(at:)`), on by default, independent of the ticks before every step. |
 | **Home & Lock Screen Widgets** | Yes | No | No | "Beans & last brew" (small, medium, Lock Screen rectangular/circular/inline) and "Quick start" (Brew / Weigh). Data via App Group (`ALTAppGroups`, entitlement added with `ldid` in `scripts/build-ipa.sh`), links `brewlog://brew|weigh|journal|beans`. Android candidate: Glance widgets. |
-| **Brew Analysis & Grind Suggestions** | Yes | Yes | Yes | Pour-over analysis and history-based grind recommendation. |
+| **Brew Analysis & Grind Suggestions** | Yes | Yes | Yes | Pour-over analysis and history-based grind recommendation. "Flat" suggests a clearer recipe for the same brewer via `RecipeFilter.clearerAlternative` (never the brewed recipe, a same-name copy, a template or espresso; clarity ≥ max(current, 4), then sweetness), plus a fast paper unless one was used. The analysis input gets the preset list as `alternatives`. |
 | **TDS & Extraction Yield** | Yes | No | No | TDS (and optional drink weight) on a brew, EY %, verdict and control chart; standalone calculator under Gear → Tools. Beanconqueror `tds` is imported on iOS. |
 | **Water Recipes & Profiles** | Yes | No | No | Calculator for distilled water + Epsom salt / calcium chloride / baking soda (dry or Barista Hustle concentrates), presets, saved as gear of type water with GH/KH; water chosen per brew. |
 | **Edit a Saved Brew** | Yes | Yes | Yes | |

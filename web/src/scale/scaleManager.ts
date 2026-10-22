@@ -29,6 +29,9 @@ export interface ScaleCommands {
   readonly isReady: boolean
   tare(): void
   prepareForBrew(recipe: Recipe): void
+  /** Tares for weighing the beans (demo: simulates beans being added). */
+  prepareForDosing(dose: number): void
+  dosingFinished(): void
   brewStarted(): void
   brewFinished(): void
 }
@@ -130,6 +133,15 @@ export class ScaleManager implements ScaleCommands {
     } else {
       void this.send('tare').then(() => setTimeout(() => void this.send('resetTimer'), 150))
     }
+  }
+
+  prepareForDosing(dose: number): void {
+    if (this.state.get().isDemo) this.demo.simulateDose(dose)
+    else void this.send('tare')
+  }
+
+  dosingFinished(): void {
+    if (this.state.get().isDemo) this.demo.stopSimulation()
   }
 
   brewStarted(): void {
@@ -253,6 +265,15 @@ class DemoScale {
       rate: random(low, high),
     }))
     this.endTime = recipe.targetTime + 20
+    this.pourStart = monotonicMillis() + delaySeconds * 1000
+  }
+
+  /** Beans trickling into a cup, ending a little off the dose like a real hand would. */
+  simulateDose(dose: number, delaySeconds = 1.5): void {
+    this.weight = 0
+    const random = (a: number, b: number) => a + Math.random() * (b - a)
+    this.plan = [{ start: 0, goal: Math.max(dose + random(-0.3, 0.4), 0), rate: random(1.5, 2.5) }]
+    this.endTime = 60
     this.pourStart = monotonicMillis() + delaySeconds * 1000
   }
 

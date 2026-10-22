@@ -54,3 +54,27 @@ extension Recipe {
         }
     }
 }
+
+extension RecipeFilter {
+    /// A recipe for the same brewer that brings more clarity, for "flat" cups. Never the recipe that was just
+    /// brewed (also not a copy of it under the same name), never a template, and never an espresso recipe.
+    static func clearerAlternative(to recipe: Recipe, among candidates: [Recipe]) -> Recipe? {
+        guard !recipe.method.isEspresso else { return nil }
+        let minimum = max(recipe.taste.clarity, 4)
+        var best: Recipe?
+        for candidate in candidates {
+            if candidate.id == recipe.id || candidate.id.hasPrefix("template-") { continue }
+            if candidate.name.caseInsensitiveCompare(recipe.name) == .orderedSame { continue }
+            if candidate.method.isEspresso { continue }
+            if recipe.method != .universal && !matches(candidate, method: recipe.method) { continue }
+            if candidate.taste.clarity < minimum { continue }
+            // Clearest first, then the sweeter one, then library order.
+            guard let current = best else { best = candidate; continue }
+            if candidate.taste.clarity > current.taste.clarity
+                || (candidate.taste.clarity == current.taste.clarity && candidate.taste.sweetness > current.taste.sweetness) {
+                best = candidate
+            }
+        }
+        return best
+    }
+}

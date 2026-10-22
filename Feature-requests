@@ -1,6 +1,10 @@
 when clicking start brew you should be able to weigh the needed beans
 recommendatiojs shouldnt recommend rhe same recipe using rigjt now
 
+Status of these two (iOS, Android and web):
+- Weigh the beans: with a scale connected, Start brew begins with "Weigh x g of beans" (tared, progress bar, ping at the dose). "Use x g" saves the weighed dose with the brew, "Skip weighing" goes on without. Settings → Brew assistant → Weigh the beans first.
+- Recipe advice: "Flat" no longer suggests Rao V60 when you brewed Rao V60. It picks a clearer recipe for the same brewer that isn't the one you used (or only a faster paper).
+
 choose recipe by gear type, toggle brewer and not scroll all the recipes 
 save profile and journal in git
 for hario switch additional beeps to countdown when needing to open or close

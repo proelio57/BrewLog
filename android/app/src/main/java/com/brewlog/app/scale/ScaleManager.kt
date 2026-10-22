@@ -58,6 +58,9 @@ interface ScaleCommands {
     val isReady: Boolean
     fun tare()
     fun prepareForBrew(recipe: Recipe)
+    /** Tares for weighing the beans (demo: simulates beans being added). */
+    fun prepareForDosing(dose: Double)
+    fun dosingFinished()
     fun brewStarted()
     fun brewFinished()
 }
@@ -200,6 +203,14 @@ class ScaleManager(
             send(BookooProtocol.Command.TARE)
             main.postDelayed({ send(BookooProtocol.Command.RESET_TIMER) }, 150)
         }
+    }
+
+    override fun prepareForDosing(dose: Double) {
+        if (_isDemo.value) demo.simulateDose(dose) else send(BookooProtocol.Command.TARE)
+    }
+
+    override fun dosingFinished() {
+        if (_isDemo.value) demo.stopSimulation()
     }
 
     override fun brewStarted() = send(BookooProtocol.Command.START_TIMER)

@@ -46,6 +46,8 @@ struct AnalysisInput {
     var history: [PastBrew]
     /// Espresso: pressure, temperature and flow recorded from the machine.
     var machine: [MachineSample] = []
+    /// Recipes BrewLog may point to (built-in list); the brewed recipe itself is never suggested.
+    var alternatives: [Recipe] = []
 }
 
 enum FindingLevel: Int {
@@ -761,9 +763,9 @@ enum BrewAnalyzer {
             add("water", "Check your water",
                 "Distilled or very soft water tastes flat, and very hard water dulls acidity. Aim for about 50–100 ppm hardness (e.g. a light-roast mineral recipe or a low-mineral bottled water).",
                 priority: 60, symbol: "drop.triangle.fill")
-            add("clarity", "Try a recipe with more clarity",
-                "Rao V60 or a fast paper like CAFEC T-92 or Abaca+ brings out brighter, more defined flavours.",
-                priority: 45, symbol: "sparkle.magnifyingglass")
+            if let advice = clarityAdvice(recipe: recipe, input: input) {
+                add("clarity", advice.title, advice.detail, priority: 45, symbol: "sparkle.magnifyingglass")
+            }
         }
 
         // History hint: point to the best-rated brew of this bean
@@ -840,5 +842,19 @@ enum BrewAnalyzer {
         guard let nearest = candidates.min(by: { abs($0 - current) < abs($1 - current) }) else { return nil }
         let mid = ((current + nearest) / 2 / spec.step).rounded() * spec.step
         return mid == current || mid == nearest ? nil : mid
+    }
+}
+
+extension BrewAnalyzer {
+    /// "Flat" cup: point to a clearer recipe for the same brewer (never the one just brewed) and/or a fast paper.
+    static func clarityAdvice(recipe: Recipe, input: AnalysisInput) -> (title: String, detail: String)? {
+        let alternative = RecipeFilter.clearerAlternative(to: recipe, among: input.alternatives)
+        let paper = input.filterFlow == .fast ? nil : "A fast paper like CAFEC T-92 or Abaca+ brings out brighter, more defined flavours."
+        guard let alternative else {
+            return paper.map { ("Try a faster paper", $0) }
+        }
+        let by = alternative.author.isEmpty ? "" : " by \(alternative.author)"
+        let detail = "\(alternative.name)\(by) is cleaner and brighter than \(recipe.name)." + (paper.map { " \($0)" } ?? "")
+        return ("Try \(alternative.name) for more clarity", detail)
     }
 }

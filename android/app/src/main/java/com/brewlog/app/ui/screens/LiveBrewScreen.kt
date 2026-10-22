@@ -67,6 +67,7 @@ import androidx.navigation.NavHostController
 import com.brewlog.app.BrewConfig
 import com.brewlog.app.LocalContainer
 import com.brewlog.app.brewing.BrewCue
+import com.brewlog.app.brewing.BeanDosing
 import com.brewlog.app.brewing.BrewPhase
 import com.brewlog.app.brewing.BrewSession
 import com.brewlog.app.brewing.BrewSnapshot
@@ -123,7 +124,7 @@ fun LiveBrewScreen(nav: NavHostController) {
             recipeId = config.recipe.id,
             recipeName = config.recipe.name,
             recipe = config.recipe,
-            dose = config.dose,
+            dose = session.dose,
             targetWater = config.recipe.water,
             finalWeight = session.finalWeight,
             totalTime = session.elapsed,
@@ -150,6 +151,7 @@ fun LiveBrewScreen(nav: NavHostController) {
 
     LaunchedEffect(session) {
         session.onAutoFinish = { finish() }
+        session.prepare()
         container.scale.readings.collect { session.ingest(it.grams, it.timeMillis) }
     }
     LaunchedEffect(pressureReady, snapshot.phase) {
@@ -199,9 +201,10 @@ fun LiveBrewScreen(nav: NavHostController) {
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).systemBarsPadding().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Header(config, snapshot.usesScale && scaleReady, pressureLive = pressureReady) { if (snapshot.phase == BrewPhase.BREWING) confirmDiscard = true else close() }
+        Header(config, snapshot.weighedDose ?: config.dose, snapshot.usesScale && scaleReady, pressureLive = pressureReady) { if (snapshot.phase == BrewPhase.BREWING) confirmDiscard = true else close() }
         Readouts(snapshot, config, pressureReady = pressureReady, pressureBar = currentPressure)
         when (snapshot.phase) {
+            BrewPhase.DOSING -> DoseCard(snapshot.weight, session.plannedDose, snapshot.doseStatus)
             BrewPhase.PREPARING -> PreparingCard(snapshot.usesScale)
             BrewPhase.ARMED -> ArmedCard(snapshot, config.recipe.steps.firstOrNull())
             else -> ActiveStepCard(snapshot, session)
@@ -215,12 +218,16 @@ fun LiveBrewScreen(nav: NavHostController) {
                 pressureSamples = if (pressureReady) pressureSamples.toList() else emptyList(),
             )
         } else {
-            PreparationList(config)
+            PreparationList(config, snapshot.weighedDose ?: config.dose)
         }
         StepsStrip(config, snapshot)
         Spacer(Modifier.weight(1f))
         Controls(
             snapshot,
+            canWeighBeans = session.canWeighBeans && snapshot.weighedDose == null,
+            onWeighBeans = { session.weighBeans(); container.haptics.tap() },
+            onAcceptDose = { session.acceptDose(); container.haptics.tap() },
+            onSkipDosing = { session.skipDosing() },
             onReady = {
                 session.ready()
                 if (pressureReady) container.pressure.prepareForBrew(config.recipe)
@@ -243,14 +250,14 @@ fun LiveBrewScreen(nav: NavHostController) {
 }
 
 @Composable
-private fun Header(config: BrewConfig, scaleLive: Boolean, pressureLive: Boolean = false, onClose: () -> Unit) {
+private fun Header(config: BrewConfig, dose: Double, scaleLive: Boolean, pressureLive: Boolean = false, onClose: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onClose, modifier = Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)) {
             Icon(Icons.Filled.Close, contentDescription = "Close")
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(config.recipe.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text("${config.dose.grams1()} : ${config.recipe.water.grams()} · ${config.waterTemp.toInt()} °C",
+            Text("${dose.grams1()} : ${config.recipe.water.grams()} · ${config.waterTemp.toInt()} °C",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
@@ -293,13 +300,43 @@ private fun Readouts(
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
             Text("WEIGHT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (snapshot.usesScale) {
-                val shown = if (snapshot.phase == BrewPhase.PREPARING) snapshot.weight else maxOf(snapshot.weight, 0.0)
+                val shown = if (snapshot.phase == BrewPhase.PREPARING || snapshot.phase == BrewPhase.DOSING) snapshot.weight else maxOf(snapshot.weight, 0.0)
                 Text(shown.scaleReadout(), fontSize = fontSize, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
                 Text("${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 Text(snapshot.activeTarget?.let { "→${it.toInt()}" } ?: "–", fontSize = fontSize, fontWeight = FontWeight.SemiBold, style = tabular)
                 Text("no scale", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
+    }
+}
+
+@Composable
+private fun DoseCard(weight: Double, dose: Double, status: BeanDosing.Status) {
+    val color = when (status) {
+        BeanDosing.Status.ON_TARGET -> GoodGreen
+        BeanDosing.Status.OVER -> WarnOrange
+        else -> MaterialTheme.colorScheme.primary
+    }
+    val hint = when (status) {
+        BeanDosing.Status.EMPTY -> "Put a cup on the scale (it's tared) and add the beans."
+        BeanDosing.Status.UNDER -> "${fmt1(dose - weight)} g to go"
+        BeanDosing.Status.ON_TARGET -> "On target"
+        BeanDosing.Status.OVER -> "${fmt1(weight - dose)} g too much. Take a few beans out, or keep it."
+    }
+    BrewCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (status == BeanDosing.Status.ON_TARGET) Icons.Filled.CheckCircle else Icons.Filled.Scale, null, Modifier.size(32.dp), tint = color)
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text("Weigh ${dose.grams1()} of beans", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(hint, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        val fraction = BeanDosing.progress(weight, dose).toFloat()
+        Box(Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+            Box(Modifier.fillMaxWidth(fraction).height(12.dp).clip(RoundedCornerShape(50)).background(color))
         }
     }
 }
@@ -449,7 +486,7 @@ private fun CountdownRing(progress: Float, remaining: Double?, overtime: Double?
 }
 
 @Composable
-private fun PreparationList(config: BrewConfig) {
+private fun PreparationList(config: BrewConfig, dose: Double) {
     val grind = when {
         config.grindValue != null && config.grinder != null -> ", ground at ${config.grinder.grinder.format(config.grindValue)}"
         config.grindText.isNotEmpty() -> ", ground ${config.grindText}"
@@ -458,7 +495,7 @@ private fun PreparationList(config: BrewConfig) {
     BrewCard {
         listOf(
             "Rinse the paper with hot water and discard it",
-            "Add ${config.dose.grams1()} of coffee$grind",
+            "Add ${dose.grams1()} of coffee$grind",
             "Shake or swirl to level the bed",
             "Water at ${config.waterTemp.toInt()} °C",
         ).forEachIndexed { index, text ->
@@ -508,9 +545,29 @@ private fun StepsStrip(config: BrewConfig, snapshot: BrewSnapshot) {
 }
 
 @Composable
-private fun Controls(snapshot: BrewSnapshot, onReady: () -> Unit, onStart: () -> Unit, onFinish: () -> Unit) {
+private fun Controls(
+    snapshot: BrewSnapshot,
+    canWeighBeans: Boolean,
+    onWeighBeans: () -> Unit,
+    onAcceptDose: () -> Unit,
+    onSkipDosing: () -> Unit,
+    onReady: () -> Unit,
+    onStart: () -> Unit,
+    onFinish: () -> Unit,
+) {
     when (snapshot.phase) {
-        BrewPhase.PREPARING -> PrimaryButton("Ready", Icons.Filled.CheckCircle, onClick = onReady)
+        BrewPhase.DOSING -> {
+            TextButton(onClick = onSkipDosing, modifier = Modifier.fillMaxWidth()) { Text("Skip weighing", fontWeight = FontWeight.SemiBold) }
+            val empty = snapshot.doseStatus == BeanDosing.Status.EMPTY
+            PrimaryButton(if (empty) "Add the beans" else "Use ${maxOf(snapshot.weight, 0.0).grams1()} of beans", Icons.Filled.Scale,
+                enabled = !empty, onClick = onAcceptDose)
+        }
+        BrewPhase.PREPARING -> {
+            if (canWeighBeans) {
+                TextButton(onClick = onWeighBeans, modifier = Modifier.fillMaxWidth()) { Text("Weigh the beans", fontWeight = FontWeight.SemiBold) }
+            }
+            PrimaryButton("Ready", Icons.Filled.CheckCircle, onClick = onReady)
+        }
         BrewPhase.ARMED -> if (snapshot.usesScale) {
             TextButton(onClick = onStart, modifier = Modifier.fillMaxWidth()) { Text("Start timer manually", fontWeight = FontWeight.SemiBold) }
         } else {

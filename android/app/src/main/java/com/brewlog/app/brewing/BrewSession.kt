@@ -26,7 +26,11 @@ enum class BrewCue {
     TICK,
 }
 
-enum class BrewPhase { PREPARING, ARMED, BREWING, FINISHED }
+enum class BrewPhase {
+    /** Weighing the beans on the tared scale (optional, before the brewer goes on). */
+    DOSING,
+    PREPARING, ARMED, BREWING, FINISHED,
+}
 
 /** Immutable snapshot of the live brew for the UI. */
 data class BrewSnapshot(
@@ -46,6 +50,9 @@ data class BrewSnapshot(
     val overpour: Double? = null,
     val pingLead: Double = 1.5,
     val flash: BrewCue? = null,
+    /** The bean dose read from the scale, null when the beans weren't weighed. */
+    val weighedDose: Double? = null,
+    val doseStatus: BeanDosing.Status = BeanDosing.Status.EMPTY,
 )
 
 /**
@@ -85,6 +92,9 @@ class BrewSession(
     private var lastTickSecond: Int? = null
     private var flash: BrewCue? = null
     private var flashUntil = 0L
+    private var weighedDose: Double? = null
+    private var dosePinged = false
+    private var prepared = false
     private val pourIndices: List<Int> =
         recipe.steps.indices.filter { recipe.steps[it].kind.isPour && recipe.steps[it].target != null }
 
@@ -95,6 +105,50 @@ class BrewSession(
     val finalWeight: Double get() = if (usesScale) maxWeight else recipe.water
 
     fun recordedSamples(): List<WeightSample> = samples.toList()
+
+    // MARK: Weighing the beans
+
+    /** The planned bean dose (the recipe is already scaled to it). */
+    val plannedDose: Double get() = recipe.dose
+
+    /** The dose to save with the brew. */
+    val dose: Double get() = weighedDose ?: plannedDose
+
+    /** Weighing the beans needs a scale. */
+    val canWeighBeans: Boolean get() = scale.isReady && (phase == BrewPhase.PREPARING || phase == BrewPhase.DOSING)
+
+    /** Called once when the live screen opens: starts by weighing the beans if that's switched on. */
+    fun prepare() {
+        // Only once per brew, so recreating the screen (e.g. rotating) doesn't ask again.
+        if (prepared) return
+        prepared = true
+        if (settings().weighBeansFirst) weighBeans()
+    }
+
+    /** Tare the scale and weigh the beans against the planned dose. */
+    fun weighBeans() {
+        if (!scale.isReady || phase != BrewPhase.PREPARING) return
+        phase = BrewPhase.DOSING
+        dosePinged = false
+        scale.prepareForDosing(plannedDose)
+        publish()
+    }
+
+    /** Keep what is on the scale as the dose for this brew. */
+    fun acceptDose() {
+        if (phase != BrewPhase.DOSING) return
+        weighedDose = BeanDosing.acceptedDose(weight, plannedDose)
+        scale.dosingFinished()
+        phase = BrewPhase.PREPARING
+        publish()
+    }
+
+    fun skipDosing() {
+        if (phase != BrewPhase.DOSING) return
+        scale.dosingFinished()
+        phase = BrewPhase.PREPARING
+        publish()
+    }
 
     // MARK: Lifecycle
 
@@ -126,6 +180,7 @@ class BrewSession(
 
     /** Brew discarded mid-way: stop the scale timer / demo simulation too. */
     fun discard() {
+        if (phase == BrewPhase.DOSING) scale.dosingFinished()
         if (usesScale && (phase == BrewPhase.ARMED || phase == BrewPhase.BREWING)) scale.brewFinished()
     }
 
@@ -140,6 +195,13 @@ class BrewSession(
         flowRate = slope(recent, 1.2, atMs)
 
         when (phase) {
+            BrewPhase.DOSING -> {
+                // One ping when the dose is reached, so you can stop adding beans without staring at the number.
+                if (!dosePinged && BeanDosing.status(grams, plannedDose) == BeanDosing.Status.ON_TARGET) {
+                    dosePinged = true
+                    onCue(BrewCue.TARGET)
+                }
+            }
             BrewPhase.ARMED -> {
                 if (!usesScale) return
                 val arm = armMs ?: return
@@ -323,6 +385,8 @@ class BrewSession(
             overpour = overpour(),
             pingLead = pingLead(),
             flash = flash,
+            weighedDose = weighedDose,
+            doseStatus = BeanDosing.status(weight, plannedDose),
         )
     }
 

@@ -162,6 +162,19 @@ final class ScaleManager: NSObject {
         }
     }
 
+    /// Tares for weighing the beans. In demo mode it also simulates beans being added to the cup.
+    func prepareForDosing(dose: Double) {
+        if isDemo {
+            demo.simulateDose(dose)
+        } else {
+            send(.tare)
+        }
+    }
+
+    func dosingFinished() {
+        if isDemo { demo.stopSimulation() }
+    }
+
     func brewStarted() { send(.startTimer) }
 
     func brewFinished() {
@@ -363,6 +376,14 @@ final class DemoScale {
                         rate: Double.random(in: low...high))
         }
         endTime = recipe.targetTime + 20
+        pourStart = Date().addingTimeInterval(delay)
+    }
+
+    /// Beans trickling into a cup, ending a little off the dose like a real hand would.
+    func simulateDose(_ dose: Double, delay: Double = 1.5) {
+        weight = 0
+        plan = [PlannedPour(start: 0, goal: max(dose + Double.random(in: -0.3...0.4), 0), rate: Double.random(in: 1.5...2.5))]
+        endTime = 60
         pourStart = Date().addingTimeInterval(delay)
     }
 

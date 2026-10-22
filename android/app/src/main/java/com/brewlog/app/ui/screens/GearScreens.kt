@@ -402,10 +402,11 @@ fun SettingsScreen(nav: NavHostController) {
                             valueRange = 0.2f..1.5f, steps = 12)
                     }
                     SwitchRow("3-2-1 ticks before each step", settings.countdownTicks) { v -> update { it.copy(countdownTicks = v) } }
+                    SwitchRow("Weigh the beans first", settings.weighBeansFirst) { v -> update { it.copy(weighBeansFirst = v) } }
                     SwitchRow("Chime at target brew time", settings.finishPing) { v -> update { it.copy(finishPing = v) } }
                     SwitchRow("Keep screen on while brewing", settings.keepAwake) { v -> update { it.copy(keepAwake = v) } }
                     Text("Automatic buffer = your pour rate × reaction time + 1 g, so you hear the ping early enough to stop right on target. " +
-                        "Increase the reaction time if you often overpour.",
+                        "Increase the reaction time if you often overpour. With a scale connected, a brew starts by weighing the beans (you can skip it).",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
