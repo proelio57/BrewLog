@@ -33,6 +33,7 @@ import com.brewlog.app.ui.screens.BeanEditorScreen
 import com.brewlog.app.ui.screens.BeanListScreen
 import com.brewlog.app.ui.screens.BrewDetailScreen
 import com.brewlog.app.ui.screens.ExtractionCalculatorScreen
+import com.brewlog.app.ui.screens.GitBackupScreen
 import com.brewlog.app.ui.screens.GrindConverterScreen
 import com.brewlog.app.ui.screens.WaterCalculatorScreen
 import com.brewlog.app.ui.screens.BrewEditorScreen
@@ -66,6 +67,8 @@ object Routes {
     const val TOOLS_EXTRACTION = "tools/extraction"
     const val TOOLS_WATER = "tools/water"
     const val TOOLS_GRIND = "tools/grind"
+    const val GIT_BACKUP = "settings/git"
+    const val AI = "settings/ai"
 
     fun brewDetail(id: String, isNew: Boolean = false) = "brewDetail/$id?isNew=$isNew"
     fun brewEditor(id: String) = "brewEditor/$id"
@@ -136,6 +139,7 @@ fun AppRoot() {
             composable(Routes.TOOLS_EXTRACTION) { ExtractionCalculatorScreen(nav) }
             composable(Routes.TOOLS_WATER) { WaterCalculatorScreen(nav) }
             composable(Routes.TOOLS_GRIND) { GrindConverterScreen(nav) }
+            composable(Routes.GIT_BACKUP) { GitBackupScreen(nav) }
             composable(
                 "brewDetail/{id}?isNew={isNew}",
                 arguments = listOf(navArgument("isNew") { type = NavType.BoolType; defaultValue = false }),

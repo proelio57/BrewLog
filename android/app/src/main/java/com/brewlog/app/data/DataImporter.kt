@@ -328,10 +328,10 @@ object DataImporter {
     }
 
     /** Everything as one wrapped backup with weight and pressure curves, readable by iOS, web and Android. */
-    fun exportBackup(repo: BrewRepository): String {
+    fun exportBackup(repo: BrewRepository, exportedAt: java.time.Instant = java.time.Instant.now()): String {
         val appData = repo.data.value
         val samples = appData.brews.associate { it.id to repo.samples(it.id) }.filterValues { it.isNotEmpty() }
         val machine = appData.brews.associate { it.id to repo.machineSamples(it.id) }.filterValues { it.isNotEmpty() }
-        return BrewLogBackup.encode(BrewLogBackup(appData, samples, machine))
+        return BrewLogBackup.encode(BrewLogBackup(appData, samples, machine), exportedAt)
     }
 }

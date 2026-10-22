@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Science
@@ -418,6 +419,15 @@ fun SettingsScreen(nav: NavHostController) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
                     )
+                }
+            }
+            item {
+                SectionHeader("Backup & AI")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    LinkRow("Git backup", Icons.Filled.CloudUpload) { nav.navigate(Routes.GIT_BACKUP) }
+                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                    LinkRow("Ask Claude (AI)", Icons.Filled.AutoAwesome) { nav.navigate(Routes.AI) }
                 }
             }
             item {

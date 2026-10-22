@@ -146,6 +146,7 @@ fun LiveBrewScreen(nav: NavHostController) {
             waterName = config.water?.name ?: "",
         )
         container.repository.saveNewBrew(brew, if (session.usesScale) session.recordedSamples() else emptyList(), session.recordedMachineSamples())
+        container.syncAfterBrew()
         container.activeBrew = null
         nav.navigate(Routes.brewDetail(brew.id, isNew = true)) { popUpTo(Routes.LIVE) { inclusive = true } }
     }

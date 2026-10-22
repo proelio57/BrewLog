@@ -22,6 +22,7 @@ import com.brewlog.app.scale.ScaleManager
 import com.brewlog.app.ui.AppRoot
 import com.brewlog.app.ui.theme.BrewLogTheme
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 /** Everything the brew needs, frozen when "Start brew" is pressed. */
 data class BrewConfig(
@@ -59,6 +60,13 @@ class AppContainer(context: Context) {
     val sound = SoundPlayer { settings.current }
     val haptics = Haptics(context.applicationContext) { settings.current }
     val setup = BrewSetupState(prefs, presets).also { it.restoreCustom(repository.data.value.customRecipes) }
+    val secrets = com.brewlog.app.sync.SecretStore(prefs)
+    val gitSync = com.brewlog.app.sync.GitSync(prefs, secrets, repository) { presets }
+
+    /** Git backup after a brew, when automatic sync is on. */
+    fun syncAfterBrew() {
+        scope.launch { gitSync.syncIfEnabled() }
+    }
 
     init {
         pressure.setEnabled(settings.current.espressoPressureEnabled)
