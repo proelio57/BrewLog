@@ -103,6 +103,7 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
     private val machineDir = File(directory, "machine").apply { mkdirs() }
     private val writeLock = Mutex()
     private val samplesCache = mutableMapOf<String, List<WeightSample>>()
+    private val machineCache = mutableMapOf<String, List<MachineSample>>()
 
     private val _data = MutableStateFlow(load())
     val data: StateFlow<AppData> = _data.asStateFlow()
@@ -175,6 +176,7 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
     fun deleteBrew(id: String) {
         update { d -> d.copy(brews = d.brews.filterNot { it.id == id }) }
         synchronized(samplesCache) { samplesCache.remove(id) }
+        synchronized(machineCache) { machineCache.remove(id) }
         scope.launch(Dispatchers.IO) {
             sampleFile(id)?.delete()
             machineFile(id)?.delete()
@@ -183,16 +185,20 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
 
     /** Espresso: the machine/pressure curve of a brew (empty for most brews). */
     fun machineSamples(brewId: String): List<MachineSample> {
+        synchronized(machineCache) { machineCache[brewId]?.let { return it } }
         val file = machineFile(brewId) ?: return emptyList()
-        return try {
+        val loaded = try {
             if (file.exists()) json.decodeFromString(ListSerializer(MachineSample.serializer()), file.readText()) else emptyList()
         } catch (e: Exception) {
             emptyList()
         }
+        synchronized(machineCache) { machineCache[brewId] = loaded }
+        return loaded
     }
 
     fun writeMachineSamples(brewId: String, samples: List<MachineSample>) {
         val file = machineFile(brewId) ?: return
+        synchronized(machineCache) { machineCache[brewId] = samples }
         scope.launch(Dispatchers.IO) {
             file.writeText(json.encodeToString(ListSerializer(MachineSample.serializer()), samples))
         }

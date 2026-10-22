@@ -68,6 +68,7 @@ object DataImporter {
         try {
             val element = json.parseToJsonElement(data.decodeToString())
             if (element is JsonObject) {
+                if (BrewLogBackup.isWrapped(element)) return importBackup(BrewLogBackup.parse(element), repo, presets)
                 if (BeanconquerorBackup.looksLikeBackup(element)) {
                     val backup = BeanconquerorBackup.parseJsonObject(element)
                     return importBeanconqueror(backup, repo)
@@ -266,9 +267,21 @@ object DataImporter {
         return summary
     }
 
-    fun importAppData(backup: AppData, repo: BrewRepository, presets: List<Recipe>): Summary {
+    /** The wrapped backup from iOS, web or Android: the data merged like [importAppData], plus the curves of the brews it adds. */
+    fun importBackup(backup: BrewLogBackup, repo: BrewRepository, presets: List<Recipe>): Summary {
+        val added = mutableSetOf<String>()
+        val summary = importAppData(backup.data, repo, presets, added)
+        for (id in added) {
+            backup.samples[id]?.takeIf { it.isNotEmpty() }?.let { repo.importSamples(id, it) }
+            backup.machine[id]?.takeIf { it.isNotEmpty() }?.let { repo.writeMachineSamples(id, it) }
+        }
+        return summary
+    }
+
+    fun importAppData(backup: AppData, repo: BrewRepository, presets: List<Recipe>, addedBrewIds: MutableSet<String>? = null): Summary {
         val summary = Summary()
         repo.update { current ->
+            addedBrewIds?.clear()
             val existingBeanIds = current.beans.map { it.id }.toSet()
             val existingGearIds = current.equipment.map { it.id }.toSet()
             val existingBrewIds = current.brews.map { it.id }.toSet()
@@ -297,6 +310,7 @@ object DataImporter {
                     summary.skippedBrews++
                 } else {
                     newBrews.add(brew)
+                    addedBrewIds?.add(brew.id)
                     summary.brews++
                 }
             }
@@ -313,9 +327,11 @@ object DataImporter {
         return summary
     }
 
+    /** Everything as one wrapped backup with weight and pressure curves, readable by iOS, web and Android. */
     fun exportBackup(repo: BrewRepository): String {
         val appData = repo.data.value
-        val pretty = Json { prettyPrint = true; ignoreUnknownKeys = true }
-        return pretty.encodeToString(AppData.serializer(), appData)
+        val samples = appData.brews.associate { it.id to repo.samples(it.id) }.filterValues { it.isNotEmpty() }
+        val machine = appData.brews.associate { it.id to repo.machineSamples(it.id) }.filterValues { it.isNotEmpty() }
+        return BrewLogBackup.encode(BrewLogBackup(appData, samples, machine))
     }
 }

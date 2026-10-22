@@ -84,7 +84,8 @@ twice adds nothing. The same **Import** also reads recipe files and Beanconquero
   notes, externalId`. `tds` (refractometer reading in %, 0–25) and `beverageWeight` (drink in grams) are optional;
   `waterId` / `waterName` point to the water profile used (gear of type `water`).
 - `customRecipes`: recipe objects as in recipe files.
-- Android (for now) exports the bare `data` object (no wrapper, no curves); it's read the same way.
+- Android writes the same wrapped format (with `samples` and `machine`, without `photos`); a bare `data` object
+  (older Android exports) is read too.
 - The file is untrusted: every field is optional with the defaults of a new item, text is sanitized and limited,
   numbers are clamped (e.g. dose ≤ 150 g, water ≤ 3000 g, time ≤ 30 min), unknown fields and enum values are
   ignored, a broken entry (e.g. a bean without a name) only drops itself. Limits: 1000 beans, 1000 gear,
