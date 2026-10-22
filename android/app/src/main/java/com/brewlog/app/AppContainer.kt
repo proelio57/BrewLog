@@ -54,12 +54,14 @@ class AppContainer(context: Context) {
     val repository = BrewRepository(context.filesDir, scope)
     val scale = ScaleManager(context.applicationContext, prefs, scope)
     val pressure = com.brewlog.app.scale.PressureManager(context.applicationContext, prefs, scope)
+    val machine = com.brewlog.app.machine.MachineManager(prefs)
     val sound = SoundPlayer { settings.current }
     val haptics = Haptics(context.applicationContext) { settings.current }
     val setup = BrewSetupState(prefs, presets).also { it.restoreCustom(repository.data.value.customRecipes) }
 
     init {
         pressure.setEnabled(settings.current.espressoPressureEnabled)
+        machine.start()
     }
 
     /** The live brew survives configuration changes because it lives here, not in the UI. */

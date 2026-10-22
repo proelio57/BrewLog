@@ -49,6 +49,13 @@ android {
         }
     }
 
+    // The built-in recipes come straight from ../../Shared/recipes.json, the same file as iOS and web.
+    sourceSets {
+        getByName("main") {
+            assets.srcDir("../../Shared")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -73,6 +80,8 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
+    // WebSocket to the espresso machine (GaggiMate) in the local network.
+    implementation(libs.okhttp)
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)

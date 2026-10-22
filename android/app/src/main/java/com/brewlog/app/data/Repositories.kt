@@ -8,6 +8,7 @@ import com.brewlog.app.domain.AppSettings
 import com.brewlog.app.domain.Bean
 import com.brewlog.app.domain.Brew
 import com.brewlog.app.domain.Equipment
+import com.brewlog.app.domain.MachineSample
 import com.brewlog.app.domain.PingLeadMode
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.WeightSample
@@ -90,6 +91,8 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
     private val json = Json { ignoreUnknownKeys = true }
     private val dataFile = File(directory, "brewlog.json")
     private val samplesDir = File(directory, "samples").apply { mkdirs() }
+    /** Espresso: pressure/temperature/flow curve per brew. */
+    private val machineDir = File(directory, "machine").apply { mkdirs() }
     private val writeLock = Mutex()
     private val samplesCache = mutableMapOf<String, List<WeightSample>>()
 
@@ -132,8 +135,9 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
 
     // Brews
 
-    fun saveNewBrew(brew: Brew, samples: List<WeightSample>) {
+    fun saveNewBrew(brew: Brew, samples: List<WeightSample>, machineSamples: List<MachineSample> = emptyList()) {
         writeSamples(brew.id, samples)
+        if (machineSamples.isNotEmpty()) writeMachineSamples(brew.id, machineSamples)
         update { d ->
             val beans = if (brew.beanId != null) d.beans.map {
                 if (it.id == brew.beanId) it.copy(remaining = max(0.0, it.remaining - brew.dose)) else it
@@ -163,8 +167,34 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
     fun deleteBrew(id: String) {
         update { d -> d.copy(brews = d.brews.filterNot { it.id == id }) }
         synchronized(samplesCache) { samplesCache.remove(id) }
-        scope.launch(Dispatchers.IO) { sampleFile(id)?.delete() }
+        scope.launch(Dispatchers.IO) {
+            sampleFile(id)?.delete()
+            machineFile(id)?.delete()
+        }
     }
+
+    /** Espresso: the machine/pressure curve of a brew (empty for most brews). */
+    fun machineSamples(brewId: String): List<MachineSample> {
+        val file = machineFile(brewId) ?: return emptyList()
+        return try {
+            if (file.exists()) json.decodeFromString(ListSerializer(MachineSample.serializer()), file.readText()) else emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun writeMachineSamples(brewId: String, samples: List<MachineSample>) {
+        val file = machineFile(brewId) ?: return
+        scope.launch(Dispatchers.IO) {
+            file.writeText(json.encodeToString(ListSerializer(MachineSample.serializer()), samples))
+        }
+    }
+
+    /** Stores an imported weight curve (backups). */
+    fun importSamples(brewId: String, samples: List<WeightSample>) = writeSamples(brewId, samples)
+
+    private fun machineFile(brewId: String): File? =
+        if (brewId.matches(Regex("[A-Za-z0-9-]{1,64}"))) File(machineDir, "$brewId.json") else null
 
     fun samples(brewId: String): List<WeightSample> {
         synchronized(samplesCache) { samplesCache[brewId]?.let { return it } }

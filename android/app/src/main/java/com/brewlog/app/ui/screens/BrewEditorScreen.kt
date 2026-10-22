@@ -164,7 +164,7 @@ fun BrewEditorScreen(nav: NavHostController, brewId: String) {
                                 filterIdealRoast = filterItem?.idealRoast ?: b.filterIdealRoast,
                             )
                             val samples = repo.samples(brew.id)
-                            val analysis = modified.analyze(current.brews, current.beans.firstOrNull { it.id == modified.beanId }, samples, container.presets)
+                            val analysis = modified.analyze(current.brews, current.beans.firstOrNull { it.id == modified.beanId }, samples, container.presets, repo.machineSamples(brew.id))
                             if (analysis != null) modified.copy(suggestedGrind = analysis.suggestedGrind) else modified
                         } else b
                     }

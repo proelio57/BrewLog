@@ -32,7 +32,7 @@ import kotlin.math.min
 
 /** Same scenarios and numbers as BrewAnalyzerTests.swift, so both platforms are guaranteed to agree. */
 class BrewAnalyzerTest {
-    private val presets by lazy { RecipeLibrary.parse(File("src/main/assets/recipes.json").readText()) }
+    private val presets by lazy { RecipeLibrary.parse(File("../../Shared/recipes.json").readText()) }
     private val comandante = GrinderSpec(GrindUnit.CLICKS, 1.0, 2.0, true)
     private fun kasuya() = presets.first { it.id == "kasuya-46" }
     private fun fastCase() = kasuya().copy(targetTime = 230.0)
@@ -265,7 +265,7 @@ class BrewSessionTest {
     }
 
     @Test fun autoStartsPingsBeforeTargetAndChimesNextStep() {
-        val recipe = RecipeLibrary.parse(File("src/main/assets/recipes.json").readText()).first { it.id == "everyday-3-pour" }
+        val recipe = RecipeLibrary.parse(File("../../Shared/recipes.json").readText()).first { it.id == "everyday-3-pour" }
         var now = 0L
         val cues = mutableListOf<Pair<Long, BrewCue>>()
         val scale = FakeScale()

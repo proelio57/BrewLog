@@ -2,6 +2,9 @@ package com.brewlog.app.brewing
 
 import com.brewlog.app.domain.AppSettings
 import com.brewlog.app.domain.InputLimits
+import com.brewlog.app.domain.MachineSample
+import com.brewlog.app.machine.GaggiMateStatus
+import com.brewlog.app.machine.MachineManager
 import com.brewlog.app.domain.PingLeadMode
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.WeightSample
@@ -53,6 +56,8 @@ data class BrewSnapshot(
     /** The bean dose read from the scale, null when the beans weren't weighed. */
     val weighedDose: Double? = null,
     val doseStatus: BeanDosing.Status = BeanDosing.Status.EMPTY,
+    /** Espresso: pressure/temperature/flow recorded during the shot. */
+    val machineSamples: List<MachineSample> = emptyList(),
 )
 
 /**
@@ -65,8 +70,25 @@ class BrewSession(
     private val settings: () -> AppSettings,
     private val onCue: (BrewCue) -> Unit,
     private val clock: () -> Long = ::monotonicMillis,
+    private val machine: MachineManager? = null,
+    /** Live pressure from the BOOKOO Espresso Monitor is available (readings arrive via [monitorReading]). */
+    private val monitorReady: () -> Boolean = { false },
+    private val prepareMonitor: (Recipe) -> Unit = {},
 ) {
-    var usesScale: Boolean = scale.isReady
+    val isEspresso: Boolean get() = recipe.isEspresso
+
+    /** Espresso with a connected machine: the shot timer starts and stops with the machine's pump. */
+    val followsMachine: Boolean get() = isEspresso && machine?.isConnected == true
+
+    /** Espresso with live pressure, from the BOOKOO Espresso Monitor or the machine. */
+    val hasPressure: Boolean get() = isEspresso && (monitorReady() || (machine?.isConnected == true && machine.status.hasPressure != false))
+
+    /** The weight comes from the scale connected to the espresso machine instead of BrewLog's own connection. */
+    private var weighsViaMachine = false
+    private val machineSamples = ArrayList<MachineSample>()
+    private var lastMachineSampleT = -1.0
+
+    var usesScale: Boolean = scale.isReady || (recipe.isEspresso && machine?.isConnected == true && machine.status.hasWeight)
         private set
     var phase: BrewPhase = BrewPhase.PREPARING
         private set
@@ -105,6 +127,8 @@ class BrewSession(
     val finalWeight: Double get() = if (usesScale) maxWeight else recipe.water
 
     fun recordedSamples(): List<WeightSample> = samples.toList()
+
+    fun recordedMachineSamples(): List<MachineSample> = machineSamples.toList()
 
     // MARK: Weighing the beans
 
@@ -152,17 +176,79 @@ class BrewSession(
 
     // MARK: Lifecycle
 
+    /** Listens to the machine (espresso only). Returns the cleanup. */
+    fun attach(): () -> Unit {
+        val m = machine
+        if (!isEspresso || m == null) return {}
+        val offShot = m.onShot { started, at -> machineShot(started, at) }
+        val offReading = m.onReading { status, at -> machineReading(status, at) }
+        return { offShot(); offReading() }
+    }
+
     /** "Ready": tare the scale and wait for the first pour. */
     fun ready() {
-        usesScale = scale.isReady
+        weighsViaMachine = !scale.isReady && isEspresso && machine?.isConnected == true && machine.status.hasWeight
+        usesScale = scale.isReady || weighsViaMachine
         phase = BrewPhase.ARMED
         armMs = clock()
         zeroConfirmed = false
         retareSent = false
         recent.clear()
-        if (usesScale) scale.prepareForBrew(recipe)
+        if (weighsViaMachine) machine?.tareScale() else if (usesScale) scale.prepareForBrew(recipe)
+        if (followsMachine) machine?.prepareForShot(recipe)
+        if (isEspresso) prepareMonitor(recipe)
         publish()
     }
+
+    /** Espresso: starts the shot on the machine if it is connected, otherwise just the timer. */
+    fun startShot() {
+        if (followsMachine) machine?.startShot() else startManually()
+    }
+
+    private fun machineShot(started: Boolean, atMs: Long) {
+        if (started) {
+            when (phase) {
+                BrewPhase.DOSING, BrewPhase.PREPARING -> { skipDosing(); ready(); begin(atMs) }
+                BrewPhase.ARMED -> begin(atMs)
+                else -> Unit
+            }
+        } else if (phase == BrewPhase.BREWING) {
+            // The pump stopped. Give the last drops a few seconds, then finish.
+            stopRequestedAt = clock()
+        }
+    }
+
+    private fun machineReading(status: GaggiMateStatus, atMs: Long) {
+        val grams = status.weight
+        if (weighsViaMachine && grams != null) ingest(grams, atMs)
+        // With the pressure sensor connected, its (faster, group-head) readings make the curve.
+        if (monitorReady()) return
+        recordPressure(status.pressure ?: 0.0, status.temperature, status.flow, atMs)
+    }
+
+    /** A reading from the BOOKOO Espresso Monitor. */
+    fun monitorReading(bar: Double, atMs: Long) {
+        if (!isEspresso) return
+        // Without a machine connection, rising pressure means the pump started: start the shot timer.
+        if (phase == BrewPhase.ARMED && !followsMachine && bar >= 1) begin(atMs)
+        val status = if (machine?.isConnected == true) machine.status else null
+        recordPressure(bar, status?.temperature, status?.flow, atMs)
+    }
+
+    private fun recordPressure(bar: Double, temperature: Double?, flow: Double?, atMs: Long) {
+        if (phase != BrewPhase.BREWING || machineSamples.size >= MAX_SAMPLES) return
+        val start = startMs ?: return
+        val t = (atMs - start) / 1000.0
+        if (t - lastMachineSampleT < 0.2) return
+        lastMachineSampleT = t
+        machineSamples.add(MachineSample(
+            t = roundHalfAway(t * 100) / 100, p = roundHalfAway(bar * 100) / 100,
+            c = temperature?.let { roundHalfAway(it * 10) / 10 }, f = flow?.let { roundHalfAway(it * 100) / 100 },
+        ))
+    }
+
+    /** Set when the machine stopped the pump; the brew finishes 3 s later (see [tick]). */
+    private var stopRequestedAt: Long? = null
 
     fun startManually() = begin(clock())
 
@@ -173,15 +259,18 @@ class BrewSession(
         phase = BrewPhase.FINISHED
         if (usesScale) {
             appendSample(elapsed, weight, force = true)
-            scale.brewFinished()
+            if (!weighsViaMachine) scale.brewFinished()
         }
+        // Ending the brew by hand also stops the pump if the machine is still pulling the shot.
+        if (followsMachine && machine?.status?.isBrewing == true) machine.stopShot()
         publish()
     }
 
     /** Brew discarded mid-way: stop the scale timer / demo simulation too. */
     fun discard() {
         if (phase == BrewPhase.DOSING) scale.dosingFinished()
-        if (usesScale && (phase == BrewPhase.ARMED || phase == BrewPhase.BREWING)) scale.brewFinished()
+        if (usesScale && !weighsViaMachine && (phase == BrewPhase.ARMED || phase == BrewPhase.BREWING)) scale.brewFinished()
+        if (isEspresso) machine?.cancelShot()
     }
 
     // MARK: Engine
@@ -209,10 +298,10 @@ class BrewSession(
                     if (abs(grams) < 1.0 && atMs - arm > 250) {
                         zeroConfirmed = true
                     } else if (atMs - arm > 3_000 && !retareSent) {
-                        scale.tare()
+                        if (weighsViaMachine) machine?.tareScale() else scale.tare()
                         retareSent = true
                     }
-                } else if (grams >= settings().autoStartThreshold) {
+                } else if (grams >= settings().autoStartThreshold && !followsMachine) {
                     // Backdate the start to when the weight first left zero.
                     var onset = atMs
                     for ((time, value) in recent.reversed()) {
@@ -237,7 +326,9 @@ class BrewSession(
         if (phase == BrewPhase.BREWING) {
             val start = startMs ?: return
             elapsed = (now - start) / 1000.0
-            if (elapsed >= InputLimits.MAX_BREW_SECONDS) {
+            val stop = stopRequestedAt
+            if (elapsed >= InputLimits.MAX_BREW_SECONDS || (stop != null && now - stop >= 3_000)) {
+                stopRequestedAt = null
                 onAutoFinish?.invoke()
                 return
             }
@@ -255,7 +346,10 @@ class BrewSession(
         samples.clear()
         samples.add(WeightSample(0.0, 0.0))
         lastSampleT = 0.0
-        if (usesScale) scale.brewStarted()
+        machineSamples.clear()
+        lastMachineSampleT = -1.0
+        stopRequestedAt = null
+        if (usesScale && !weighsViaMachine) scale.brewStarted()
         // The first step at 0:00 is silent; just mark it as started.
         recipe.steps.forEachIndexed { index, step -> if (step.time <= 0) startPinged.add(index) }
         publish()
@@ -387,6 +481,7 @@ class BrewSession(
             flash = flash,
             weighedDose = weighedDose,
             doseStatus = BeanDosing.status(weight, plannedDose),
+            machineSamples = machineSamples.toList(),
         )
     }
 

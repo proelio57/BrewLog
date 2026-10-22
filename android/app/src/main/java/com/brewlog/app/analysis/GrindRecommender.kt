@@ -3,6 +3,7 @@ package com.brewlog.app.analysis
 import com.brewlog.app.domain.Bean
 import com.brewlog.app.domain.Brew
 import com.brewlog.app.domain.Equipment
+import com.brewlog.app.domain.MachineSample
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.TasteFeedback
 import com.brewlog.app.domain.WeightSample
@@ -25,6 +26,7 @@ fun Brew.analysisInput(
     bean: Bean?,
     samples: List<WeightSample>,
     alternatives: List<Recipe> = emptyList(),
+    machine: List<MachineSample> = emptyList(),
 ): AnalysisInput? {
     val recipe = recipe ?: return null
     val grinder = grinderSpec?.let { GrinderContext(grinderName.ifEmpty { "grinder" }, it, grindValue) }
@@ -48,11 +50,17 @@ fun Brew.analysisInput(
         feedback = feedback,
         history = history,
         alternatives = alternatives,
+        machine = machine,
     )
 }
 
-fun Brew.analyze(allBrews: List<Brew>, bean: Bean?, samples: List<WeightSample>, alternatives: List<Recipe> = emptyList()): BrewAnalysis? =
-    analysisInput(allBrews, bean, samples, alternatives)?.let(BrewAnalyzer::analyze)
+fun Brew.analyze(
+    allBrews: List<Brew>,
+    bean: Bean?,
+    samples: List<WeightSample>,
+    alternatives: List<Recipe> = emptyList(),
+    machine: List<MachineSample> = emptyList(),
+): BrewAnalysis? = analysisInput(allBrews, bean, samples, alternatives, machine)?.let(BrewAnalyzer::analyze)
 
 data class GrindRecommendation(val value: Double, val reason: String)
 

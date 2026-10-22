@@ -98,7 +98,7 @@ class BookooProtocolTest {
 }
 
 class RecipeTest {
-    private val presets by lazy { RecipeLibrary.parse(File("src/main/assets/recipes.json").readText()) }
+    private val presets by lazy { RecipeLibrary.parse(File("../../Shared/recipes.json").readText()) }
 
     @Test fun presetsLoadAndAreConsistent() {
         assertTrue(presets.size >= 9)
@@ -111,14 +111,14 @@ class RecipeTest {
             assertEquals(recipe.id, targets.sorted(), targets)
             assertEquals(recipe.id, recipe.water, targets.last(), 0.5)
             assertTrue(recipe.targetTime >= recipe.steps.last().time)
-            assertTrue(recipe.ratio in 12.0..18.0)
+            assertTrue(recipe.id, recipe.ratio in (if (recipe.isEspresso) 1.2..5.0 else 12.0..18.0))
         }
     }
 
     @Test fun bundledJsonIsAlreadyValid() {
         val raw = RecipeLibrary.json.decodeFromString(
             kotlinx.serialization.builtins.ListSerializer(com.brewlog.app.domain.Recipe.serializer()),
-            File("src/main/assets/recipes.json").readText(),
+            File("../../Shared/recipes.json").readText(),
         )
         raw.forEach { assertEquals(it.id, it, it.validated()) }
     }
