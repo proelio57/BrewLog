@@ -132,6 +132,11 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
                 item { FindingsCard(analysis) }
                 if (analysis.pours.isNotEmpty()) item { PoursCard(analysis) }
             }
+            item {
+                BrewExtractionCard(brew) { tds, beverage ->
+                    repo.updateBrew(brew.id) { it.copy(tds = tds, beverageWeight = beverage) }
+                }
+            }
             item { DetailsCard(nav, brew) }
             if (!isNew) {
                 item {

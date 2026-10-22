@@ -142,6 +142,8 @@ fun LiveBrewScreen(nav: NavHostController) {
             filterIdealRoast = config.filter?.idealRoast,
             beanId = config.beanId,
             usedScale = session.usesScale,
+            waterId = config.water?.id,
+            waterName = config.water?.name ?: "",
         )
         container.repository.saveNewBrew(brew, if (session.usesScale) session.recordedSamples() else emptyList(), session.recordedMachineSamples())
         container.activeBrew = null

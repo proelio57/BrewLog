@@ -34,6 +34,7 @@ data class BrewConfig(
     val filter: Equipment?,
     val grindValue: Double?,
     val grindText: String,
+    val water: Equipment? = null,
 )
 
 /** Simple manual dependency container, created once per process. */

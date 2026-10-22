@@ -73,6 +73,8 @@ data class GrinderSpec(
     val rangeNote: String = "",
     /** Sensible starting default for pour-over / filter brew. */
     val defaultGrind: Double? = null,
+    /** µm one smallest step moves the burrs, for the grind converter (optional). */
+    val micronsPerStep: Double? = null,
 ) {
     private val decimals: Int get() = if (step < 1) (if (step < 0.1) 2 else 1) else 0
 
@@ -195,6 +197,9 @@ data class Equipment(
     val filterFlow: FilterFlow? = null,
     /** Filters only: roast level the paper is designed for (e.g. CAFEC roast-specific papers). */
     val idealRoast: RoastLevel? = null,
+    /** Water profiles only: hardness (GH) and alkalinity (KH) in mg/L as CaCO3. */
+    val waterHardness: Double? = null,
+    val waterAlkalinity: Double? = null,
     /** Grinders only: adjustment scale. */
     val grinder: GrinderSpec = GrinderSpec(),
     val externalId: String? = null,
@@ -244,6 +249,13 @@ data class Brew(
     val filterIdealRoast: RoastLevel? = null,
     val beanId: String? = null,
     val usedScale: Boolean = false,
+    /** Refractometer reading in % (0–25), optional. */
+    val tds: Double? = null,
+    /** Weighed drink in grams, optional (estimated from the water otherwise). */
+    val beverageWeight: Double? = null,
+    /** Water profile used (gear of type water). */
+    val waterId: String? = null,
+    val waterName: String = "",
     val rating: Int = 0,
     val feedback: Set<TasteFeedback> = emptySet(),
     val notes: String = "",

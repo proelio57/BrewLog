@@ -32,6 +32,9 @@ import com.brewlog.app.LocalContainer
 import com.brewlog.app.ui.screens.BeanEditorScreen
 import com.brewlog.app.ui.screens.BeanListScreen
 import com.brewlog.app.ui.screens.BrewDetailScreen
+import com.brewlog.app.ui.screens.ExtractionCalculatorScreen
+import com.brewlog.app.ui.screens.GrindConverterScreen
+import com.brewlog.app.ui.screens.WaterCalculatorScreen
 import com.brewlog.app.ui.screens.BrewEditorScreen
 import com.brewlog.app.ui.screens.BrewSetupScreen
 import com.brewlog.app.ui.screens.EquipmentEditorScreen
@@ -60,6 +63,9 @@ object Routes {
     const val PRESETS = "presets"
     const val SETTINGS = "settings"
     const val NEW = "new"
+    const val TOOLS_EXTRACTION = "tools/extraction"
+    const val TOOLS_WATER = "tools/water"
+    const val TOOLS_GRIND = "tools/grind"
 
     fun brewDetail(id: String, isNew: Boolean = false) = "brewDetail/$id?isNew=$isNew"
     fun brewEditor(id: String) = "brewEditor/$id"
@@ -127,6 +133,9 @@ fun AppRoot() {
             composable(Routes.RECIPE_PICKER) { RecipePickerScreen(nav) }
             composable(Routes.PRESETS) { PresetPickerScreen(nav) }
             composable(Routes.SETTINGS) { SettingsScreen(nav) }
+            composable(Routes.TOOLS_EXTRACTION) { ExtractionCalculatorScreen(nav) }
+            composable(Routes.TOOLS_WATER) { WaterCalculatorScreen(nav) }
+            composable(Routes.TOOLS_GRIND) { GrindConverterScreen(nav) }
             composable(
                 "brewDetail/{id}?isNew={isNew}",
                 arguments = listOf(navArgument("isNew") { type = NavType.BoolType; defaultValue = false }),

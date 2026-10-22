@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.WaterDrop
@@ -100,6 +102,17 @@ fun GearScreen(nav: NavHostController) {
                     LinkRow("Setup assistant", Icons.Filled.AutoAwesome) { nav.navigate(Routes.ONBOARDING) }
                     HorizontalDivider(Modifier.padding(vertical = 6.dp))
                     LinkRow("Settings", Icons.Filled.Settings) { nav.navigate(Routes.SETTINGS) }
+                }
+            }
+            item {
+                SectionHeader("Tools")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    LinkRow("Extraction (TDS)", Icons.Filled.Science) { nav.navigate(Routes.TOOLS_EXTRACTION) }
+                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                    LinkRow("Water recipes", Icons.Filled.WaterDrop) { nav.navigate(Routes.TOOLS_WATER) }
+                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                    LinkRow("Grind converter", Icons.Filled.SwapHoriz) { nav.navigate(Routes.TOOLS_GRIND) }
                 }
             }
             EquipmentType.entries.forEach { type ->
@@ -224,6 +237,10 @@ fun EquipmentEditorScreen(nav: NavHostController, itemId: String) {
     var adjust by remember { mutableStateOf<Double?>(existing?.grinder?.adjustStep ?: 2.0) }
     var finerIsLower by remember { mutableStateOf(existing?.grinder?.finerIsLower ?: true) }
     var rangeNote by remember { mutableStateOf(existing?.grinder?.rangeNote ?: "") }
+    var defaultGrind by remember { mutableStateOf(existing?.grinder?.defaultGrind) }
+    var micronsPerStep by remember { mutableStateOf(existing?.grinder?.micronsPerStep) }
+    var hardness by remember { mutableStateOf(existing?.waterHardness) }
+    var alkalinity by remember { mutableStateOf(existing?.waterAlkalinity) }
     var notes by remember { mutableStateOf(existing?.notes ?: "") }
 
     fun save() {
@@ -236,8 +253,11 @@ fun EquipmentEditorScreen(nav: NavHostController, itemId: String) {
             filterFlow = if (type == EquipmentType.FILTER) flow else existing?.filterFlow,
             idealRoast = if (type == EquipmentType.FILTER) idealRoast else existing?.idealRoast,
             grinder = if (type == EquipmentType.GRINDER) {
-                GrinderSpec(unit, cleanStep, maxOf((adjust ?: 2.0).clamped(0.01, 100.0), cleanStep), finerIsLower, rangeNote.sanitized(InputLimits.MAX_SHORT_TEXT))
+                GrinderSpec(unit, cleanStep, maxOf((adjust ?: 2.0).clamped(0.01, 100.0), cleanStep), finerIsLower, rangeNote.sanitized(InputLimits.MAX_SHORT_TEXT),
+                    defaultGrind = defaultGrind, micronsPerStep = micronsPerStep?.takeIf { it > 0 })
             } else existing?.grinder ?: GrinderSpec(),
+            waterHardness = if (type == EquipmentType.WATER) hardness?.clamped(0.0, 500.0) else existing?.waterHardness,
+            waterAlkalinity = if (type == EquipmentType.WATER) alkalinity?.clamped(0.0, 500.0) else existing?.waterAlkalinity,
         )
         container.repository.upsertEquipment(item)
         nav.popBackStack()
@@ -312,8 +332,28 @@ fun EquipmentEditorScreen(nav: NavHostController, itemId: String) {
                         }
                         OutlinedTextField(rangeNote, { rangeNote = it.take(200) }, label = { Text("Pour-over range (e.g. 20–30 clicks)") },
                             singleLine = true, modifier = Modifier.fillMaxWidth())
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            NumberField("Filter starting point", defaultGrind, { defaultGrind = it }, Modifier.weight(1f), 0.0..10_000.0, decimals = 2)
+                            NumberField("µm per step", micronsPerStep, { micronsPerStep = it }, Modifier.weight(1f), 0.0..500.0, decimals = 1)
+                        }
+                        Text("Starting point and µm per step calibrate the grind converter and show recipe grind sizes on this grinder.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("Example: with a typical adjustment of 2, BrewLog suggests going from 24 to 22 clicks when your brew tastes sour and ran fast.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+                EquipmentType.WATER -> item {
+                    SectionHeader("Water")
+                    Spacer(Modifier.height(8.dp))
+                    BrewCard {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            NumberField("Hardness GH (ppm)", hardness, { hardness = it }, Modifier.weight(1f), 0.0..500.0, decimals = 0)
+                            NumberField("Alkalinity KH (ppm)", alkalinity, { alkalinity = it }, Modifier.weight(1f), 0.0..500.0, decimals = 0)
+                        }
+                        if (hardness != null || alkalinity != null) {
+                            Text(com.brewlog.app.domain.WaterChemistry.character(hardness ?: 0.0, alkalinity ?: 0.0),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
                 else -> Unit

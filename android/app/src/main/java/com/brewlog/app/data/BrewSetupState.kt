@@ -36,6 +36,7 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
     private val brewerState = mutableStateOf(prefs.getString(KEY_BREWER, null))
     private val grinderState = mutableStateOf(initialGrinderId)
     private val filterState = mutableStateOf(prefs.getString(KEY_FILTER, null))
+    private val waterState = mutableStateOf(prefs.getString(KEY_WATER, null))
 
     var beanId: String?
         get() = beanState.value
@@ -49,6 +50,10 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
     var filterId: String?
         get() = filterState.value
         set(value) { filterState.value = value; save(KEY_FILTER, value) }
+    /** Water profile (gear of type water), optional. */
+    var waterId: String?
+        get() = waterState.value
+        set(value) { waterState.value = value; save(KEY_WATER, value) }
 
     /** Bean + grinder for which the grind was set explicitly (setup assistant, "Brew again"). */
     private var pinnedGrindContext: String? = null
@@ -192,6 +197,7 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
         private const val KEY_BREWER = "setup.brewerID"
         private const val KEY_GRINDER = "setup.grinderID"
         private const val KEY_FILTER = "setup.filterID"
+        private const val KEY_WATER = "setup.waterID"
         private const val KEY_GRIND_PREFIX = "setup.lastGrind."
     }
 }

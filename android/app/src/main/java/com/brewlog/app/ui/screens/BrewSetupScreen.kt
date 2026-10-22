@@ -84,6 +84,7 @@ import com.brewlog.app.ui.components.SectionHeader
 import com.brewlog.app.ui.components.StatView
 import com.brewlog.app.ui.components.TasteProfileBars
 import kotlin.math.max
+import com.brewlog.app.domain.GrindConverter
 
 @Composable
 fun BrewSetupScreen(nav: NavHostController) {
@@ -100,6 +101,7 @@ fun BrewSetupScreen(nav: NavHostController) {
     val grinders = data.equipment.filter { it.type == EquipmentType.GRINDER }.sortedBy { it.name }
     val filters = data.equipment.filter { it.type == EquipmentType.FILTER }.sortedBy { it.name }
     val selectedGrinder = grinders.firstOrNull { it.id == setup.grinderId }
+    val waters = data.equipment.filter { it.type == EquipmentType.WATER }.sortedBy { it.name }
     val selectedBean = beans.firstOrNull { it.id == setup.beanId }
     val recommendation = GrindRecommender.recommend(setup.beanId, selectedGrinder, setup.recipe.id, data.brews)
 
@@ -141,6 +143,7 @@ fun BrewSetupScreen(nav: NavHostController) {
                         filter = if (setup.recipe.isEspresso) null else filters.firstOrNull { it.id == setup.filterId },
                         grindValue = if (selectedGrinder == null) null else setup.grindValue,
                         grindText = setup.grindText,
+                        water = waters.firstOrNull { it.id == setup.waterId },
                     )
                     container.activeBrew = config to BrewSession(
                         config.recipe, container.scale, { container.settings.current }, container::cue,
@@ -210,6 +213,15 @@ fun BrewSetupScreen(nav: NavHostController) {
                     }, onAdd = { nav.navigate(Routes.PRESETS) })
                     Spacer(Modifier.height(10.dp))
                     GrindInput(selectedGrinder?.grinder, setup.grindValue, { setup.setGrind(it) }, setup.grindText, { setup.grindText = it }, recommendation)
+                    // The recipe's grind size as a setting on this grinder (calibrated grinders only).
+                    selectedGrinder?.let { g -> GrindConverter.hint(setup.recipe.grind, GrindConverter.calibrated(g.grinder, g.name)) }?.let { hint ->
+                        Text("Recipe: $hint on your ${selectedGrinder.name}", Modifier.fillMaxWidth().padding(top = 6.dp),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
+                    }
+                    if (waters.isNotEmpty()) {
+                        HorizontalDivider(Modifier.padding(vertical = 10.dp))
+                        GearRow("Water", Icons.Filled.WaterDrop, waters, setup.waterId, { setup.waterId = it }) { nav.navigate(Routes.TOOLS_WATER) }
+                    }
                 }
             }
         }
