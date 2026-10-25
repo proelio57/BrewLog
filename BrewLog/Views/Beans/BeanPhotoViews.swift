@@ -79,10 +79,11 @@ enum BeanPhotoCache {
     }
 }
 
-/// The system camera, for a photo of the bag.
+/// The system camera, for a photo of the bag. The presenter closes it in `onClose` (an environment `dismiss`
+/// read from the coordinator isn't reliable and could close the bean editor instead).
 struct CameraPicker: UIViewControllerRepresentable {
     let onImage: (UIImage) -> Void
-    @Environment(\.dismiss) private var dismiss
+    let onClose: () -> Void
 
     static var isAvailable: Bool { UIImagePickerController.isSourceTypeAvailable(.camera) }
 
@@ -104,10 +105,10 @@ struct CameraPicker: UIViewControllerRepresentable {
         func imagePickerController(_ picker: UIImagePickerController,
                                    didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             if let image = info[.originalImage] as? UIImage { parent.onImage(image) }
-            parent.dismiss()
+            parent.onClose()
         }
 
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { parent.dismiss() }
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { parent.onClose() }
     }
 }
 
@@ -160,6 +161,22 @@ struct BeanPhotoSection: View {
                 }
                 .font(.subheadline.weight(.semibold))
             }
+            // On the row, not on the Section: a Section passes its modifiers on to every row, its header and its
+            // footer, and several presenters bound to the same state close each other right away.
+            .photosPicker(isPresented: $showPicker, selection: $pickerItem, matching: .images)
+            .onChange(of: pickerItem) {
+                guard let item = pickerItem else { return }
+                pickerItem = nil
+                Task {
+                    if let data = try? await item.loadTransferable(type: Data.self), let image = BeanPhoto.image(from: data) {
+                        await handle(image)
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraPicker(onImage: { image in Task { await handle(image) } }, onClose: { showCamera = false })
+                    .ignoresSafeArea()
+            }
             if let message {
                 Text(message).font(.caption).foregroundStyle(.secondary)
             }
@@ -167,20 +184,6 @@ struct BeanPhotoSection: View {
             Text("Photo")
         } footer: {
             Text("Scan label reads name, origin, process, varietal, roast date and weight from the bag. The text is recognized on this iPhone, nothing is uploaded. Check the fields afterwards.")
-        }
-        .photosPicker(isPresented: $showPicker, selection: $pickerItem, matching: .images)
-        .onChange(of: pickerItem) {
-            guard let item = pickerItem else { return }
-            pickerItem = nil
-            Task {
-                if let data = try? await item.loadTransferable(type: Data.self), let image = BeanPhoto.image(from: data) {
-                    await handle(image)
-                }
-            }
-        }
-        .fullScreenCover(isPresented: $showCamera) {
-            CameraPicker { image in Task { await handle(image) } }
-                .ignoresSafeArea()
         }
     }
 
