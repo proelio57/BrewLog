@@ -18,6 +18,10 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "com.brewlog.app"
+    packaging {
+        // The Anthropic SDK's dependencies (Jackson, Apache HttpComponents) ship the same license files.
+        resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/*.kotlin_module")
+    }
     compileSdk = 37
 
     defaultConfig {
