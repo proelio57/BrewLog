@@ -275,6 +275,11 @@ object DataImporter {
             backup.samples[id]?.takeIf { it.isNotEmpty() }?.let { repo.importSamples(id, it) }
             backup.machine[id]?.takeIf { it.isNotEmpty() }?.let { repo.writeMachineSamples(id, it) }
         }
+        // Nothing is replaced, but a photo a bean doesn't have yet is added.
+        val beanIds = repo.data.value.beans.map { it.id }.toSet()
+        for ((id, photo) in backup.photos) {
+            if (id in beanIds && repo.beanPhoto(id) == null) repo.setBeanPhoto(id, photo)
+        }
         return summary
     }
 
@@ -328,10 +333,11 @@ object DataImporter {
     }
 
     /** Everything as one wrapped backup with weight and pressure curves, readable by iOS, web and Android. */
-    fun exportBackup(repo: BrewRepository, exportedAt: java.time.Instant = java.time.Instant.now()): String {
+    fun exportBackup(repo: BrewRepository, exportedAt: java.time.Instant = java.time.Instant.now(), includePhotos: Boolean = true): String {
         val appData = repo.data.value
         val samples = appData.brews.associate { it.id to repo.samples(it.id) }.filterValues { it.isNotEmpty() }
         val machine = appData.brews.associate { it.id to repo.machineSamples(it.id) }.filterValues { it.isNotEmpty() }
-        return BrewLogBackup.encode(BrewLogBackup(appData, samples, machine), exportedAt)
+        val photos = if (includePhotos) appData.beans.mapNotNull { b -> repo.beanPhoto(b.id)?.let { b.id to it } }.toMap() else emptyMap()
+        return BrewLogBackup.encode(BrewLogBackup(appData, samples, machine, photos), exportedAt)
     }
 }

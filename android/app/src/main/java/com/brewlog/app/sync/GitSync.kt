@@ -107,12 +107,12 @@ class GitSync(
         }
 
         // 2. Commit this device's state if it changed since the last sync.
-        val stable = DataImporter.exportBackup(repo, Instant.EPOCH).toByteArray()
+        val stable = DataImporter.exportBackup(repo, Instant.EPOCH, includePhotos = false).toByteArray()
         val hash = GitRemote.fnv1a(stable)
         if (sha != null && sha == prefs.getString(KEY_SHA, null) && hash == prefs.getString(KEY_HASH, null)) {
             return if (imported > 0) "Added $imported items from the repository." else "Up to date."
         }
-        val content = DataImporter.exportBackup(repo).toByteArray()
+        val content = DataImporter.exportBackup(repo, includePhotos = false).toByteArray()
         // The file APIs take files up to about 100 MB, base64 makes them a third larger.
         if (content.size > 70_000_000) throw SyncException(TOO_LARGE)
         val brews = repo.data.value.brews.size

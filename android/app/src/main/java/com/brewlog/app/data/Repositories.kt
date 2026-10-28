@@ -101,6 +101,12 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
     private val samplesDir = File(directory, "samples").apply { mkdirs() }
     /** Espresso: pressure/temperature/flow curve per brew. */
     private val machineDir = File(directory, "machine").apply { mkdirs() }
+    /** Bean photos as downsampled JPEG, one file per bean. */
+    private val photosDir = File(directory, "beans").apply { mkdirs() }
+    private val photoCache = mutableMapOf<String, ByteArray?>()
+    private val _photoVersion = MutableStateFlow(0)
+    /** Bumped whenever a photo changes, so screens reload thumbnails. */
+    val photoVersion: StateFlow<Int> = _photoVersion.asStateFlow()
     private val writeLock = Mutex()
     private val samplesCache = mutableMapOf<String, List<WeightSample>>()
     private val machineCache = mutableMapOf<String, List<MachineSample>>()
@@ -240,9 +246,34 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
         d.copy(beans = if (d.beans.any { it.id == bean.id }) d.beans.map { if (it.id == bean.id) bean else it } else d.beans + bean)
     }
 
-    fun deleteBean(id: String) = update { d ->
-        d.copy(beans = d.beans.filterNot { it.id == id }, brews = d.brews.map { if (it.beanId == id) it.copy(beanId = null) else it })
+    fun deleteBean(id: String) {
+        update { d ->
+            d.copy(beans = d.beans.filterNot { it.id == id }, brews = d.brews.map { if (it.beanId == id) it.copy(beanId = null) else it })
+        }
+        setBeanPhoto(id, null)
     }
+
+    /** The bean's photo (JPEG or PNG bytes), null when it has none. */
+    fun beanPhoto(beanId: String): ByteArray? {
+        synchronized(photoCache) { if (photoCache.containsKey(beanId)) return photoCache[beanId] }
+        val file = photoFile(beanId)
+        val loaded = if (file != null && file.exists()) runCatching { file.readBytes() }.getOrNull() else null
+        synchronized(photoCache) { photoCache[beanId] = loaded }
+        return loaded
+    }
+
+    fun setBeanPhoto(beanId: String, bytes: ByteArray?) {
+        val file = photoFile(beanId) ?: return
+        val clean = bytes?.takeIf { BrewLogBackup.isPhoto(it) }
+        synchronized(photoCache) { photoCache[beanId] = clean }
+        _photoVersion.value++
+        scope.launch(Dispatchers.IO) {
+            if (clean == null) file.delete() else file.writeBytes(clean)
+        }
+    }
+
+    private fun photoFile(beanId: String): File? =
+        if (beanId.matches(Regex("[A-Za-z0-9-]{1,64}"))) File(photosDir, "$beanId.jpg") else null
 
     fun upsertEquipment(item: Equipment) = update { d ->
         d.copy(equipment = if (d.equipment.any { it.id == item.id }) d.equipment.map { if (it.id == item.id) item else it } else d.equipment + item)

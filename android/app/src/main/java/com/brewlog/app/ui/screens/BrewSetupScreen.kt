@@ -175,6 +175,10 @@ fun BrewSetupScreen(nav: NavHostController) {
                 Spacer(Modifier.height(8.dp))
                 BrewCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        selectedBean?.let {
+                            com.brewlog.app.ui.components.BeanThumbnail(it.id, it.roastLevel, size = 36.dp)
+                            Spacer(Modifier.width(10.dp))
+                        }
                         Box(Modifier.weight(1f)) {
                             MenuPickerRow("Beans", Icons.Filled.Eco, beans.map { PickerOption(it.id, it.displayName) }, setup.beanId) { setup.beanId = it }
                         }

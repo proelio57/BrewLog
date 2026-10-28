@@ -25,6 +25,8 @@ data class BrewLogBackup(
     val data: AppData,
     val samples: Map<String, List<WeightSample>> = emptyMap(),
     val machine: Map<String, List<MachineSample>> = emptyMap(),
+    /** Bean photos (JPEG or PNG) by bean id. */
+    val photos: Map<String, ByteArray> = emptyMap(),
 ) {
     companion object {
         /** Samples per brew: 30 min at 10 Hz, like the live recorder. */
@@ -33,6 +35,16 @@ data class BrewLogBackup(
         private val json = Json { ignoreUnknownKeys = true; isLenient = true }
         private val pretty = Json { prettyPrint = true; ignoreUnknownKeys = true; encodeDefaults = true }
         private val compact = Json { explicitNulls = false }
+
+        const val MAX_PHOTO_BYTES = 2_000_000
+
+        /** A JPEG or PNG of at most 2 MB (anything else in `photos` is ignored). */
+        fun isPhoto(bytes: ByteArray): Boolean {
+            if (bytes.size <= 8 || bytes.size > MAX_PHOTO_BYTES) return false
+            val jpeg = bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte() && bytes[2] == 0xFF.toByte()
+            val png = bytes[0] == 0x89.toByte() && bytes[1] == 0x50.toByte() && bytes[2] == 0x4E.toByte() && bytes[3] == 0x47.toByte()
+            return jpeg || png
+        }
 
         fun isWrapped(element: JsonObject): Boolean =
             (element["app"] as? JsonPrimitive)?.content == "BrewLog" && element["data"] is JsonObject
@@ -45,7 +57,13 @@ data class BrewLogBackup(
             val machine = (element["machine"] as? JsonObject)?.mapNotNull { (id, value) ->
                 parseMachine(value)?.let { id to it }
             }?.toMap().orEmpty()
-            return BrewLogBackup(data, samples, machine)
+            val photos = (element["photos"] as? JsonObject)?.mapNotNull { (id, value) ->
+                val text = (value as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return@mapNotNull null
+                if (id.length > 120 || text.length > MAX_PHOTO_BYTES * 4 / 3 + 8) return@mapNotNull null
+                val bytes = runCatching { java.util.Base64.getMimeDecoder().decode(text) }.getOrNull() ?: return@mapNotNull null
+                if (isPhoto(bytes)) id to bytes else null
+            }?.toMap().orEmpty()
+            return BrewLogBackup(data, samples, machine, photos)
         }
 
         /** `[[seconds, grams], …]`, `{t, w}` objects are read too. Out-of-range points are dropped. */
@@ -87,6 +105,9 @@ data class BrewLogBackup(
                     for ((id, points) in backup.samples) if (points.isNotEmpty()) {
                         put(id, buildJsonArray { points.forEach { add(buildJsonArray { add(JsonPrimitive(it.t)); add(JsonPrimitive(it.w)) }) } })
                     }
+                }
+                if (backup.photos.isNotEmpty()) putJsonObject("photos") {
+                    for ((id, bytes) in backup.photos) if (isPhoto(bytes)) put(id, java.util.Base64.getEncoder().encodeToString(bytes))
                 }
                 putJsonObject("machine") {
                     for ((id, points) in backup.machine) if (points.isNotEmpty()) {
