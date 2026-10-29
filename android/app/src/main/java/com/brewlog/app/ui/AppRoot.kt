@@ -17,6 +17,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -100,6 +101,19 @@ fun AppRoot() {
     val startDestination = remember { if (container.settings.current.onboardingDone) Routes.BREW else Routes.ONBOARDING }
 
     LaunchedEffect(Unit) { container.scale.start() }
+    // Widgets open the app with brewlog://brew, …/weigh, …/journal or …/beans.
+    val link by container.pendingLink.collectAsState()
+    LaunchedEffect(link) {
+        val target = link ?: return@LaunchedEffect
+        container.pendingLink.value = null
+        if (!container.settings.current.onboardingDone || container.activeBrew != null) return@LaunchedEffect
+        when (target) {
+            "brew" -> nav.switchTab(Routes.BREW)
+            "journal" -> nav.switchTab(Routes.JOURNAL)
+            "beans" -> nav.switchTab(Routes.BEANS)
+            "weigh" -> { nav.switchTab(Routes.BREW); nav.navigate(Routes.WEIGH) }
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),

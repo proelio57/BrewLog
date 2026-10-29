@@ -11,6 +11,7 @@ junit = "4.13.2"
 okhttp = "4.12.0"
 anthropic = "2.34.0"
 tesseract = "4.9.0"
+glance = "1.2.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -29,6 +30,8 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 anthropic-java = { group = "com.anthropic", name = "anthropic-java", version.ref = "anthropic" }
+glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
+glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
 tesseract4android = { group = "cz.adaptech.tesseract4android", name = "tesseract4android", version.ref = "tesseract" }
 
 [plugins]

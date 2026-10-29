@@ -94,6 +94,9 @@ dependencies {
     implementation(libs.anthropic.java)
     // Label scan: Tesseract OCR on the device (no Google services, nothing uploaded). Models in assets/tessdata.
     implementation(libs.tesseract4android)
+    // Home Screen widgets (beans & last brew, quick start).
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)

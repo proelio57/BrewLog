@@ -65,10 +65,20 @@ class AppContainer(context: Context) {
     val secrets = com.brewlog.app.sync.SecretStore(prefs)
     val gitSync = com.brewlog.app.sync.GitSync(prefs, secrets, repository) { presets }
 
-    /** Git backup after a brew, when automatic sync is on. */
+    /** Git backup after a brew, when automatic sync is on, and fresh widgets. */
     fun syncAfterBrew() {
         scope.launch { gitSync.syncIfEnabled() }
+        updateWidgets()
     }
+
+    private val appContext = context.applicationContext
+
+    fun updateWidgets() {
+        scope.launch { com.brewlog.app.widget.WidgetSync.update(appContext, repository.data.value, setup.beanId) }
+    }
+
+    /** A brewlog:// link from a widget, handled by the navigation once it's ready. */
+    val pendingLink = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
     init {
         pressure.setEnabled(settings.current.espressoPressureEnabled)
@@ -102,10 +112,27 @@ class BrewLogApplication : Application() {
 val LocalContainer = staticCompositionLocalOf<AppContainer> { error("AppContainer not provided") }
 
 class MainActivity : ComponentActivity() {
+    private val container get() = (application as BrewLogApplication).container
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        handleLink(intent)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        container.updateWidgets()
+    }
+
+    private fun handleLink(intent: android.content.Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme == "brewlog") container.pendingLink.value = uri.host
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val container = (application as BrewLogApplication).container
+        if (savedInstanceState == null) handleLink(intent)
         setContent {
             CompositionLocalProvider(LocalContainer provides container) {
                 BrewLogTheme {
