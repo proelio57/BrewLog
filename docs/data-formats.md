@@ -67,7 +67,7 @@ twice adds nothing. The same **Import** also reads recipe files and Beanconquero
   UUID, so references and de-duplication still work.
 - `samples`: weight curve per brew as `[seconds, grams]` pairs (`{t, w}` objects are read too). `machine`: espresso
   pressure/temperature/flow per brew (see Espresso shots). Only stored for brews the import adds.
-- `photos` (iOS, optional): bean photo per bean as base64 JPEG (or PNG), downsampled to at most 1024 px, at most
+- `photos` (iOS and Android, optional): bean photo per bean as base64 JPEG (or PNG), downsampled to at most 1024 px, at most
   2 MB each; anything else is ignored. Added on import to new beans and to existing beans that have no photo.
   Apps without bean photos ignore the key.
 - **Bean:** `id, name, roaster, origin, varietal, process, roastLevel, roastDate (or null), tastingNotes, notes,
