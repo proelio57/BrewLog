@@ -59,6 +59,10 @@ android {
             assets.srcDir("../../Shared")
         }
     }
+    // Tesseract's models are copied out of the APK as files once; uncompressed they can be sized and streamed.
+    androidResources {
+        noCompress += listOf("traineddata")
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -88,6 +92,8 @@ dependencies {
     implementation(libs.okhttp)
     // "Ask Claude" for a bean (opt-in, the user's own API key).
     implementation(libs.anthropic.java)
+    // Label scan: Tesseract OCR on the device (no Google services, nothing uploaded). Models in assets/tessdata.
+    implementation(libs.tesseract4android)
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)
