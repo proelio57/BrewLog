@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import PhotosUI
 import UIKit
@@ -189,7 +190,29 @@ struct BeanPhotoSection: View {
 
     private func choose(_ purpose: Purpose, camera: Bool) {
         self.purpose = purpose
-        if camera { showCamera = true } else { showPicker = true }
+        guard camera else { showPicker = true; return }
+        // Ask for camera access first and only open the camera once it's granted, so a denied or pending
+        // permission shows a hint instead of a camera that closes or crashes right away.
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            openCamera()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted { openCamera() } else { message = Self.cameraDenied }
+                }
+            }
+        default:
+            message = Self.cameraDenied
+        }
+    }
+
+    private static let cameraDenied = "BrewLog may not use the camera. Allow it in Settings → BrewLog → Camera, or choose a photo instead."
+
+    private func openCamera() {
+        guard CameraPicker.isAvailable, !showCamera else { return }
+        // Let the menu finish closing before the camera is presented.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { showCamera = true }
     }
 
     @MainActor
