@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.26",
+          "buildVersion": "26",
+          "date": "2026-10-30T08:08:05Z",
+          "localizedDescription": "Merge pull request #6 from proelio57/feature/timemore-dot\n\nTimemore Dot scale, weighing with tare and direct Ready, Lock Screen widget",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.26/BrewLog.ipa",
+          "size": 2775382,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.17",
           "buildVersion": "17",
           "date": "2026-10-22T21:55:14Z",
@@ -96,11 +105,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.17",
-      "versionDate": "2026-10-22T21:55:14Z",
-      "versionDescription": "Merge pull request #3 from proelio57/feature/weigh-beans-recipe-advice\n\nWeigh the beans before brewing; recipe advice never repeats the brewed recipe",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.17/BrewLog.ipa",
-      "size": 2743549
+      "version": "0.1.26",
+      "versionDate": "2026-10-30T08:08:05Z",
+      "versionDescription": "Merge pull request #6 from proelio57/feature/timemore-dot\n\nTimemore Dot scale, weighing with tare and direct Ready, Lock Screen widget",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.26/BrewLog.ipa",
+      "size": 2775382
     }
   ],
   "news": []
