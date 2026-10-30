@@ -28,6 +28,30 @@ final class DosingAndAdviceTests: XCTestCase {
         XCTAssertEqual(BeanDosing.acceptedDose(weight: .infinity, planned: 15), 15)
     }
 
+    func testRecipeFollowsTheWeighedDoseFromHalfAGram() throws {
+        let recipe = try XCTUnwrap(RecipeLibrary.preset(id: "everyday-3-pour"))
+        XCTAssertEqual(BeanDosing.recipe(recipe, forDose: recipe.dose + 0.4), recipe, "under 0.5 g the plan stays")
+        XCTAssertEqual(BeanDosing.recipe(recipe, forDose: recipe.dose - 0.3), recipe)
+        let more = BeanDosing.recipe(recipe, forDose: recipe.dose + 1)
+        XCTAssertEqual(more.dose, recipe.dose + 1)
+        XCTAssertEqual(more.water, (recipe.water * (recipe.dose + 1) / recipe.dose).rounded())
+        XCTAssertEqual(more.steps.map(\.time), recipe.steps.map(\.time), "times stay")
+        XCTAssertEqual(BeanDosing.recipe(recipe, forDose: recipe.dose - 0.5).dose, recipe.dose - 0.5)
+    }
+
+    func testSettledWeightIgnoresLiftingAndPouring() {
+        func readings(_ grams: (Int) -> Double) -> [(t: TimeInterval, grams: Double)] {
+            (0..<10).map { index -> (t: TimeInterval, grams: Double) in (t: Double(index) * 0.1, grams: grams(index)) }
+        }
+        let steady = readings { $0 % 2 == 0 ? 15.15 : 15.05 }
+        XCTAssertEqual(BeanDosing.stableWeight(steady, now: 0.9) ?? 0, 15.1, accuracy: 0.01)
+        let lifting = readings { 15.0 - Double($0) * 1.5 }
+        XCTAssertNil(BeanDosing.stableWeight(lifting, now: 0.9))
+        XCTAssertNil(BeanDosing.stableWeight(Array(steady.prefix(3)), now: 0.2), "too few readings")
+        let empty = readings { _ in 0.1 }
+        XCTAssertNil(BeanDosing.stableWeight(empty, now: 0.9), "an empty scale isn't a dose")
+    }
+
     // MARK: Recipe advice
 
     private func preset(_ id: String) throws -> Recipe { try XCTUnwrap(RecipeLibrary.preset(id: id)) }

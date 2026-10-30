@@ -80,17 +80,41 @@ class DosingAndAdviceTest {
             session.ingest(grams, now)
             grams += 0.5
         }
-        session.ingest(recipe.dose + 0.1, now + 100)
+        // Settles at 0.1 g over the plan, then the cup is lifted off.
+        repeat(12) { now += 100; session.ingest(recipe.dose + 0.1, now) }
+        repeat(5) { now += 100; session.ingest(0.0, now) }
         assertEquals(listOf(BrewCue.TARGET), cues)
-        session.acceptDose()
-        assertEquals(BrewPhase.PREPARING, session.phase)
-        assertEquals(recipe.dose + 0.1, session.dose, 0.0001)
-        assertEquals(recipe.dose + 0.1, session.state.value.weighedDose!!, 0.0001)
-        // Opening the screen again doesn't start weighing again.
-        session.prepare()
-        assertEquals(BrewPhase.PREPARING, session.phase)
+        // Ready straight from weighing keeps the settled dose; under 0.5 g off the recipe stays.
         session.ready()
+        assertEquals(BrewPhase.ARMED, session.phase)
+        assertEquals(recipe.dose + 0.1, session.dose, 0.0001)
+        assertEquals(recipe, session.recipe)
         assertEquals(listOf("dose", "doseDone", "prepare"), scale.commands)
+    }
+
+    @Test fun recipeIsScaledFromHalfAGramOff() {
+        val recipe = preset("everyday-3-pour")
+        val scale = FakeScale()
+        var now = 0L
+        val session = BrewSession(recipe, scale, { AppSettings() }, {}, clock = { now })
+        session.prepare()
+        session.tareDose()
+        assertEquals(listOf("dose", "tare"), scale.commands)
+        repeat(12) { now += 100; session.ingest(recipe.dose + 1.0, now) }
+        session.ready()
+        assertEquals(recipe.dose + 1.0, session.recipe.dose, 0.0001)
+        assertEquals(Math.round(recipe.water * (recipe.dose + 1) / recipe.dose).toDouble(), session.recipe.water, 0.0001)
+        assertEquals(recipe.steps.map { it.time }, session.recipe.steps.map { it.time })
+        assertEquals(recipe, session.plannedRecipe)
+        assertEquals(recipe, BeanDosing.recipe(recipe, recipe.dose + 0.4))
+    }
+
+    @Test fun settledWeightIgnoresLifting() {
+        val steady = (0 until 10).map { (it * 100L) to (if (it % 2 == 0) 15.15 else 15.05) }
+        assertEquals(15.1, BeanDosing.stableWeight(steady, 900)!!, 0.01)
+        val lifting = (0 until 10).map { (it * 100L) to 15.0 - it * 1.5 }
+        assertNull(BeanDosing.stableWeight(lifting, 900))
+        assertNull(BeanDosing.stableWeight(steady.take(3), 200))
     }
 
     @Test fun skipsWeighingWhenSwitchedOffOrWithoutScale() {

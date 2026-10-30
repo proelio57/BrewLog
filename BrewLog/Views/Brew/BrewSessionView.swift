@@ -66,11 +66,11 @@ struct BrewSessionView: View {
     @ViewBuilder
     private var liveCharts: some View {
         let withMachine = session.hasPressure
-        BrewChart(samples: session.samples, recipe: config.recipe, currentTime: session.elapsed,
+        BrewChart(samples: session.samples, recipe: session.recipe, currentTime: session.elapsed,
                   height: withMachine ? 120 : 160)
             .padding(.horizontal, 4)
         if withMachine {
-            MachineChart(samples: session.machineSamples, targetPressure: config.recipe.pressure,
+            MachineChart(samples: session.machineSamples, targetPressure: session.recipe.pressure,
                          currentTime: session.elapsed, height: 90)
                 .padding(.horizontal, 4)
         }
@@ -89,8 +89,8 @@ struct BrewSessionView: View {
             .buttonStyle(.plain)
             Spacer()
             VStack(spacing: 2) {
-                Text(config.recipe.name).font(.headline)
-                Text("\(session.dose.grams1) : \(config.recipe.water.grams) · \(Int(config.waterTemp)) °C")
+                Text(session.recipe.name).font(.headline)
+                Text("\(session.dose.grams1) : \(session.recipe.water.grams) · \(Int(config.waterTemp)) °C")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -111,7 +111,7 @@ struct BrewSessionView: View {
                     .font(.system(size: 54, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText())
-                Text("target \(config.recipe.targetTime.mmss)")
+                Text("target \(session.recipe.targetTime.mmss)")
                     .font(.caption)
                     .foregroundStyle(session.isPastTargetTime && session.phase == .brewing ? Color.orange : Color.secondary)
             }
@@ -164,7 +164,7 @@ struct BrewSessionView: View {
                     PulsingDrop()
                     VStack(alignment: .leading, spacing: 4) {
                         Text(armedTitle).font(.title3.bold())
-                        if let first = config.recipe.steps.first {
+                        if let first = session.recipe.steps.first {
                             Text(first.headline + (first.note.map { ". \($0)" } ?? ""))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
@@ -207,7 +207,7 @@ struct BrewSessionView: View {
                     Label("Grind \(session.dose.grams1) of coffee\(grindText)", systemImage: "1.circle.fill")
                     Label("Distribute (WDT) and tamp level", systemImage: "2.circle.fill")
                     Label("Flush the group head, lock in the portafilter", systemImage: "3.circle.fill")
-                    Label("Brew at \(Int(config.waterTemp)) °C, stop at \(config.recipe.water.grams)", systemImage: "4.circle.fill")
+                    Label("Brew at \(Int(config.waterTemp)) °C, stop at \(session.recipe.water.grams)", systemImage: "4.circle.fill")
                 }
                 .font(.subheadline)
                 .symbolRenderingMode(.hierarchical)
@@ -243,7 +243,7 @@ struct BrewSessionView: View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(Array(config.recipe.steps.enumerated()), id: \.offset) { index, step in
+                    ForEach(Array(session.recipe.steps.enumerated()), id: \.offset) { index, step in
                         StepChip(step: step,
                                  state: chipState(index))
                             .id(index)
@@ -271,12 +271,13 @@ struct BrewSessionView: View {
     private var controls: some View {
         switch session.phase {
         case .dosing:
-            Button("Skip weighing") { session.skipDosing() }
-                .font(.subheadline.weight(.semibold))
-            primaryButton(session.doseStatus == .empty ? "Add the beans" : "Use \(max(session.weight, 0).grams1) of beans",
-                          symbol: "scalemass.fill") { session.acceptDose() }
-                .disabled(session.doseStatus == .empty)
-                .opacity(session.doseStatus == .empty ? 0.5 : 1)
+            HStack(spacing: 24) {
+                Button("Tare", systemImage: "scalemass") { session.tareDose() }
+                Button("Skip weighing") { session.skipDosing() }
+                    .foregroundStyle(.secondary)
+            }
+            .font(.subheadline.weight(.semibold))
+            primaryButton("Ready", symbol: "checkmark.circle.fill") { session.ready() }
         case .preparing:
             if session.canWeighBeans && session.weighedDose == nil {
                 Button("Weigh the beans", systemImage: "scalemass") { session.weighBeans() }
@@ -329,11 +330,11 @@ struct BrewSessionView: View {
         let brew = Brew()
         context.insert(brew)
         brew.date = Date()
-        brew.recipeID = config.recipe.id
-        brew.recipeName = config.recipe.name
-        brew.recipe = config.recipe
+        brew.recipeID = session.recipe.id
+        brew.recipeName = session.recipe.name
+        brew.recipe = session.recipe
         brew.dose = session.dose
-        brew.targetWater = config.recipe.water
+        brew.targetWater = session.recipe.water
         brew.finalWeight = session.finalWeight
         brew.totalTime = session.elapsed
         brew.waterTemp = config.waterTemp
@@ -392,11 +393,16 @@ private struct DoseCard: View {
 
     private var hint: String {
         switch status {
-        case .empty: return "Put a cup on the scale (it's tared) and add the beans."
-        case .under: return "\(String(format: "%.1f", dose - weight)) g to go"
-        case .onTarget: return "On target"
-        case .over: return "\(String(format: "%.1f", weight - dose)) g too much. Take a few beans out, or keep it."
+        case .empty: return "Put a cup on the scale, tare and add the beans. Or tap Ready to brew without weighing."
+        case .under: return "\(String(format: "%.1f", dose - weight)) g to go." + rescaleNote
+        case .onTarget: return "On target. Tap Ready."
+        case .over: return "\(String(format: "%.1f", weight - dose)) g more than planned." + rescaleNote
         }
+    }
+
+    /// From 0.5 g off the plan the recipe follows what was weighed.
+    private var rescaleNote: String {
+        abs(weight - dose) >= BeanDosing.rescaleThreshold ? " Ready scales the recipe to \(weight.grams1)." : ""
     }
 }
 

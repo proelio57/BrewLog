@@ -121,11 +121,11 @@ fun LiveBrewScreen(nav: NavHostController) {
         if (pressureReady) container.pressure.brewFinished()
         session.finish()
         val brew = Brew(
-            recipeId = config.recipe.id,
-            recipeName = config.recipe.name,
-            recipe = config.recipe,
+            recipeId = session.recipe.id,
+            recipeName = session.recipe.name,
+            recipe = session.recipe,
             dose = session.dose,
-            targetWater = config.recipe.water,
+            targetWater = session.recipe.water,
             finalWeight = session.finalWeight,
             totalTime = session.elapsed,
             waterTemp = config.waterTemp,
@@ -198,32 +198,32 @@ fun LiveBrewScreen(nav: NavHostController) {
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).systemBarsPadding().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Header(config, snapshot.weighedDose ?: config.dose, snapshot.usesScale && scaleReady, pressureLive = pressureReady) { if (snapshot.phase == BrewPhase.BREWING) confirmDiscard = true else close() }
-        Readouts(snapshot, config, pressureReady = pressureReady, pressureBar = currentPressure)
+        Header(config, session.recipe, snapshot.weighedDose ?: config.dose, snapshot.usesScale && scaleReady, pressureLive = pressureReady) { if (snapshot.phase == BrewPhase.BREWING) confirmDiscard = true else close() }
+        Readouts(snapshot, config, session.recipe, pressureReady = pressureReady, pressureBar = currentPressure)
         when (snapshot.phase) {
             BrewPhase.DOSING -> DoseCard(snapshot.weight, session.plannedDose, snapshot.doseStatus)
             BrewPhase.PREPARING -> PreparingCard(snapshot.usesScale, session)
-            BrewPhase.ARMED -> ArmedCard(snapshot, config.recipe.steps.firstOrNull(), session)
+            BrewPhase.ARMED -> ArmedCard(snapshot, session.recipe.steps.firstOrNull(), session)
             else -> ActiveStepCard(snapshot, session)
         }
         if (snapshot.phase == BrewPhase.BREWING || snapshot.phase == BrewPhase.FINISHED) {
             BrewChart(
                 snapshot.samples,
-                config.recipe,
+                session.recipe,
                 currentTime = snapshot.elapsed,
                 height = 160.dp,
                 pressureSamples = snapshot.machineSamples.map { com.brewlog.app.domain.PressureSample(it.t, it.p) },
             )
         } else {
-            PreparationList(config, snapshot.weighedDose ?: config.dose)
+            PreparationList(config, session.recipe, snapshot.weighedDose ?: config.dose)
         }
-        StepsStrip(config, snapshot)
+        StepsStrip(config, session.recipe, snapshot)
         Spacer(Modifier.weight(1f))
         Controls(
             snapshot,
             canWeighBeans = session.canWeighBeans && snapshot.weighedDose == null,
             onWeighBeans = { session.weighBeans(); container.haptics.tap() },
-            onAcceptDose = { session.acceptDose(); container.haptics.tap() },
+            onTareDose = { session.tareDose(); container.haptics.tap() },
             onSkipDosing = { session.skipDosing() },
             onReady = {
                 session.ready()
@@ -247,14 +247,14 @@ fun LiveBrewScreen(nav: NavHostController) {
 }
 
 @Composable
-private fun Header(config: BrewConfig, dose: Double, scaleLive: Boolean, pressureLive: Boolean = false, onClose: () -> Unit) {
+private fun Header(config: BrewConfig, recipe: com.brewlog.app.domain.Recipe, dose: Double, scaleLive: Boolean, pressureLive: Boolean = false, onClose: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onClose, modifier = Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)) {
             Icon(Icons.Filled.Close, contentDescription = "Close")
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(config.recipe.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text("${dose.grams1()} : ${config.recipe.water.grams()} · ${config.waterTemp.toInt()} °C",
+            Text(recipe.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text("${dose.grams1()} : ${recipe.water.grams()} · ${config.waterTemp.toInt()} °C",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
@@ -275,6 +275,7 @@ private fun Header(config: BrewConfig, dose: Double, scaleLive: Boolean, pressur
 private fun Readouts(
     snapshot: BrewSnapshot,
     config: BrewConfig,
+    recipe: com.brewlog.app.domain.Recipe,
     pressureReady: Boolean = false,
     pressureBar: Double = 0.0,
 ) {
@@ -283,8 +284,8 @@ private fun Readouts(
         Column(Modifier.weight(1f)) {
             Text("TIME", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(snapshot.elapsed.mmss(), fontSize = fontSize, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
-            val late = snapshot.phase == BrewPhase.BREWING && snapshot.elapsed >= config.recipe.targetTime
-            Text("target ${config.recipe.targetTime.mmss()}", style = MaterialTheme.typography.bodySmall,
+            val late = snapshot.phase == BrewPhase.BREWING && snapshot.elapsed >= recipe.targetTime
+            Text("target ${recipe.targetTime.mmss()}", style = MaterialTheme.typography.bodySmall,
                 color = if (late) WarnOrange else MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (pressureReady) {
@@ -316,10 +317,10 @@ private fun DoseCard(weight: Double, dose: Double, status: BeanDosing.Status) {
         else -> MaterialTheme.colorScheme.primary
     }
     val hint = when (status) {
-        BeanDosing.Status.EMPTY -> "Put a cup on the scale (it's tared) and add the beans."
-        BeanDosing.Status.UNDER -> "${fmt1(dose - weight)} g to go"
-        BeanDosing.Status.ON_TARGET -> "On target"
-        BeanDosing.Status.OVER -> "${fmt1(weight - dose)} g too much. Take a few beans out, or keep it."
+        BeanDosing.Status.EMPTY -> "Put a cup on the scale, tare and add the beans. Or tap Ready to brew without weighing."
+        BeanDosing.Status.UNDER -> "${fmt1(dose - weight)} g to go." + rescaleNote(weight, dose)
+        BeanDosing.Status.ON_TARGET -> "On target. Tap Ready."
+        BeanDosing.Status.OVER -> "${fmt1(weight - dose)} g more than planned." + rescaleNote(weight, dose)
     }
     BrewCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -501,18 +502,18 @@ private fun CountdownRing(progress: Float, remaining: Double?, overtime: Double?
 }
 
 @Composable
-private fun PreparationList(config: BrewConfig, dose: Double) {
+private fun PreparationList(config: BrewConfig, recipe: com.brewlog.app.domain.Recipe, dose: Double) {
     val grind = when {
         config.grindValue != null && config.grinder != null -> ", ground at ${config.grinder.grinder.format(config.grindValue)}"
         config.grindText.isNotEmpty() -> ", ground ${config.grindText}"
         else -> ""
     }
     BrewCard {
-        (if (config.recipe.isEspresso) listOf(
+        (if (recipe.isEspresso) listOf(
             "Grind ${dose.grams1()} of coffee$grind",
             "Distribute (WDT) and tamp level",
             "Flush the group head, lock in the portafilter",
-            "Brew at ${config.waterTemp.toInt()} °C, stop at ${config.recipe.water.grams()}",
+            "Brew at ${config.waterTemp.toInt()} °C, stop at ${recipe.water.grams()}",
         ) else listOf(
             "Rinse the paper with hot water and discard it",
             "Add ${dose.grams1()} of coffee$grind",
@@ -531,12 +532,12 @@ private fun PreparationList(config: BrewConfig, dose: Double) {
 }
 
 @Composable
-private fun StepsStrip(config: BrewConfig, snapshot: BrewSnapshot) {
+private fun StepsStrip(config: BrewConfig, recipe: com.brewlog.app.domain.Recipe, snapshot: BrewSnapshot) {
     val listState = rememberLazyListState()
     val current = snapshot.currentStepIndex
     LaunchedEffect(current) { if (current != null) listState.animateScrollToItem(maxOf(current - 1, 0)) }
     LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        itemsIndexed(config.recipe.steps) { index, step ->
+        itemsIndexed(recipe.steps) { index, step ->
             val brewing = snapshot.phase == BrewPhase.BREWING || snapshot.phase == BrewPhase.FINISHED
             val done = brewing && current != null && index < current
             val isCurrent = brewing && current == index
@@ -569,7 +570,7 @@ private fun Controls(
     snapshot: BrewSnapshot,
     canWeighBeans: Boolean,
     onWeighBeans: () -> Unit,
-    onAcceptDose: () -> Unit,
+    onTareDose: () -> Unit,
     onSkipDosing: () -> Unit,
     onReady: () -> Unit,
     espresso: Boolean,
@@ -578,10 +579,11 @@ private fun Controls(
 ) {
     when (snapshot.phase) {
         BrewPhase.DOSING -> {
-            TextButton(onClick = onSkipDosing, modifier = Modifier.fillMaxWidth()) { Text("Skip weighing", fontWeight = FontWeight.SemiBold) }
-            val empty = snapshot.doseStatus == BeanDosing.Status.EMPTY
-            PrimaryButton(if (empty) "Add the beans" else "Use ${maxOf(snapshot.weight, 0.0).grams1()} of beans", Icons.Filled.Scale,
-                enabled = !empty, onClick = onAcceptDose)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                TextButton(onClick = onTareDose) { Text("Tare", fontWeight = FontWeight.SemiBold) }
+                TextButton(onClick = onSkipDosing) { Text("Skip weighing", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+            PrimaryButton("Ready", Icons.Filled.CheckCircle, onClick = onReady)
         }
         BrewPhase.PREPARING -> {
             if (canWeighBeans) {
@@ -601,3 +603,7 @@ private fun Controls(
         BrewPhase.FINISHED -> Unit
     }
 }
+
+/** From 0.5 g off the plan the recipe follows what was weighed. */
+private fun rescaleNote(weight: Double, dose: Double): String =
+    if (kotlin.math.abs(weight - dose) >= BeanDosing.RESCALE_THRESHOLD) " Ready scales the recipe to ${weight.grams1()}." else ""

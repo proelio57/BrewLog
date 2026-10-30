@@ -28,3 +28,22 @@ enum BeanDosing {
         return (weight * 10).rounded() / 10
     }
 }
+
+extension BeanDosing {
+    /// Below this difference the recipe stays as planned; from here on it is scaled to the weighed dose.
+    static let rescaleThreshold = 0.5
+
+    /// The recipe for the weighed dose: scaled (water and pour targets) when it is at least 0.5 g off the plan.
+    static func recipe(_ recipe: Recipe, forDose dose: Double) -> Recipe {
+        abs(dose - recipe.dose) >= rescaleThreshold ? recipe.scaled(toDose: dose) : recipe
+    }
+
+    /// A settled reading: the readings of the last second (at least 4) lie within ±0.2 g. Lifting the cup off or
+    /// still pouring beans in doesn't count, so "Ready" keeps what was actually weighed.
+    static func stableWeight(_ readings: [(t: TimeInterval, grams: Double)], now: TimeInterval) -> Double? {
+        let window = readings.filter { now - $0.t <= 1.0 }.map(\.grams)
+        guard window.count >= 4, let low = window.min(), let high = window.max(), high - low <= 2 * tolerance else { return nil }
+        let mean = window.reduce(0, +) / Double(window.count)
+        return status(weight: mean, dose: 1) == .empty ? nil : mean
+    }
+}

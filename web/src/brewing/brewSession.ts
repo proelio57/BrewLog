@@ -3,7 +3,7 @@ import { roundHalfAway } from '../domain/format'
 import type { AppSettings, MachineSample, WeightSample } from '../domain/models'
 import { isPour, type Recipe } from '../domain/recipe'
 import { LIMITS } from '../domain/validation'
-import { acceptedDose, doseStatus, type DoseStatus } from './dosing'
+import { acceptedDose, doseStatus, recipeForDose, stableWeight, type DoseStatus } from './dosing'
 import { type GaggiMateStatus, hasWeight, isBrewing } from '../machine/gaggimate'
 import type { MachineManager } from '../machine/machineManager'
 import type { PressureMonitor } from '../scale/pressure'
@@ -95,8 +95,14 @@ export class BrewSession {
   private prepared = false
   readonly state: Store<BrewSnapshot>
 
+  /** The recipe brewed: the planned one, or scaled to the weighed dose when that is at least 0.5 g off. */
+  recipe: Recipe
+  /** The last settled reading while weighing; "Ready" keeps it even after the cup is lifted off. */
+  private settledDose: number | null = null
+
   constructor(
-    readonly recipe: Recipe,
+    /** The recipe as planned (scaled to the dose chosen on the Brew tab). */
+    readonly plannedRecipe: Recipe,
     private readonly scale: ScaleCommands,
     private readonly settings: () => AppSettings,
     private readonly onCue: (cue: BrewCue) => void,
@@ -104,8 +110,9 @@ export class BrewSession {
     private readonly machine: MachineManager | null = null,
     private readonly monitor: PressureMonitor | null = null,
   ) {
+    this.recipe = plannedRecipe
     this.usesScale = scale.isReady || (this.isEspresso && !!machine?.isConnected && hasWeight(machine.status))
-    this.pourIndices = recipe.steps.map((s, i) => (isPour(s.kind) && s.target != null ? i : -1)).filter((i) => i >= 0)
+    this.pourIndices = plannedRecipe.steps.map((s, i) => (isPour(s.kind) && s.target != null ? i : -1)).filter((i) => i >= 0)
     this.state = new Store(this.snapshot())
   }
 
@@ -149,7 +156,7 @@ export class BrewSession {
 
   /** The planned bean dose (the recipe is already scaled to it). */
   get plannedDose(): number {
-    return this.recipe.dose
+    return this.plannedRecipe.dose
   }
 
   /** The dose to save with the brew. */
@@ -175,19 +182,35 @@ export class BrewSession {
     if (!this.scale.isReady || this.phase !== 'preparing') return
     this.phase = 'dosing'
     this.dosePinged = false
+    this.settledDose = null
     this.scale.prepareForDosing(this.plannedDose)
     this.publish()
   }
 
-  /** Keep what is on the scale as the dose for this brew. */
-  acceptDose(): void {
+  /** Tare while weighing (e.g. after putting the cup on the scale). */
+  tareDose(): void {
     if (this.phase !== 'dosing') return
-    this.weighedDose = acceptedDose(this.weight, this.plannedDose)
-    this.scale.dosingFinished()
-    this.phase = 'preparing'
+    this.scale.tare()
+    this.settledDose = null
+    this.dosePinged = false
+    this.recent = []
     this.publish()
   }
 
+  /** Ends weighing: keeps the settled (or current) reading and scales the recipe from 0.5 g off. Nothing weighed: the plan stays. */
+  private finishDosing(): void {
+    if (this.phase !== 'dosing') return
+    const reading = this.settledDose ?? (doseStatus(this.weight, this.plannedDose) === 'empty' ? null : this.weight)
+    if (reading != null) {
+      const dose = acceptedDose(reading, this.plannedDose)
+      this.weighedDose = dose
+      this.recipe = recipeForDose(this.plannedRecipe, dose)
+    }
+    this.scale.dosingFinished()
+    this.phase = 'preparing'
+  }
+
+  /** Optional: brew with the planned dose without weighing. */
   skipDosing(): void {
     if (this.phase !== 'dosing') return
     this.scale.dosingFinished()
@@ -195,8 +218,9 @@ export class BrewSession {
     this.publish()
   }
 
-  /** "Ready": tare the scale and wait for the first pour. */
+  /** "Ready": tare the scale and wait for the first pour. While weighing it keeps the weighed dose first. */
   ready(): void {
+    this.finishDosing()
     this.weighsViaMachine = !this.scale.isReady && this.isEspresso && !!this.machine?.isConnected && hasWeight(this.machine.status)
     this.usesScale = this.scale.isReady || this.weighsViaMachine
     this.phase = 'armed'
@@ -220,7 +244,6 @@ export class BrewSession {
   private machineShot(started: boolean, atMs: number): void {
     if (started) {
       if (this.phase === 'preparing' || this.phase === 'dosing') {
-        this.skipDosing()
         this.ready()
         this.begin(atMs)
       } else if (this.phase === 'armed') {
@@ -294,6 +317,8 @@ export class BrewSession {
     this.flowRate = slope(this.recent, 1.2, atMs)
 
     if (this.phase === 'dosing') {
+      const settled = stableWeight(this.recent, atMs)
+      if (settled != null) this.settledDose = settled
       // One ping when the dose is reached, so you can stop adding beans without staring at the number.
       if (!this.dosePinged && doseStatus(grams, this.plannedDose) === 'onTarget') {
         this.dosePinged = true
