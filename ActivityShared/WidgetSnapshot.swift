@@ -28,8 +28,17 @@ struct WidgetSnapshot: Codable, Equatable {
         var fraction: Double { bagWeight > 0 ? min(max(remaining / bagWeight, 0), 1) : 0 }
     }
 
+    /// What to brew the shown beans with next: the recipe and grind of their last brew (the suggested grind when
+    /// the review gave one).
+    struct NextBrew: Codable, Equatable {
+        var recipeName: String
+        /// e.g. "23 clicks", empty without a grind.
+        var grind: String
+    }
+
     var lastBrew: LastBrew?
     var bean: BeanInfo?
+    var next: NextBrew?
     var brewsThisWeek: Int = 0
     var updated: Date = Date()
 
@@ -38,6 +47,7 @@ struct WidgetSnapshot: Codable, Equatable {
                            grind: "24 clicks", ratio: 16.7),
         bean: BeanInfo(name: "Ethiopia Guji", roaster: "Roaster", roastDate: Date().addingTimeInterval(-9 * 86_400),
                        remaining: 160, bagWeight: 250),
+        next: NextBrew(recipeName: "Ultimate V60", grind: "23 clicks"),
         brewsThisWeek: 5)
 }
 

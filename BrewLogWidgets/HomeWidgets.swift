@@ -35,9 +35,9 @@ struct BrewLogStatusWidget: Widget {
         StaticConfiguration(kind: "BrewLogStatus", provider: SnapshotProvider()) { entry in
             StatusWidgetView(entry: entry)
         }
-        .configurationDisplayName("Beans & last brew")
-        .description("Your current beans with days off roast and what's left, and your last brew.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular, .accessoryInline])
+        .configurationDisplayName("Next brew")
+        .description("For the Lock Screen: your beans with days off roast and what's left, and the grind and recipe for the next cup. Tap to brew.")
+        .supportedFamilies([.accessoryRectangular, .accessoryCircular, .accessoryInline, .systemSmall])
     }
 }
 
@@ -48,7 +48,7 @@ private struct StatusWidgetView: View {
     var body: some View {
         content
             .containerBackground(for: .widget) {
-                if family == .systemSmall || family == .systemMedium {
+                if family == .systemSmall {
                     LinearGradient(colors: [accent.opacity(0.22), accent.opacity(0.06)], startPoint: .top, endPoint: .bottom)
                 } else {
                     Color.clear
@@ -63,7 +63,6 @@ private struct StatusWidgetView: View {
         case .accessoryInline: inline
         case .accessoryCircular: circular
         case .accessoryRectangular: rectangular
-        case .systemMedium: medium
         default: small
         }
     }
@@ -77,10 +76,18 @@ private struct StatusWidgetView: View {
 
     // Lock Screen
 
+    /// "Next: 23 clicks · Ultimate V60".
+    private var nextText: String? {
+        guard let next = snapshot?.next else { return nil }
+        let parts = [next.grind, next.recipeName].filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : "Next: " + parts.joined(separator: " · ")
+    }
+
     private var inline: some View {
         Group {
             if let bean = snapshot?.bean {
-                Label([bean.name, daysText(bean)].compactMap { $0 }.joined(separator: " · "), systemImage: "leaf.fill")
+                let grind = snapshot?.next?.grind.isEmpty == false ? snapshot?.next?.grind : nil
+                Label([bean.name, daysText(bean, short: true), grind].compactMap { $0 }.joined(separator: " · "), systemImage: "leaf.fill")
             } else if let brew = snapshot?.lastBrew {
                 Label("\(brew.recipeName) · \(brew.date.formatted(.relative(presentation: .named)))", systemImage: "drop.fill")
             } else {
@@ -111,11 +118,14 @@ private struct StatusWidgetView: View {
     private var rectangular: some View {
         VStack(alignment: .leading, spacing: 1) {
             if let bean = snapshot?.bean {
-                Text(bean.name).font(.headline).lineLimit(1)
-                Text([daysText(bean), "\(Int(bean.remaining)) g left"].compactMap { $0 }.joined(separator: " · "))
+                Label(bean.name, systemImage: "leaf.fill").font(.headline).lineLimit(1)
+                    .widgetAccentable()
+                Text([daysText(bean, short: true), "\(Int(bean.remaining)) g left"].compactMap { $0 }.joined(separator: " · "))
                     .font(.caption).lineLimit(1)
             }
-            if let brew = snapshot?.lastBrew {
+            if let nextText {
+                Text(nextText).font(.caption.weight(.semibold)).lineLimit(1)
+            } else if let brew = snapshot?.lastBrew {
                 Text("\(brew.recipeName) \(Text(brew.date, style: .relative)) ago")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -144,46 +154,13 @@ private struct StatusWidgetView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            if let brew = snapshot?.lastBrew { lastBrewLine(brew) }
+            if let nextText {
+                Text(nextText).font(.caption2.weight(.semibold)).lineLimit(2)
+            } else if let brew = snapshot?.lastBrew {
+                lastBrewLine(brew)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var medium: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 14) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Label("Beans", systemImage: "leaf.fill").font(.caption.weight(.semibold)).foregroundStyle(accent)
-                    if let bean = snapshot?.bean {
-                        beanBlock(bean)
-                    } else {
-                        Text(snapshot == nil ? "Open BrewLog once." : "No beans selected.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                VStack(alignment: .leading, spacing: 6) {
-                    Label("Last brew", systemImage: "drop.fill").font(.caption.weight(.semibold)).foregroundStyle(accent)
-                    if let brew = snapshot?.lastBrew {
-                        Text(brew.recipeName).font(.subheadline.weight(.semibold)).lineLimit(2)
-                        Text(brew.date, style: .relative).font(.caption).foregroundStyle(.secondary)
-                        HStack(spacing: 6) {
-                            if brew.rating > 0 { Text(String(repeating: "★", count: min(brew.rating, 5))).foregroundStyle(accent) }
-                            if !brew.grind.isEmpty { Text(brew.grind) }
-                        }
-                        .font(.caption)
-                    } else {
-                        Text("No brews yet.").font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            Spacer(minLength: 0)
-            HStack(spacing: 8) {
-                WidgetButton(title: "Brew", symbol: "drop.circle.fill", link: .brew)
-                WidgetButton(title: "Weigh", symbol: "scalemass.fill", link: .weigh)
-            }
-        }
     }
 
     private func beanBlock(_ bean: WidgetSnapshot.BeanInfo) -> some View {

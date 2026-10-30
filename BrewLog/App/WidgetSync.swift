@@ -31,6 +31,7 @@ enum WidgetSync {
                 WidgetSnapshot.BeanInfo(name: $0.name, roaster: $0.roaster, roastDate: $0.roastDate,
                                         remaining: $0.remaining, bagWeight: $0.bagWeight)
             },
+            next: bean.flatMap(nextBrew),
             brewsThisWeek: (try? context.fetchCount(recent)) ?? 0)
 
         // Widget reloads are budgeted by iOS: only when something changed.
@@ -40,5 +41,13 @@ enum WidgetSync {
         }
         SharedStore.save(snapshot)
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// The bean's last brew: its recipe and the grind to use next (the review's suggestion, else the same grind).
+    private static func nextBrew(for bean: Bean) -> WidgetSnapshot.NextBrew? {
+        guard let last = (bean.brews ?? []).max(by: { $0.date < $1.date }) else { return nil }
+        var grind = last.grindDisplay
+        if let suggested = last.suggestedGrind { grind = (last.grinderSpec ?? GrinderSpec()).format(suggested) }
+        return WidgetSnapshot.NextBrew(recipeName: last.recipeName, grind: grind)
     }
 }
