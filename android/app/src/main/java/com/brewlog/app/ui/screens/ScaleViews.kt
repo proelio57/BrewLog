@@ -97,7 +97,7 @@ fun ScaleStatusCard(onClick: () -> Unit) {
     val subtitle = when {
         isDemo -> "Simulated pours. Turn off in Settings."
         state == ScaleConnectionState.CONNECTED -> "Connected" + (battery?.let { " · $it% battery" } ?: "")
-        state == ScaleConnectionState.IDLE -> "Tap to connect your BOOKOO, or brew with the timer only"
+        state == ScaleConnectionState.IDLE -> "Tap to connect your scale, or brew with the timer only"
         else -> state.label
     }
     BrewCard(onClick = onClick) {
@@ -105,7 +105,7 @@ fun ScaleStatusCard(onClick: () -> Unit) {
             IconCircle(Icons.Filled.Scale, color, size = 42)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(if (ready) (if (isDemo) "Demo scale" else name ?: "BOOKOO") else "No scale connected",
+                Text(if (ready) (if (isDemo) "Demo scale" else name ?: "Scale") else "No scale connected",
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -186,7 +186,7 @@ fun ScaleSheet(onDismiss: () -> Unit) {
                 }
             }
             if (state == ScaleConnectionState.CONNECTED && !isDemo) {
-                InfoRow("Scale", name ?: "BOOKOO")
+                InfoRow("Scale", name ?: "Scale")
                 battery?.let { InfoRow("Battery", "$it%") }
                 InfoRow("Weight", weight.grams1())
                 if (rejected > 0) InfoRow("Ignored invalid packets", rejected.toString())
@@ -238,7 +238,7 @@ fun ScaleSheet(onDismiss: () -> Unit) {
                 Switch(checked = isDemo, onCheckedChange = { scale.setDemo(it) })
             }
             Spacer(Modifier.height(4.dp))
-            Text("Turn on your BOOKOO Themis Mini. BrewLog reconnects to it automatically next time.",
+            Text("Turn on your BOOKOO Themis Mini or Timemore Dot (Dot: long-press the button until the white light flashes). BrewLog reconnects to it automatically next time.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

@@ -453,7 +453,7 @@ private fun ScaleStep() {
     var showSheet by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         StepHeader("Connect your scale",
-            "BrewLog works with the BOOKOO Themis Mini. Switch it on and tap below. No scale? The timer works on its own.")
+            "BrewLog works with the BOOKOO Themis Mini and the Timemore Black Mirror Dot. Switch it on and tap below. No scale? The timer works on its own.")
         ScaleStatusCard { showSheet = true }
         BrewCard {
             Row(verticalAlignment = Alignment.CenterVertically) {

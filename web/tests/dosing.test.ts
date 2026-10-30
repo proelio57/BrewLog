@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { analyze, clarityAdvice, type AnalysisInput } from '../src/analysis/analyzer'
 import { BrewSession, type BrewCue } from '../src/brewing/brewSession'
-import { acceptedDose, doseProgress, doseStatus } from '../src/brewing/dosing'
+import { acceptedDose, doseProgress, doseStatus, recipeForDose, stableWeight } from '../src/brewing/dosing'
 import { PRESET_RECIPES } from '../src/domain/library'
 import { DEFAULT_SETTINGS } from '../src/domain/models'
 import type { Recipe } from '../src/domain/recipe'
@@ -47,12 +47,13 @@ describe('weighing the beans', () => {
     brewFinished() { this.commands.push('stop') }
   }
 
-  it('starts by weighing, pings once at the dose and saves what was weighed', () => {
+  it('starts by weighing, pings once and Ready keeps the settled dose', () => {
     const recipe = preset('everyday-3-pour')
     const scale = new FakeScale()
     const cues: BrewCue[] = []
     let now = 0
     const session = new BrewSession(recipe, scale, () => DEFAULT_SETTINGS, (c) => cues.push(c), () => now)
+    session.prepare()
     session.prepare()
     expect(session.phase).toBe('dosing')
     expect(scale.commands).toEqual(['dose'])
@@ -60,14 +61,40 @@ describe('weighing the beans', () => {
       now += 100
       session.ingest(grams, now)
     }
-    session.ingest(recipe.dose + 0.1, now + 100)
+    // Settles 0.1 g over the plan, then the cup is lifted off.
+    for (let i = 0; i < 12; i++) { now += 100; session.ingest(recipe.dose + 0.1, now) }
+    for (let i = 0; i < 5; i++) { now += 100; session.ingest(0, now) }
     expect(cues).toEqual(['target'])
-    session.acceptDose()
-    expect(session.phase).toBe('preparing')
-    expect(session.dose).toBeCloseTo(recipe.dose + 0.1, 5)
-    expect(session.state.get().weighedDose).toBeCloseTo(recipe.dose + 0.1, 5)
+    // Ready straight from weighing keeps the settled dose; under 0.5 g off the recipe stays.
     session.ready()
+    expect(session.phase).toBe('armed')
+    expect(session.dose).toBeCloseTo(recipe.dose + 0.1, 5)
+    expect(session.recipe).toBe(recipe)
     expect(scale.commands).toEqual(['dose', 'doseDone', 'prepare'])
+  })
+
+  it('scales the recipe from half a gram off', () => {
+    const recipe = preset('everyday-3-pour')
+    const scale = new FakeScale()
+    let now = 0
+    const session = new BrewSession(recipe, scale, () => DEFAULT_SETTINGS, () => undefined, () => now)
+    session.prepare()
+    session.tareDose()
+    expect(scale.commands).toEqual(['dose', 'tare'])
+    for (let i = 0; i < 12; i++) { now += 100; session.ingest(recipe.dose + 1, now) }
+    session.ready()
+    expect(session.recipe.dose).toBeCloseTo(recipe.dose + 1, 5)
+    expect(session.recipe.steps.map((s) => s.time)).toEqual(recipe.steps.map((s) => s.time))
+    expect(session.plannedRecipe).toBe(recipe)
+    expect(recipeForDose(recipe, recipe.dose + 0.4)).toBe(recipe)
+  })
+
+  it('a settled weight ignores lifting the cup', () => {
+    const steady: [number, number][] = Array.from({ length: 10 }, (_, i) => [i * 100, i % 2 ? 15.05 : 15.15])
+    expect(stableWeight(steady, 900)).toBeCloseTo(15.1, 2)
+    const lifting: [number, number][] = Array.from({ length: 10 }, (_, i) => [i * 100, 15 - i * 1.5])
+    expect(stableWeight(lifting, 900)).toBeNull()
+    expect(stableWeight(steady.slice(0, 3), 200)).toBeNull()
   })
 
   it('skips weighing when switched off or without a scale', () => {

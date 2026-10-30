@@ -67,7 +67,8 @@ data class BrewSnapshot(
  * 1:1 port of BrewSession.swift. Feed it [ingest] (scale readings) and [tick] (every 50 ms).
  */
 class BrewSession(
-    val recipe: Recipe,
+    /** The recipe as planned (scaled to the dose chosen on the Brew tab). */
+    val plannedRecipe: Recipe,
     private val scale: ScaleCommands,
     private val settings: () -> AppSettings,
     private val onCue: (BrewCue) -> Unit,
@@ -79,6 +80,10 @@ class BrewSession(
     /** Spoken step prompts (only called when they are switched on). */
     private val onSpeak: (String) -> Unit = {},
 ) {
+    /** The recipe brewed: the planned one, or scaled to the weighed dose when that is at least 0.5 g off. */
+    var recipe: Recipe = plannedRecipe
+        private set
+
     val isEspresso: Boolean get() = recipe.isEspresso
 
     /** Espresso with a connected machine: the shot timer starts and stops with the machine's pump. */
@@ -138,7 +143,10 @@ class BrewSession(
     // MARK: Weighing the beans
 
     /** The planned bean dose (the recipe is already scaled to it). */
-    val plannedDose: Double get() = recipe.dose
+    val plannedDose: Double get() = plannedRecipe.dose
+
+    /** The last settled reading while weighing; "Ready" keeps it even after the cup is lifted off. */
+    private var settledDose: Double? = null
 
     /** The dose to save with the brew. */
     val dose: Double get() = weighedDose ?: plannedDose
@@ -159,19 +167,38 @@ class BrewSession(
         if (!scale.isReady || phase != BrewPhase.PREPARING) return
         phase = BrewPhase.DOSING
         dosePinged = false
+        settledDose = null
         scale.prepareForDosing(plannedDose)
         publish()
     }
 
-    /** Keep what is on the scale as the dose for this brew. */
-    fun acceptDose() {
+    /** Tare while weighing (e.g. after putting the cup on the scale). */
+    fun tareDose() {
         if (phase != BrewPhase.DOSING) return
-        weighedDose = BeanDosing.acceptedDose(weight, plannedDose)
-        scale.dosingFinished()
-        phase = BrewPhase.PREPARING
+        scale.tare()
+        settledDose = null
+        dosePinged = false
+        recent.clear()
         publish()
     }
 
+    /**
+     * Ends weighing: keeps the settled (or current) reading as the dose and scales the recipe to it when it is at
+     * least 0.5 g off the plan. Nothing weighed: the plan stays.
+     */
+    private fun finishDosing() {
+        if (phase != BrewPhase.DOSING) return
+        val reading = settledDose ?: weight.takeIf { BeanDosing.status(it, plannedDose) != BeanDosing.Status.EMPTY }
+        if (reading != null) {
+            val dose = BeanDosing.acceptedDose(reading, plannedDose)
+            weighedDose = dose
+            recipe = BeanDosing.recipe(plannedRecipe, dose)
+        }
+        scale.dosingFinished()
+        phase = BrewPhase.PREPARING
+    }
+
+    /** Optional: brew with the planned dose without weighing. */
     fun skipDosing() {
         if (phase != BrewPhase.DOSING) return
         scale.dosingFinished()
@@ -190,8 +217,9 @@ class BrewSession(
         return { offShot(); offReading() }
     }
 
-    /** "Ready": tare the scale and wait for the first pour. */
+    /** "Ready": tare the scale and wait for the first pour. While weighing it keeps the weighed dose first. */
     fun ready() {
+        finishDosing()
         weighsViaMachine = !scale.isReady && isEspresso && machine?.isConnected == true && machine.status.hasWeight
         usesScale = scale.isReady || weighsViaMachine
         phase = BrewPhase.ARMED
@@ -213,7 +241,7 @@ class BrewSession(
     private fun machineShot(started: Boolean, atMs: Long) {
         if (started) {
             when (phase) {
-                BrewPhase.DOSING, BrewPhase.PREPARING -> { skipDosing(); ready(); begin(atMs) }
+                BrewPhase.DOSING, BrewPhase.PREPARING -> { ready(); begin(atMs) }
                 BrewPhase.ARMED -> begin(atMs)
                 else -> Unit
             }
@@ -290,6 +318,7 @@ class BrewSession(
 
         when (phase) {
             BrewPhase.DOSING -> {
+                BeanDosing.stableWeight(recent, atMs)?.let { settledDose = it }
                 // One ping when the dose is reached, so you can stop adding beans without staring at the number.
                 if (!dosePinged && BeanDosing.status(grams, plannedDose) == BeanDosing.Status.ON_TARGET) {
                     dosePinged = true

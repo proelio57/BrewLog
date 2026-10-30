@@ -1,12 +1,12 @@
 import { CircleCheck, Droplet, Gauge, Play, Scale, Square, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { doseProgress, type DoseStatus } from '../brewing/dosing'
+import { RESCALE_THRESHOLD, doseProgress, type DoseStatus } from '../brewing/dosing'
 import { goBack, live, machine, navigate, pressure, repository, scale, settings, wakeLock, type BrewConfig } from '../app'
 import type { BrewSession, BrewSnapshot } from '../brewing/brewSession'
 import { useStore } from '../data/store'
 import { fmt1, grams, grams1, mmss, newId, scaleReadout } from '../domain/format'
 import { formatGrind, type Brew } from '../domain/models'
-import { STEP_TITLES, isPour, stepHeadline, type RecipeStep } from '../domain/recipe'
+import { STEP_TITLES, isPour, stepHeadline, type Recipe, type RecipeStep } from '../domain/recipe'
 import { BrewChart, MachineChart } from '../ui/chart'
 import { Card, STEP_ICONS } from '../ui/components'
 
@@ -39,8 +39,8 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
     if (session.phase !== 'brewing') return
     session.finish()
     const brew: Brew = {
-      id: newId(), date: Date.now(), recipeId: config.recipe.id, recipeName: config.recipe.name, recipe: config.recipe,
-      dose: session.dose, targetWater: config.recipe.water, finalWeight: session.finalWeight, totalTime: session.elapsed,
+      id: newId(), date: Date.now(), recipeId: session.recipe.id, recipeName: session.recipe.name, recipe: session.recipe,
+      dose: session.dose, targetWater: session.recipe.water, finalWeight: session.finalWeight, totalTime: session.elapsed,
       waterTemp: config.waterTemp, grindSetting: config.grindText, grindValue: config.grindValue, suggestedGrind: null,
       brewerId: config.brewer?.id ?? null, brewerName: config.brewer?.name ?? '',
       grinderId: config.grinder?.id ?? null, grinderName: config.grinder?.name ?? '', grinderSpec: config.grinder?.grinder ?? null,
@@ -83,16 +83,16 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
   }
 
   const scaleLive = snapshot.usesScale && (scaleState.isDemo || scaleState.connection === 'connected')
-  const late = snapshot.phase === 'brewing' && snapshot.elapsed >= config.recipe.targetTime
-  const first = config.recipe.steps[0]
+  const late = snapshot.phase === 'brewing' && snapshot.elapsed >= session.recipe.targetTime
+  const first = session.recipe.steps[0]
 
   return (
     <div className="live">
       <div className="row">
         <button className="icon-btn filled" aria-label="Close" onClick={confirmClose}><X size={22} /></button>
         <div className="grow" style={{ textAlign: 'center' }}>
-          <div className="title">{config.recipe.name}</div>
-          <div className="small muted">{grams1(snapshot.weighedDose ?? config.dose)} : {grams(config.recipe.water)} · {Math.round(config.waterTemp)} °C</div>
+          <div className="title">{session.recipe.name}</div>
+          <div className="small muted">{grams1(snapshot.weighedDose ?? config.dose)} : {grams(session.recipe.water)} · {Math.round(config.waterTemp)} °C</div>
         </div>
         <span className="row" style={{ width: 40, justifyContent: 'center', gap: 4 }}>
           <span style={{ width: 8, height: 8, borderRadius: 4, background: scaleLive ? 'var(--good)' : 'var(--muted)' }} />
@@ -104,7 +104,7 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
         <div>
           <div className="readout-label">TIME</div>
           <div className="readout">{mmss(snapshot.elapsed)}</div>
-          <div className="small" style={{ color: late ? 'var(--warn)' : 'var(--muted)' }}>target {mmss(config.recipe.targetTime)}</div>
+          <div className="small" style={{ color: late ? 'var(--warn)' : 'var(--muted)' }}>target {mmss(session.recipe.targetTime)}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div className="readout-label">WEIGHT</div>
@@ -166,13 +166,13 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
 
       {snapshot.phase === 'brewing' || snapshot.phase === 'finished'
         ? <>
-          <BrewChart samples={snapshot.samples} recipe={config.recipe} currentTime={snapshot.elapsed} height={showMachine ? 120 : 160} />
-          {session.hasPressure && <MachineChart samples={snapshot.machineSamples} targetPressure={config.recipe.pressure} currentTime={snapshot.elapsed} height={90} />}
+          <BrewChart samples={snapshot.samples} recipe={session.recipe} currentTime={snapshot.elapsed} height={showMachine ? 120 : 160} />
+          {session.hasPressure && <MachineChart samples={snapshot.machineSamples} targetPressure={session.recipe.pressure} currentTime={snapshot.elapsed} height={90} />}
         </>
-        : <Preparation config={config} dose={snapshot.weighedDose ?? config.dose} />}
+        : <Preparation config={config} recipe={session.recipe} dose={snapshot.weighedDose ?? config.dose} />}
 
       <div className="steps-strip">
-        {config.recipe.steps.map((step, index) => {
+        {session.recipe.steps.map((step, index) => {
           const brewing = snapshot.phase === 'brewing' || snapshot.phase === 'finished'
           const current = snapshot.currentStepIndex
           const done = brewing && current != null && index < current
@@ -192,9 +192,11 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
 
       <div className="grow" />
       {snapshot.phase === 'dosing' && <>
-        <button className="link" style={{ alignSelf: 'center', padding: 12 }} onClick={() => session.skipDosing()}>Skip weighing</button>
-        <button className="btn-primary" disabled={snapshot.doseStatus === 'empty'} style={{ opacity: snapshot.doseStatus === 'empty' ? 0.5 : 1 }}
-          onClick={() => session.acceptDose()}><Scale size={20} />{snapshot.doseStatus === 'empty' ? 'Add the beans' : `Use ${grams1(Math.max(snapshot.weight, 0))} of beans`}</button>
+        <div className="row" style={{ justifyContent: 'center', gap: 24 }}>
+          <button className="link" style={{ padding: 12 }} onClick={() => session.tareDose()}>Tare</button>
+          <button className="link muted" style={{ padding: 12 }} onClick={() => session.skipDosing()}>Skip weighing</button>
+        </div>
+        <button className="btn-primary" onClick={() => session.ready()}><CircleCheck size={20} />Ready</button>
       </>}
       {snapshot.phase === 'preparing' && session.canWeighBeans && snapshot.weighedDose == null && (
         <button className="link" style={{ alignSelf: 'center', padding: 12 }} onClick={() => session.weighBeans()}>Weigh the beans</button>
@@ -303,10 +305,12 @@ function preparingHint(session: BrewSession, usesScale: boolean): string {
 
 function DoseCard({ weight, dose, status }: { weight: number; dose: number; status: DoseStatus }) {
   const color = status === 'onTarget' ? 'var(--good)' : status === 'over' ? 'var(--warn)' : 'var(--accent)'
-  const hint = status === 'empty' ? "Put a cup on the scale (it's tared) and add the beans."
-    : status === 'under' ? `${fmt1(dose - weight)} g to go`
-      : status === 'onTarget' ? 'On target'
-        : `${fmt1(weight - dose)} g too much. Take a few beans out, or keep it.`
+  // From 0.5 g off the plan the recipe follows what was weighed.
+  const rescale = Math.abs(weight - dose) >= RESCALE_THRESHOLD ? ` Ready scales the recipe to ${grams1(weight)}.` : ''
+  const hint = status === 'empty' ? 'Put a cup on the scale, tare and add the beans. Or tap Ready to brew without weighing.'
+    : status === 'under' ? `${fmt1(dose - weight)} g to go.${rescale}`
+      : status === 'onTarget' ? 'On target. Tap Ready.'
+        : `${fmt1(weight - dose)} g more than planned.${rescale}`
   return (
     <Card>
       <div className="row">
@@ -323,14 +327,14 @@ function DoseCard({ weight, dose, status }: { weight: number; dose: number; stat
   )
 }
 
-function Preparation({ config, dose }: { config: BrewConfig; dose: number }) {
+function Preparation({ config, recipe, dose }: { config: BrewConfig; recipe: Recipe; dose: number }) {
   const grind = config.grindValue != null && config.grinder ? `, ground at ${formatGrind(config.grinder.grinder, config.grindValue)}`
     : config.grindText ? `, ground ${config.grindText}` : ''
-  const items = config.recipe.method === 'espresso' ? [
+  const items = recipe.method === 'espresso' ? [
     `Grind ${grams1(dose)} of coffee${grind}`,
     'Distribute (WDT) and tamp level',
     'Flush the group head, lock in the portafilter',
-    `Brew at ${Math.round(config.waterTemp)} °C, stop at ${grams(config.recipe.water)}`,
+    `Brew at ${Math.round(config.waterTemp)} °C, stop at ${grams(recipe.water)}`,
   ] : [
     'Rinse the paper with hot water and discard it',
     `Add ${grams1(dose)} of coffee${grind}`,

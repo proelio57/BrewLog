@@ -2,6 +2,10 @@ import { Store } from '../data/store'
 import { pourSteps, type Recipe } from '../domain/recipe'
 import { sanitized } from '../domain/validation'
 import { COMMAND_CHAR_UUID, type Command, PacketValidator, SERVICE_UUID, WEIGHT_CHAR_UUID, commandPacket } from './bookoo'
+import { DOT_COMMAND_CHAR_UUID, DOT_INIT_SEQUENCE, DOT_NOTIFY_CHAR_UUID, DOT_SERVICE_UUID, DotParser, dotPacket } from './timemoreDot'
+
+/** The scales BrewLog can connect to. */
+export type ScaleModel = 'bookoo' | 'timemoreDot'
 
 /** Monotonic clock in milliseconds (shared by scale readings and the brew engine). */
 export const monotonicMillis = (): number => performance.now()
@@ -53,6 +57,9 @@ export class ScaleManager implements ScaleCommands {
   private command: BluetoothRemoteGATTCharacteristic | null = null
   private userDisconnect = false
   private readonly validator = new PacketValidator()
+  private readonly dotParser = new DotParser()
+  /** The kind of scale that is connected, known once its services are discovered. */
+  private model: ScaleModel = 'bookoo'
   private readonly listeners = new Set<ReadingListener>()
   private readonly demo = new DemoScale((grams) => this.handle(grams, 100))
 
@@ -99,8 +106,13 @@ export class ScaleManager implements ScaleCommands {
     try {
       this.patch({ error: null })
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ namePrefix: 'BOOKOO' }, { namePrefix: 'bookoo' }, { namePrefix: 'Bookoo' }, { services: [SERVICE_UUID] }],
-        optionalServices: [SERVICE_UUID],
+        filters: [
+          { namePrefix: 'BOOKOO' }, { namePrefix: 'bookoo' }, { namePrefix: 'Bookoo' }, { services: [SERVICE_UUID] },
+          // Timemore Black Mirror Dot
+          { namePrefix: 'TIMEMORE' }, { namePrefix: 'Timemore' }, { namePrefix: 'TES017' }, { namePrefix: 'Dot' }, { namePrefix: 'DOT' },
+          { services: [DOT_SERVICE_UUID] },
+        ],
+        optionalServices: [SERVICE_UUID, DOT_SERVICE_UUID],
       })
       this.device = device
       device.addEventListener('gattserverdisconnected', this.onDisconnected)
@@ -157,7 +169,12 @@ export class ScaleManager implements ScaleCommands {
   async send(command: Command): Promise<void> {
     const characteristic = this.command
     if (this.state.get().isDemo || !characteristic) return
-    const packet = commandPacket(command)
+    await this.write(this.model === 'timemoreDot' ? dotPacket(command) : commandPacket(command))
+  }
+
+  private async write(packet: Uint8Array<ArrayBuffer>): Promise<void> {
+    const characteristic = this.command
+    if (this.state.get().isDemo || !characteristic) return
     try {
       if (characteristic.properties.writeWithoutResponse) await characteristic.writeValueWithoutResponse(packet)
       else await characteristic.writeValueWithResponse(packet)
@@ -171,21 +188,43 @@ export class ScaleManager implements ScaleCommands {
     if (!device?.gatt) return
     this.userDisconnect = false
     this.validator.reset()
+    this.dotParser.reset()
     this.patch({ connection: 'connecting' })
     const server = await device.gatt.connect()
-    const service = await server.getPrimaryService(SERVICE_UUID)
-    this.command = await service.getCharacteristic(COMMAND_CHAR_UUID)
-    const weight = await service.getCharacteristic(WEIGHT_CHAR_UUID)
+    // Which scale it is shows in the services it offers (BOOKOO 0FFE, Timemore Dot FFF0).
+    const bookoo = await server.getPrimaryService(SERVICE_UUID).catch(() => null)
+    const service = bookoo ?? await server.getPrimaryService(DOT_SERVICE_UUID)
+    this.model = bookoo ? 'bookoo' : 'timemoreDot'
+    const dot = this.model === 'timemoreDot'
+    this.command = await service.getCharacteristic(dot ? DOT_COMMAND_CHAR_UUID : COMMAND_CHAR_UUID)
+    const weight = await service.getCharacteristic(dot ? DOT_NOTIFY_CHAR_UUID : WEIGHT_CHAR_UUID)
     weight.addEventListener('characteristicvaluechanged', this.onData)
     await weight.startNotifications()
+    const fallback = dot ? 'Timemore Dot' : 'BOOKOO'
     // Advertised names are untrusted input: sanitize and bound them.
-    this.patch({ connection: 'connected', name: sanitized(device.name ?? 'BOOKOO', 40) || 'BOOKOO' })
+    this.patch({ connection: 'connected', name: sanitized(device.name ?? fallback, 40) || fallback })
+    if (dot) {
+      // The Dot only reports weight once unit and mode are set.
+      let delay = 0
+      for (const [command, wait] of DOT_INIT_SEQUENCE) {
+        delay += wait
+        setTimeout(() => { if (this.model === 'timemoreDot') void this.write(dotPacket(command)) }, delay)
+      }
+    }
   }
 
   private onData = (event: Event): void => {
     const value = (event.target as BluetoothRemoteGATTCharacteristic).value
     if (!value) return
-    const reading = this.validator.accept(new Uint8Array(value.buffer, value.byteOffset, value.byteLength))
+    const bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+    if (this.model === 'timemoreDot') {
+      for (const event of this.dotParser.feed(bytes)) {
+        if (event.type === 'weight') this.handle(event.grams, null)
+        else this.patch({ battery: event.percent })
+      }
+      return
+    }
+    const reading = this.validator.accept(bytes)
     if (!reading) {
       this.patch({ rejectedPackets: this.validator.rejected })
       return

@@ -48,7 +48,7 @@ struct ScaleStatusCard: View {
         if scale.isDemo { return "Simulated pours. Turn off in Settings." }
         var text = scale.state.label
         if scale.state == .connected, let battery = scale.batteryLevel { text += " · \(battery)% battery" }
-        if scale.state == .idle { text = "Tap to connect your BOOKOO, or brew with the timer only" }
+        if scale.state == .idle { text = "Tap to connect your scale, or brew with the timer only" }
         return text
     }
 }
@@ -78,7 +78,7 @@ struct ScaleConnectSheet: View {
                         Button("Disconnect & forget", role: .destructive) { scale.disconnect(forget: true) }
                     }
                 } footer: {
-                    Text("Turn on your BOOKOO Themis Mini. BrewLog reconnects to it automatically next time.")
+                    Text("Turn on your BOOKOO Themis Mini or Timemore Dot (Dot: long-press the button until the white light flashes). BrewLog reconnects to it automatically next time.")
                 }
 
                 if !scale.isDemo && scale.state != .connected {

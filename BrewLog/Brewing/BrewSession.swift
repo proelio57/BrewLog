@@ -16,7 +16,10 @@ final class BrewSession {
         case finished
     }
 
-    let recipe: Recipe
+    /// The recipe as planned (scaled to the dose chosen on the Brew tab).
+    let plannedRecipe: Recipe
+    /// The recipe brewed: the planned one, or scaled to the weighed dose when that is at least 0.5 g off.
+    private(set) var recipe: Recipe
     /// Whether live weight from a scale is used. Decided when Ready is pressed.
     private(set) var usesScale: Bool
     private(set) var phase: Phase = .preparing
@@ -34,6 +37,8 @@ final class BrewSession {
     private(set) var machineSamples: [MachineSample] = []
     /// The bean dose read from the scale when the beans were weighed, nil when they weren't.
     private(set) var weighedDose: Double?
+    /// The last settled reading while weighing; "Ready" keeps it even after the cup is lifted off.
+    private(set) var settledDose: Double?
 
     @ObservationIgnored private let scale: ScaleManager
     @ObservationIgnored private let sound: SoundPlayer
@@ -59,6 +64,7 @@ final class BrewSession {
 
     init(recipe: Recipe, scale: ScaleManager = .shared, sound: SoundPlayer = .shared, machine: MachineManager = .shared,
          monitor: PressureMonitor = .shared) {
+        self.plannedRecipe = recipe
         self.recipe = recipe
         self.scale = scale
         self.sound = sound
@@ -115,7 +121,7 @@ final class BrewSession {
     // MARK: Weighing the beans
 
     /// The planned bean dose (the recipe is already scaled to it).
-    var plannedDose: Double { recipe.dose }
+    var plannedDose: Double { plannedRecipe.dose }
 
     /// The dose to save with the brew.
     var dose: Double { weighedDose ?? plannedDose }
@@ -130,27 +136,45 @@ final class BrewSession {
         guard scale.isReady, phase == .preparing else { return }
         phase = .dosing
         dosePinged = false
+        settledDose = nil
         scale.prepareForDosing(dose: plannedDose)
         Haptics.tap()
     }
 
-    /// Keep what is on the scale as the dose for this brew.
-    func acceptDose() {
+    /// Tare while weighing (e.g. after putting the cup on the scale).
+    func tareDose() {
         guard phase == .dosing else { return }
-        weighedDose = BeanDosing.acceptedDose(weight: weight, planned: plannedDose)
-        scale.dosingFinished()
-        phase = .preparing
+        scale.tare()
+        settledDose = nil
+        dosePinged = false
+        recent.removeAll()
         Haptics.tap()
     }
 
+    /// Ends weighing: keeps the settled (or current) reading as the dose and scales the recipe to it when it is
+    /// at least 0.5 g off the plan. Nothing weighed: the plan stays.
+    private func finishDosing() {
+        guard phase == .dosing else { return }
+        let reading = settledDose ?? (BeanDosing.status(weight: weight, dose: plannedDose) == .empty ? nil : weight)
+        if let reading {
+            let dose = BeanDosing.acceptedDose(weight: reading, planned: plannedDose)
+            weighedDose = dose
+            recipe = BeanDosing.recipe(plannedRecipe, forDose: dose)
+        }
+        scale.dosingFinished()
+        phase = .preparing
+    }
+
+    /// Optional: brew with the planned dose without weighing.
     func skipDosing() {
         guard phase == .dosing else { return }
         scale.dosingFinished()
         phase = .preparing
     }
 
-    /// "Ready": tare the scale and wait for the first pour.
+    /// "Ready": tare the scale and wait for the first pour. While weighing it keeps the weighed dose first.
     func ready() {
+        finishDosing()
         weighsViaMachine = !scale.isReady && isEspresso && machine.isConnected && machine.status.hasWeight
         usesScale = scale.isReady || weighsViaMachine
         phase = .armed
@@ -182,7 +206,6 @@ final class BrewSession {
         if started {
             switch phase {
             case .dosing, .preparing:
-                skipDosing()
                 ready()
                 begin(at: date)
             case .armed:
@@ -351,6 +374,10 @@ final class BrewSession {
                 begin(at: onset)
             }
         case .dosing:
+            let now = date.timeIntervalSinceReferenceDate
+            if let settled = BeanDosing.stableWeight(recent.map { ($0.date.timeIntervalSinceReferenceDate, $0.grams) }, now: now) {
+                settledDose = settled
+            }
             // One ping when the dose is reached, so you can stop adding beans without staring at the number.
             if !dosePinged && doseStatus == .onTarget {
                 dosePinged = true
