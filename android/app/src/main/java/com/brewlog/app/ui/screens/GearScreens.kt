@@ -387,7 +387,7 @@ fun SettingsScreen(nav: NavHostController) {
                 Spacer(Modifier.height(8.dp))
                 BrewCard {
                     Row(Modifier.fillMaxWidth().clickable { showScale = true }.padding(vertical = 6.dp)) {
-                        Text("BOOKOO scale", Modifier.weight(1f))
+                        Text(container.scale.model.defaultName, Modifier.weight(1f))
                         Text(if (isDemo) "Demo" else state.label, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     SwitchRow("Demo scale (simulated pours)", isDemo) { container.scale.setDemo(it) }

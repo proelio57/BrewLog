@@ -203,7 +203,7 @@ struct QuickWeighView: View {
                 Image(systemName: "scalemass").font(.title2).foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("No scale connected").font(.headline)
-                    Text("Connect your BOOKOO or turn on the demo scale.").font(.caption).foregroundStyle(.secondary)
+                    Text("Connect your scale (BOOKOO or Timemore Dot) or turn on the demo scale.").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("Connect") { showConnect = true }

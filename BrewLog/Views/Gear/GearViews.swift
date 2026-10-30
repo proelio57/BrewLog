@@ -331,7 +331,7 @@ struct SettingsView: View {
         Form {
             Section("Scale") {
                 Button { showScale = true } label: {
-                    LabeledContent("BOOKOO scale", value: scale.isDemo ? "Demo" : scale.state.label)
+                    LabeledContent(scale.model.defaultName, value: scale.isDemo ? "Demo" : scale.state.label)
                 }
                 Toggle("Demo scale (simulated pours)", isOn: $scale.isDemo)
             }

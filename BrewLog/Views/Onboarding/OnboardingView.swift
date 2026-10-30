@@ -465,7 +465,7 @@ struct OnboardingView: View {
         return ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header("Connect your scale",
-                       "BrewLog works with the BOOKOO Themis Mini. Switch it on and tap below. No scale? The timer works on its own.")
+                       "BrewLog works with the BOOKOO Themis Mini and the Timemore Black Mirror Dot. Switch it on and tap below. No scale? The timer works on its own.")
                 ScaleStatusCard()
                 Card {
                     Toggle(isOn: $scale.isDemo) {

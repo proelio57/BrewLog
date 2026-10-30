@@ -48,7 +48,7 @@ enum class ScaleConnectionState(val label: String) {
     CONNECTED("Connected"),
 }
 
-data class DiscoveredScale(val address: String, val name: String, val rssi: Int)
+data class DiscoveredScale(val address: String, val name: String, val rssi: Int, val model: ScaleModel = ScaleModel.BOOKOO)
 
 /** One validated reading: grams + monotonic timestamp (see [monotonicMillis]). */
 data class ScaleReading(val grams: Double, val timeMillis: Long)
@@ -168,9 +168,11 @@ class ScaleManager(
         stopScan()
         userInitiatedDisconnect = false
         validator.reset()
+        dotParser.reset()
         gatt?.close()
         _state.value = ScaleConnectionState.CONNECTING
         prefs.edit().putString(KEY_ADDRESS, address).apply()
+        models[address]?.let(::setModel)
         // Deprecated in API 37, but it's the API available on Android 8–16 (minSdk 26).
         @Suppress("DEPRECATION")
         gatt = device.connectGatt(context, autoConnect, gattCallback, BluetoothDevice.TRANSPORT_LE)
@@ -192,7 +194,7 @@ class ScaleManager(
     val hasSavedScale: Boolean get() = prefs.getString(KEY_ADDRESS, null) != null
 
     override fun tare() {
-        if (_isDemo.value) demo.tare() else send(BookooProtocol.Command.TARE)
+        if (_isDemo.value) demo.tare() else send(ScaleCommand.TARE)
     }
 
     /** Tares and resets the scale timer. In demo mode it also schedules a simulated pour that follows the recipe. */
@@ -200,28 +202,50 @@ class ScaleManager(
         if (_isDemo.value) {
             demo.simulate(recipe)
         } else {
-            send(BookooProtocol.Command.TARE)
-            main.postDelayed({ send(BookooProtocol.Command.RESET_TIMER) }, 150)
+            send(ScaleCommand.TARE)
+            main.postDelayed({ send(ScaleCommand.RESET_TIMER) }, 150)
         }
     }
 
     override fun prepareForDosing(dose: Double) {
-        if (_isDemo.value) demo.simulateDose(dose) else send(BookooProtocol.Command.TARE)
+        if (_isDemo.value) demo.simulateDose(dose) else send(ScaleCommand.TARE)
     }
 
     override fun dosingFinished() {
         if (_isDemo.value) demo.stopSimulation()
     }
 
-    override fun brewStarted() = send(BookooProtocol.Command.START_TIMER)
+    override fun brewStarted() = send(ScaleCommand.START_TIMER)
 
     override fun brewFinished() {
-        send(BookooProtocol.Command.STOP_TIMER)
+        send(ScaleCommand.STOP_TIMER)
         if (_isDemo.value) demo.stopSimulation()
     }
 
     /** Writes one of the allowlisted commands. No other bytes can be sent to the scale. */
-    fun send(command: BookooProtocol.Command) {
+    fun send(command: ScaleCommand) = writeCommand(command.packet(model))
+
+    /** The kind of scale that is (or was last) connected. */
+    var model: ScaleModel = ScaleModel.entries.firstOrNull { it.name == prefs.getString(KEY_MODEL, null) } ?: ScaleModel.BOOKOO
+        private set
+    private val models = mutableMapOf<String, ScaleModel>()
+    private val dotParser = TimemoreDotProtocol.Parser()
+
+    private fun setModel(newModel: ScaleModel) {
+        model = newModel
+        prefs.edit().putString(KEY_MODEL, newModel.name).apply()
+    }
+
+    /** The Dot only reports weight once unit and mode are set. */
+    private fun initializeDot() {
+        var delay = 0L
+        for ((command, wait) in TimemoreDotProtocol.INIT_SEQUENCE) {
+            delay += wait
+            main.postDelayed({ if (model == ScaleModel.TIMEMORE_DOT) writeCommand(command.packet()) }, delay)
+        }
+    }
+
+    private fun writeCommand(packet: ByteArray) {
         if (_isDemo.value || !hasPermissions()) return
         val g = gatt ?: return
         val characteristic = commandCharacteristic ?: return
@@ -230,7 +254,7 @@ class ScaleManager(
         } else {
             BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
         }
-        write(g, characteristic, command.packet(), type)
+        write(g, characteristic, packet, type)
     }
 
     // MARK: Private
@@ -288,20 +312,17 @@ class ScaleManager(
         _readings.tryEmit(ScaleReading(grams, monotonicMillis()))
     }
 
-    private fun isScale(name: String?, result: ScanResult): Boolean {
-        // The BOOKOO Espresso Monitor is a pressure sensor, not a scale.
-        if (BookooPressureProtocol.isMonitorName(name)) return false
-        if (name?.contains(BookooProtocol.NAME_PREFIX, ignoreCase = true) == true) return true
-        return result.scanRecord?.serviceUuids?.contains(ParcelUuid(BookooProtocol.SERVICE_UUID)) == true
-    }
+    private fun scaleModel(name: String?, result: ScanResult): ScaleModel? =
+        ScaleModel.detect(name, result.scanRecord?.serviceUuids?.map(ParcelUuid::getUuid).orEmpty())
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val name = result.scanRecord?.deviceName ?: runCatching { result.device.name }.getOrNull()
-            if (!isScale(name, result)) return
+            val found = scaleModel(name, result) ?: return
             // Advertised names are untrusted input: sanitize and bound them.
-            val safeName = (name ?: "BOOKOO scale").sanitized(40).ifEmpty { "BOOKOO scale" }
-            val entry = DiscoveredScale(result.device.address, safeName, result.rssi)
+            val safeName = (name ?: found.defaultName).sanitized(40).ifEmpty { found.defaultName }
+            val entry = DiscoveredScale(result.device.address, safeName, result.rssi, found)
+            if (models.size < MAX_DISCOVERED * 2) models[result.device.address] = found
             _discovered.update { list ->
                 when {
                     list.any { it.address == entry.address } -> list.map { if (it.address == entry.address) entry else it }
@@ -320,7 +341,7 @@ class ScaleManager(
         override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
-                    _connectedName.value = (runCatching { g.device.name }.getOrNull() ?: "BOOKOO").sanitized(40)
+                    _connectedName.value = (runCatching { g.device.name }.getOrNull() ?: model.defaultName).sanitized(40)
                     g.discoverServices()
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
@@ -340,14 +361,22 @@ class ScaleManager(
         }
 
         override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
-            val service = g.getService(BookooProtocol.SERVICE_UUID) ?: return
-            commandCharacteristic = service.getCharacteristic(BookooProtocol.COMMAND_CHAR_UUID)
-            val weight = service.getCharacteristic(BookooProtocol.WEIGHT_CHAR_UUID) ?: return
+            val service = g.getService(model.serviceUuid)
+            if (service == null) {
+                // Not the scale it advertised to be (e.g. another device with "dot" in its name): let it go.
+                if (status == BluetoothGatt.GATT_SUCCESS) main.post { disconnect(forget = false) }
+                return
+            }
+            commandCharacteristic = service.getCharacteristic(model.commandUuid)
+            val weight = service.getCharacteristic(model.notifyUuid) ?: return
             enableNotifications(g, weight)
         }
 
         override fun onDescriptorWrite(g: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
-            if (status == BluetoothGatt.GATT_SUCCESS && !_isDemo.value) _state.value = ScaleConnectionState.CONNECTED
+            if (status == BluetoothGatt.GATT_SUCCESS && !_isDemo.value) {
+                _state.value = ScaleConnectionState.CONNECTED
+                if (model == ScaleModel.TIMEMORE_DOT) main.post { initializeDot() }
+            }
         }
 
         // Android 13+
@@ -364,7 +393,19 @@ class ScaleManager(
     }
 
     private fun onData(characteristic: BluetoothGattCharacteristic, value: ByteArray) {
-        if (characteristic.uuid != BookooProtocol.WEIGHT_CHAR_UUID) return
+        if (characteristic.uuid != model.notifyUuid) return
+        if (model == ScaleModel.TIMEMORE_DOT) {
+            for (event in dotParser.feed(value)) {
+                when (event) {
+                    is TimemoreDotProtocol.Event.Weight -> {
+                        if (_state.value != ScaleConnectionState.CONNECTED && !_isDemo.value) _state.value = ScaleConnectionState.CONNECTED
+                        handle(event.grams, null)
+                    }
+                    is TimemoreDotProtocol.Event.Battery -> _battery.value = event.percent
+                }
+            }
+            return
+        }
         val reading = validator.accept(value)
         if (reading == null) {
             _rejected.value = validator.rejected
@@ -400,6 +441,7 @@ class ScaleManager(
     companion object {
         private const val KEY_DEMO = "demoScale"
         private const val KEY_ADDRESS = "scale.lastAddress"
+        private const val KEY_MODEL = "scale.lastModel"
         private const val SCAN_TIMEOUT_MS = 15_000L
         /** Upper bound on remembered nearby devices (scan results are attacker-controllable). */
         private const val MAX_DISCOVERED = 20

@@ -6,6 +6,25 @@ struct DiscoveredScale: Identifiable, Equatable {
     let id: UUID
     let name: String
     var rssi: Int
+    var model: ScaleModel = .bookoo
+}
+
+/// What BrewLog asks a scale to do. Each model translates it into its own packet.
+enum ScaleCommand: CaseIterable {
+    case tare, startTimer, stopTimer, resetTimer
+
+    func packet(for model: ScaleModel) -> Data {
+        switch (model, self) {
+        case (.bookoo, .tare): return BookooProtocol.Command.tare.packet
+        case (.bookoo, .startTimer): return BookooProtocol.Command.startTimer.packet
+        case (.bookoo, .stopTimer): return BookooProtocol.Command.stopTimer.packet
+        case (.bookoo, .resetTimer): return BookooProtocol.Command.resetTimer.packet
+        case (.timemoreDot, .tare): return TimemoreDotProtocol.Command.tare.packet
+        case (.timemoreDot, .startTimer): return TimemoreDotProtocol.Command.startTimer.packet
+        case (.timemoreDot, .stopTimer): return TimemoreDotProtocol.Command.stopTimer.packet
+        case (.timemoreDot, .resetTimer): return TimemoreDotProtocol.Command.resetTimer.packet
+        }
+    }
 }
 
 enum ScaleConnectionState: Equatable {
@@ -25,7 +44,7 @@ enum ScaleConnectionState: Equatable {
     }
 }
 
-/// Connects to a BOOKOO Themis Mini (or a built-in demo scale) and publishes live weight readings.
+/// Connects to a BOOKOO Themis Mini or a Timemore Black Mirror Dot (or a built-in demo scale) and publishes live weight readings.
 @Observable
 final class ScaleManager: NSObject {
     static let shared = ScaleManager()
@@ -35,6 +54,8 @@ final class ScaleManager: NSObject {
     private(set) var weight: Double = 0
     private(set) var batteryLevel: Int?
     private(set) var connectedName: String?
+    /// The kind of scale that is (or was last) connected.
+    private(set) var model: ScaleModel = ScaleModel(rawValue: UserDefaults.standard.string(forKey: "scale.lastModel") ?? "") ?? .bookoo
 
     var isDemo: Bool = UserDefaults.standard.bool(forKey: SettingsKey.demoScale) {
         didSet {
@@ -63,11 +84,14 @@ final class ScaleManager: NSObject {
     @ObservationIgnored private var commandCharacteristic: CBCharacteristic?
     @ObservationIgnored private var userInitiatedDisconnect = false
     @ObservationIgnored private var validator = BookooPacketValidator()
+    @ObservationIgnored private var dotParser = TimemoreDotProtocol.Parser()
+    @ObservationIgnored private var models: [UUID: ScaleModel] = [:]
     @ObservationIgnored private let demo = DemoScale()
     /// Upper bound on remembered nearby devices (scan results are attacker-controllable).
     private static let maxDiscovered = 20
 
     private static let savedPeripheralKey = "scale.lastPeripheralID"
+    private static let savedModelKey = "scale.lastModel"
 
     private var savedPeripheralID: UUID? {
         get { UserDefaults.standard.string(forKey: Self.savedPeripheralKey).flatMap(UUID.init(uuidString:)) }
@@ -124,6 +148,7 @@ final class ScaleManager: NSObject {
         target.delegate = self
         state = .connecting
         savedPeripheralID = id
+        setModel(models[id] ?? .bookoo)
         central.connect(target, options: nil)
     }
 
@@ -146,10 +171,31 @@ final class ScaleManager: NSObject {
     }
 
     /// Writes one of the allowlisted commands. No other bytes can be sent to the scale.
-    func send(_ command: BookooProtocol.Command) {
+    func send(_ command: ScaleCommand) {
+        write(command.packet(for: model))
+    }
+
+    private func write(_ packet: Data) {
         guard !isDemo, let peripheral, peripheral.state == .connected, let characteristic = commandCharacteristic else { return }
         let type: CBCharacteristicWriteType = characteristic.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
-        peripheral.writeValue(command.packet, for: characteristic, type: type)
+        peripheral.writeValue(packet, for: characteristic, type: type)
+    }
+
+    private func setModel(_ newModel: ScaleModel) {
+        model = newModel
+        UserDefaults.standard.set(newModel.rawValue, forKey: Self.savedModelKey)
+    }
+
+    /// The Dot only reports weight once unit and mode are set.
+    private func initializeDot() {
+        var delay: TimeInterval = 0
+        for (command, wait) in TimemoreDotProtocol.initSequence {
+            delay += wait
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self, self.model == .timemoreDot else { return }
+                self.write(command.packet)
+            }
+        }
     }
 
     /// Tares and resets the scale timer. In demo mode it also schedules a simulated pour that follows the recipe.
@@ -221,13 +267,8 @@ final class ScaleManager: NSObject {
         onWeight?(grams, Date())
     }
 
-    private func isScale(name: String?, advertisement: [String: Any]) -> Bool {
-        // The BOOKOO Espresso Monitor is a pressure sensor, not a scale.
-        if BookooMonitorProtocol.isMonitor(name: name) { return false }
-        if let name, name.lowercased().contains(BookooProtocol.namePrefix) { return true }
-        if let services = advertisement[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID],
-           services.contains(BookooProtocol.serviceUUID) { return true }
-        return false
+    private func scaleModel(name: String?, advertisement: [String: Any]) -> ScaleModel? {
+        ScaleModel.detect(name: name, services: advertisement[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? [])
     }
 }
 
@@ -255,11 +296,12 @@ extension ScaleManager: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
         let name = peripheral.name ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String
-        guard isScale(name: name, advertisement: advertisementData) else { return }
+        guard let found = scaleModel(name: name, advertisement: advertisementData) else { return }
         // Advertised names are untrusted input: sanitize and bound them.
-        let safeName = (name ?? "BOOKOO scale").sanitized(maxLength: 40)
-        let entry = DiscoveredScale(id: peripheral.identifier, name: safeName.isEmpty ? "BOOKOO scale" : safeName,
-                                    rssi: RSSI.intValue)
+        let safeName = (name ?? found.defaultName).sanitized(maxLength: 40)
+        let entry = DiscoveredScale(id: peripheral.identifier, name: safeName.isEmpty ? found.defaultName : safeName,
+                                    rssi: RSSI.intValue, model: found)
+        models[peripheral.identifier] = found
         if let index = discovered.firstIndex(where: { $0.id == entry.id }) {
             discovered[index] = entry
         } else {
@@ -274,10 +316,11 @@ extension ScaleManager: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        connectedName = (peripheral.name ?? "BOOKOO").sanitized(maxLength: 40)
+        connectedName = (peripheral.name ?? model.defaultName).sanitized(maxLength: 40)
         validator.reset()
+        dotParser.reset()
         peripheral.delegate = self
-        peripheral.discoverServices([BookooProtocol.serviceUUID])
+        peripheral.discoverServices([model.serviceUUID])
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
@@ -302,24 +345,43 @@ extension ScaleManager: CBCentralManagerDelegate {
 
 extension ScaleManager: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        guard let service = peripheral.services?.first(where: { $0.uuid == BookooProtocol.serviceUUID }) else { return }
-        peripheral.discoverCharacteristics([BookooProtocol.weightCharacteristicUUID, BookooProtocol.commandCharacteristicUUID], for: service)
+        guard let service = peripheral.services?.first(where: { $0.uuid == model.serviceUUID }) else {
+            // Not the scale it advertised to be (e.g. another device with "dot" in its name): let it go.
+            if error == nil {
+                userInitiatedDisconnect = true
+                central?.cancelPeripheralConnection(peripheral)
+            }
+            return
+        }
+        peripheral.discoverCharacteristics([model.notifyUUID, model.commandUUID], for: service)
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         for characteristic in service.characteristics ?? [] {
-            if characteristic.uuid == BookooProtocol.weightCharacteristicUUID {
+            if characteristic.uuid == model.notifyUUID {
                 peripheral.setNotifyValue(true, for: characteristic)
-            } else if characteristic.uuid == BookooProtocol.commandCharacteristicUUID {
+            } else if characteristic.uuid == model.commandUUID {
                 commandCharacteristic = characteristic
             }
         }
+        if model == .timemoreDot { initializeDot() }
         if !isDemo { state = .connected }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        guard error == nil, characteristic.uuid == BookooProtocol.weightCharacteristicUUID,
-              let data = characteristic.value else { return }
+        guard error == nil, characteristic.uuid == model.notifyUUID, let data = characteristic.value else { return }
+        if model == .timemoreDot {
+            for event in dotParser.feed(data) {
+                switch event {
+                case .weight(let grams, _):
+                    if state != .connected && !isDemo { state = .connected }
+                    handle(grams: grams, battery: nil)
+                case .battery(let percent):
+                    batteryLevel = percent
+                }
+            }
+            return
+        }
         guard let reading = validator.accept(data) else {
             rejectedPackets = validator.rejected
             return
