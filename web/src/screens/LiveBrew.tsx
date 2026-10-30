@@ -328,6 +328,7 @@ function DoseCard({ weight, dose, status }: { weight: number; dose: number; stat
 }
 
 function Preparation({ config, recipe, dose }: { config: BrewConfig; recipe: Recipe; dose: number }) {
+  const rinse = useStore(settings).rinsePaper
   const grind = config.grindValue != null && config.grinder ? `, ground at ${formatGrind(config.grinder.grinder, config.grindValue)}`
     : config.grindText ? `, ground ${config.grindText}` : ''
   const items = recipe.method === 'espresso' ? [
@@ -336,7 +337,8 @@ function Preparation({ config, recipe, dose }: { config: BrewConfig; recipe: Rec
     'Flush the group head, lock in the portafilter',
     `Brew at ${Math.round(config.waterTemp)} °C, stop at ${grams(recipe.water)}`,
   ] : [
-    'Rinse the paper with hot water and discard it',
+    // Rinsing is optional (Brew tab → Before you brew); the other steps move up when it's off.
+    ...(rinse ? ['Rinse the paper with hot water and discard it'] : []),
     `Add ${grams1(dose)} of coffee${grind}`,
     'Shake or swirl to level the bed',
     `Water at ${Math.round(config.waterTemp)} °C`,

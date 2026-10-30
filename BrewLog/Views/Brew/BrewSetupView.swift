@@ -20,6 +20,8 @@ struct BrewSetupView: View {
     @Environment(ScaleManager.self) private var scale
     @Environment(AppRouter.self) private var router
     @AppStorage(SettingsKey.setupBannerDismissed) private var setupBannerDismissed = false
+    @AppStorage(SettingsKey.weighBeansFirst) private var weighBeansFirst = true
+    @AppStorage(SettingsKey.rinsePaper) private var rinsePaper = true
     @Query(filter: #Predicate<Bean> { !$0.isArchived }, sort: \Bean.createdAt, order: .reverse) private var beans: [Bean]
     @Query(sort: \Equipment.name) private var equipment: [Equipment]
     @Query(sort: \Brew.date, order: .reverse) private var brews: [Brew]
@@ -63,6 +65,10 @@ struct BrewSetupView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionHeader(title: "Gear & grind")
                     gearCard
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionHeader(title: "Before you brew")
+                    stepsCard
                 }
                 Color.clear.frame(height: 80)
             }
@@ -208,6 +214,20 @@ struct BrewSetupView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    /// Optional steps, remembered: weighing the beans (needs a scale) and rinsing the paper (pour-over only).
+    private var stepsCard: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 12) {
+                StepCheck(title: "Weigh the beans", detail: scale.isReady ? "On the scale, before the brewer goes on" : "With a scale connected",
+                          isOn: $weighBeansFirst)
+                if !setup.recipe.method.isEspresso {
+                    Divider()
+                    StepCheck(title: "Rinse the paper", detail: "With hot water, then discard it", isOn: $rinsePaper)
+                }
+            }
+        }
     }
 
     private var doseCard: some View {
@@ -483,5 +503,33 @@ struct GrindInputView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// A remembered on/off step shown as a check mark.
+private struct StepCheck: View {
+    let title: String
+    let detail: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+            Haptics.tap()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isOn ? Color.accentColor : Color.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? [.isSelected] : [])
     }
 }

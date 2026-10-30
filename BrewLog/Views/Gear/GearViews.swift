@@ -318,6 +318,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.countdownTicks) private var countdownTicks = false
     @AppStorage(SettingsKey.valveCountdown) private var valveCountdown = true
     @AppStorage(SettingsKey.weighBeansFirst) private var weighBeansFirst = true
+    @AppStorage(SettingsKey.rinsePaper) private var rinsePaper = true
     @AppStorage(SettingsKey.finishPing) private var finishPing = true
     @AppStorage(SettingsKey.voicePrompts) private var voicePrompts = false
     @AppStorage(SettingsKey.voicePreview) private var voicePreview = true
@@ -359,6 +360,7 @@ struct SettingsView: View {
                     Toggle("3-2-1 ticks before opening or closing the valve", isOn: $valveCountdown)
                 }
                 Toggle("Weigh the beans first", isOn: $weighBeansFirst)
+                Toggle("Rinse the paper", isOn: $rinsePaper)
                 Toggle("Chime at target brew time", isOn: $finishPing)
                 Toggle("Keep screen on while brewing", isOn: $keepAwake)
             } header: {
