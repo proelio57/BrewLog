@@ -503,7 +503,7 @@ class DataImporterAndFeedUnitTest {
 
     @Test
     fun testDefaultCatalogIncludesExampleRecipes() {
-        val assetFile = File("src/main/assets/recipes.json")
+        val assetFile = File("../../Shared/recipes.json")
         assertTrue("recipes.json asset file must exist", assetFile.exists())
         val catalog = RecipeLibrary.parse(assetFile.readText())
         val catalogIds = catalog.map { it.id }.toSet()

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material3.AlertDialog
@@ -61,6 +62,9 @@ import com.brewlog.app.ui.components.PillChip
 import com.brewlog.app.ui.components.SectionHeader
 import com.brewlog.app.ui.components.StarsLabel
 import com.brewlog.app.ui.theme.WarnOrange
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 
 @Composable
 fun BeanListScreen(nav: NavHostController) {
@@ -96,6 +100,8 @@ fun BeanListScreen(nav: NavHostController) {
 private fun BeanRow(bean: Bean, brewCount: Int, onClick: () -> Unit) {
     BrewCard(onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            com.brewlog.app.ui.components.BeanThumbnail(bean.id, bean.roastLevel, size = 40.dp)
+            Spacer(Modifier.width(12.dp))
             Text(bean.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(bean.roastLevel.displayName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -135,6 +141,9 @@ fun BeanEditorScreen(nav: NavHostController, beanId: String) {
     var archived by remember { mutableStateOf(existing?.isArchived ?: false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    // The photo is kept here until Save (a new bean gets its id on save).
+    var photo by remember { mutableStateOf(existing?.let { container.repository.beanPhoto(it.id) }) }
+    var photoChanged by remember { mutableStateOf(false) }
 
     fun save() {
         val base = existing ?: Bean()
@@ -153,6 +162,8 @@ fun BeanEditorScreen(nav: NavHostController, beanId: String) {
             isArchived = archived,
         )
         container.repository.upsertBean(bean)
+        if (photoChanged) container.repository.setBeanPhoto(bean.id, photo)
+        container.updateWidgets()
         if (isNew) container.setup.beanId = bean.id
         nav.popBackStack()
     }
@@ -161,11 +172,26 @@ fun BeanEditorScreen(nav: NavHostController, beanId: String) {
         title = if (isNew) "New beans" else "Edit beans",
         onBack = { nav.popBackStack() },
         actions = {
+            if (!isNew) IconButton(onClick = { nav.navigate(Routes.beanAdvice(beanId)) }) { Icon(Icons.Filled.AutoAwesome, contentDescription = "Ask Claude how to brew it") }
             if (!isNew) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }
             TextButton(onClick = ::save, enabled = name.sanitized(InputLimits.MAX_NAME_LENGTH).isNotEmpty()) { Text("Save", fontWeight = FontWeight.SemiBold) }
         },
     ) { padding ->
         CardList(padding) {
+            item {
+                BeanPhotoCard(photo, roastLevel, onChange = { photo = it; photoChanged = true }) { scan ->
+                    // Only empty fields are filled; the user checks them afterwards.
+                    if (name.isBlank()) scan.name?.let { name = it }
+                    if (roaster.isBlank()) scan.roaster?.let { roaster = it }
+                    if (origin.isBlank()) scan.origin?.let { origin = it }
+                    if (varietal.isBlank()) scan.varietal?.let { varietal = it }
+                    if (tastingNotes.isBlank()) scan.tastingNotes?.let { tastingNotes = it }
+                    scan.process?.let { process = it }
+                    scan.roastLevel?.let { roastLevel = it }
+                    scan.roastDate?.let { roastDate = it }
+                    if (isNew) scan.bagWeight?.let { bagWeight = it; remaining = it }
+                }
+            }
             item {
                 SectionHeader("Coffee")
                 Spacer(Modifier.height(8.dp))
@@ -272,5 +298,110 @@ fun BeanEditorScreen(nav: NavHostController, beanId: String) {
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
         )
+    }
+}
+
+/**
+ * Photo of the bag and label scan: system camera app or photo picker, so BrewLog needs no camera or storage
+ * permission. The label text is read with Tesseract on the phone, nothing is uploaded.
+ */
+@Composable
+private fun BeanPhotoCard(
+    photo: ByteArray?,
+    roast: RoastLevel,
+    onChange: (ByteArray?) -> Unit,
+    onScan: (com.brewlog.app.domain.LabelParser.Result) -> Unit,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var cameraUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    var scanPurpose by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var scanning by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+
+    fun use(uri: android.net.Uri) {
+        val scan = scanPurpose
+        scope.launch {
+            if (!scan) {
+                val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    com.brewlog.app.tools.BeanPhoto.bitmap(context, uri)?.let(com.brewlog.app.tools.BeanPhoto::jpeg)
+                }
+                if (bytes != null) onChange(bytes)
+                return@launch
+            }
+            scanning = true
+            message = null
+            val bitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.brewlog.app.tools.BeanPhoto.bitmap(context, uri, maxPixels = 2400)
+            }
+            if (bitmap == null) {
+                scanning = false
+                message = "The photo couldn't be opened."
+                return@launch
+            }
+            val result = com.brewlog.app.tools.LabelScanner.scan(context, bitmap)
+            // The bag photo doubles as the bean's photo when there is none yet.
+            if (photo == null) onChange(kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { com.brewlog.app.tools.BeanPhoto.jpeg(bitmap) })
+            scanning = false
+            if (result.isEmpty) {
+                message = "No details found. Try a sharper photo, straight on and in good light."
+            } else {
+                message = "Found " + result.foundFields.joinToString(", ") + ". Check the fields."
+                onScan(result)
+            }
+        }
+    }
+
+    val pick = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> if (uri != null) use(uri) }
+    val take = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.TakePicture(),
+    ) { ok -> cameraUri?.let { if (ok) use(android.net.Uri.parse(it)) } }
+
+    fun camera(scan: Boolean) {
+        scanPurpose = scan
+        val dir = java.io.File(context.cacheDir, "photos").apply { mkdirs() }
+        val file = java.io.File(dir, "bag.jpg")
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+        cameraUri = uri.toString()
+        runCatching { take.launch(uri) }.onFailure { message = "No camera app found. Choose a photo instead." }
+    }
+
+    fun library(scan: Boolean) {
+        scanPurpose = scan
+        pick.launch(androidx.activity.result.PickVisualMediaRequest(
+            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
+    BrewCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            com.brewlog.app.ui.components.BeanThumbnail(null, roast, size = 76.dp, photo = photo)
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text("Photo", style = MaterialTheme.typography.labelLarge)
+                Row {
+                    TextButton(onClick = { camera(false) }) { Text("Take") }
+                    TextButton(onClick = { library(false) }) { Text("Choose") }
+                    if (photo != null) TextButton(onClick = { onChange(null) }) { Text("Remove", color = MaterialTheme.colorScheme.error) }
+                }
+                Text("Scan label", style = MaterialTheme.typography.labelLarge)
+                if (scanning) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Reading label…", style = MaterialTheme.typography.bodySmall)
+                    }
+                } else {
+                    Row {
+                        TextButton(onClick = { camera(true) }) { Text("Photograph") }
+                        TextButton(onClick = { library(true) }) { Text("From photo") }
+                    }
+                }
+            }
+        }
+        message?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        Text("Scan label reads name, origin, process, varietal, roast date and weight from the bag. The text is recognized on this phone, nothing is uploaded.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

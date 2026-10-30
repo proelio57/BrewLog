@@ -50,6 +50,7 @@ import com.brewlog.app.LocalContainer
 import com.brewlog.app.analysis.BrewAnalysis
 import com.brewlog.app.analysis.analyze
 import com.brewlog.app.domain.Brew
+import com.brewlog.app.domain.PressureSample
 import com.brewlog.app.domain.StepKind
 import com.brewlog.app.domain.TasteFeedback
 import com.brewlog.app.domain.fmt1
@@ -92,8 +93,9 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
         return
     }
     val samples = remember(brewId) { repo.samples(brewId) }
+    val machineSamples = remember(brewId) { repo.machineSamples(brewId) }
     val bean = data.beans.firstOrNull { it.id == brew.beanId }
-    val analysis = brew.analyze(data.brews, bean, samples, container.presets)
+    val analysis = brew.analyze(data.brews, bean, samples, container.presets, machineSamples)
 
     // Remember the grind the analysis suggests, so the next brew of this bean starts there.
     LaunchedEffect(analysis?.suggestedGrind) {
@@ -121,7 +123,7 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
                 item {
                     SectionHeader("Pour curve")
                     Spacer(Modifier.height(8.dp))
-                    BrewCard { BrewChart(samples, brew.recipe, height = 230.dp, showFlowRange = true, pressureSamples = brew.pressureSamples) }
+                    BrewCard { BrewChart(samples, brew.recipe, height = 230.dp, showFlowRange = true, pressureSamples = machineSamples.map { PressureSample(it.t, it.p) }) }
                 }
             }
             item { TasteCard(brew) }
@@ -129,6 +131,11 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
                 item { SuggestionsCard(brew, analysis) }
                 item { FindingsCard(analysis) }
                 if (analysis.pours.isNotEmpty()) item { PoursCard(analysis) }
+            }
+            item {
+                BrewExtractionCard(brew) { tds, beverage ->
+                    repo.updateBrew(brew.id) { it.copy(tds = tds, beverageWeight = beverage) }
+                }
             }
             item { DetailsCard(nav, brew) }
             if (!isNew) {

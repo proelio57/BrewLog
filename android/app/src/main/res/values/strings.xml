@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BrewLog</string>
+    <string name="widget_status_description">Your current beans (days off roast, grams left) and your last brew.</string>
+    <string name="widget_quick_description">Start a brew or Quick weigh with one tap.</string>
 </resources>

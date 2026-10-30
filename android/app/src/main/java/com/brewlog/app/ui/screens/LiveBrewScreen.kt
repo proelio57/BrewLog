@@ -106,12 +106,12 @@ fun LiveBrewScreen(nav: NavHostController) {
     val scaleReady by container.scale.ready.collectAsStateWithLifecycle()
     val pressureReady by container.pressure.ready.collectAsStateWithLifecycle()
     val currentPressure by container.pressure.pressure.collectAsStateWithLifecycle()
-    val pressureSamples = remember { androidx.compose.runtime.mutableStateListOf<com.brewlog.app.domain.PressureSample>() }
     var confirmDiscard by remember { mutableStateOf(false) }
 
     fun close() {
         if (pressureReady) container.pressure.brewFinished()
         session.discard()
+        container.voice.stop()
         container.activeBrew = null
         nav.popBackStack()
     }
@@ -142,9 +142,11 @@ fun LiveBrewScreen(nav: NavHostController) {
             filterIdealRoast = config.filter?.idealRoast,
             beanId = config.beanId,
             usedScale = session.usesScale,
-            pressureSamples = if (pressureReady) pressureSamples.toList() else emptyList(),
+            waterId = config.water?.id,
+            waterName = config.water?.name ?: "",
         )
-        container.repository.saveNewBrew(brew, if (session.usesScale) session.recordedSamples() else emptyList())
+        container.repository.saveNewBrew(brew, if (session.usesScale) session.recordedSamples() else emptyList(), session.recordedMachineSamples())
+        container.syncAfterBrew()
         container.activeBrew = null
         nav.navigate(Routes.brewDetail(brew.id, isNew = true)) { popUpTo(Routes.LIVE) { inclusive = true } }
     }
@@ -154,19 +156,14 @@ fun LiveBrewScreen(nav: NavHostController) {
         session.prepare()
         container.scale.readings.collect { session.ingest(it.grams, it.timeMillis) }
     }
-    LaunchedEffect(pressureReady, snapshot.phase) {
-        if (pressureReady && snapshot.phase == BrewPhase.BREWING) {
-            container.pressure.startMonitoring()
-        }
+    // BOOKOO Espresso Monitor: rising pressure starts the shot timer, the readings make the pressure curve.
+    LaunchedEffect(session, pressureReady) {
+        if (pressureReady) container.pressure.readings.collect { session.monitorReading(it.bar, it.timeMillis) }
     }
-    LaunchedEffect(pressureReady) {
-        if (pressureReady) {
-            container.pressure.readings.collect { r ->
-                if (snapshot.phase == BrewPhase.BREWING) {
-                    pressureSamples.add(com.brewlog.app.domain.PressureSample(snapshot.elapsed, r.bar))
-                }
-            }
-        }
+    // GaggiMate: the shot follows the machine's pump.
+    DisposableEffect(session) {
+        val detach = session.attach()
+        onDispose { detach() }
     }
     LaunchedEffect(session) {
         while (isActive) {
@@ -205,8 +202,8 @@ fun LiveBrewScreen(nav: NavHostController) {
         Readouts(snapshot, config, pressureReady = pressureReady, pressureBar = currentPressure)
         when (snapshot.phase) {
             BrewPhase.DOSING -> DoseCard(snapshot.weight, session.plannedDose, snapshot.doseStatus)
-            BrewPhase.PREPARING -> PreparingCard(snapshot.usesScale)
-            BrewPhase.ARMED -> ArmedCard(snapshot, config.recipe.steps.firstOrNull())
+            BrewPhase.PREPARING -> PreparingCard(snapshot.usesScale, session)
+            BrewPhase.ARMED -> ArmedCard(snapshot, config.recipe.steps.firstOrNull(), session)
             else -> ActiveStepCard(snapshot, session)
         }
         if (snapshot.phase == BrewPhase.BREWING || snapshot.phase == BrewPhase.FINISHED) {
@@ -215,7 +212,7 @@ fun LiveBrewScreen(nav: NavHostController) {
                 config.recipe,
                 currentTime = snapshot.elapsed,
                 height = 160.dp,
-                pressureSamples = if (pressureReady) pressureSamples.toList() else emptyList(),
+                pressureSamples = snapshot.machineSamples.map { com.brewlog.app.domain.PressureSample(it.t, it.p) },
             )
         } else {
             PreparationList(config, snapshot.weighedDose ?: config.dose)
@@ -230,10 +227,10 @@ fun LiveBrewScreen(nav: NavHostController) {
             onSkipDosing = { session.skipDosing() },
             onReady = {
                 session.ready()
-                if (pressureReady) container.pressure.prepareForBrew(config.recipe)
                 container.haptics.tap()
             },
-            onStart = { session.startManually() },
+            espresso = session.isEspresso,
+            onStart = { if (session.isEspresso) session.startShot() else session.startManually() },
             onFinish = { finish() },
         )
         Spacer(Modifier.height(4.dp))
@@ -342,16 +339,24 @@ private fun DoseCard(weight: Double, dose: Double, status: BeanDosing.Status) {
 }
 
 @Composable
-private fun PreparingCard(usesScale: Boolean) {
+private fun PreparingCard(usesScale: Boolean, session: BrewSession) {
+    val hint = when {
+        !session.isEspresso -> if (usesScale) "Press Ready to tare. The timer starts by itself when you start pouring."
+            else "No scale connected. Press Ready, then start the timer when you pour."
+        session.followsMachine -> "Press Ready to tare. BrewLog follows the machine: the timer starts and stops with the pump."
+        session.hasPressure -> "Press Ready to tare. The timer starts when the pressure sensor sees the pump."
+        usesScale -> "Press Ready to tare, then start the shot. The timer starts with the first drops or when you tap Start."
+        else -> "No scale connected. Press Ready, then tap Start when you start the shot."
+    }
     BrewCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.Scale, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(14.dp))
             Column {
-                Text("Put the brewer with coffee on the scale", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(if (session.isEspresso) "Lock in the portafilter, cup on the scale" else "Put the brewer with coffee on the scale",
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
-                    if (usesScale) "Press Ready to tare. The timer starts by itself when you start pouring."
-                    else "No scale connected. Press Ready, then start the timer when you pour.",
+                    hint,
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -360,7 +365,7 @@ private fun PreparingCard(usesScale: Boolean) {
 }
 
 @Composable
-private fun ArmedCard(snapshot: BrewSnapshot, first: RecipeStep?) {
+private fun ArmedCard(snapshot: BrewSnapshot, first: RecipeStep?, session: BrewSession) {
     val transition = rememberInfiniteTransition(label = "pulse")
     val pulse by transition.animateFloat(0.9f, 1.25f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "pulse")
     BrewCard {
@@ -371,13 +376,23 @@ private fun ArmedCard(snapshot: BrewSnapshot, first: RecipeStep?) {
             }
             Spacer(Modifier.width(14.dp))
             Column {
-                Text(if (snapshot.usesScale) "Start pouring" else "Ready when you are", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                val title = when {
+                    session.isEspresso -> if (session.followsMachine) "Start the shot" else "Ready for the shot"
+                    snapshot.usesScale -> "Start pouring"
+                    else -> "Ready when you are"
+                }
+                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 if (first != null) {
                     Text(first.headline + (first.note?.let { ". $it" } ?: ""), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (snapshot.usesScale) {
-                    Text(if (snapshot.zeroConfirmed) "Timer starts automatically" else "Taring…", style = MaterialTheme.typography.labelMedium,
+                    val status = when {
+                        !snapshot.zeroConfirmed -> "Taring…"
+                        session.followsMachine -> "Timer starts with the pump"
+                        else -> "Timer starts automatically"
+                    }
+                    Text(status, style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                 }
             }
@@ -493,12 +508,17 @@ private fun PreparationList(config: BrewConfig, dose: Double) {
         else -> ""
     }
     BrewCard {
-        listOf(
+        (if (config.recipe.isEspresso) listOf(
+            "Grind ${dose.grams1()} of coffee$grind",
+            "Distribute (WDT) and tamp level",
+            "Flush the group head, lock in the portafilter",
+            "Brew at ${config.waterTemp.toInt()} °C, stop at ${config.recipe.water.grams()}",
+        ) else listOf(
             "Rinse the paper with hot water and discard it",
             "Add ${dose.grams1()} of coffee$grind",
             "Shake or swirl to level the bed",
             "Water at ${config.waterTemp.toInt()} °C",
-        ).forEachIndexed { index, text ->
+        )).forEachIndexed { index, text ->
             Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(22.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
                     Text("${index + 1}", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
@@ -552,6 +572,7 @@ private fun Controls(
     onAcceptDose: () -> Unit,
     onSkipDosing: () -> Unit,
     onReady: () -> Unit,
+    espresso: Boolean,
     onStart: () -> Unit,
     onFinish: () -> Unit,
 ) {
@@ -568,12 +589,15 @@ private fun Controls(
             }
             PrimaryButton("Ready", Icons.Filled.CheckCircle, onClick = onReady)
         }
-        BrewPhase.ARMED -> if (snapshot.usesScale) {
+        BrewPhase.ARMED -> if (espresso) {
+            PrimaryButton("Start shot", Icons.Filled.PlayArrow, onClick = onStart)
+        } else if (snapshot.usesScale) {
             TextButton(onClick = onStart, modifier = Modifier.fillMaxWidth()) { Text("Start timer manually", fontWeight = FontWeight.SemiBold) }
         } else {
             PrimaryButton("Start timer", Icons.Filled.PlayArrow, onClick = onStart)
         }
-        BrewPhase.BREWING -> PrimaryButton("Finish · drawdown done", Icons.Filled.Stop, color = GoodGreen, onClick = onFinish)
+        BrewPhase.BREWING -> PrimaryButton(if (espresso) "Stop · shot done" else "Finish · drawdown done", Icons.Filled.Stop,
+            color = GoodGreen, onClick = onFinish)
         BrewPhase.FINISHED -> Unit
     }
 }

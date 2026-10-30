@@ -24,7 +24,10 @@ import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.WaterDrop
@@ -100,6 +103,17 @@ fun GearScreen(nav: NavHostController) {
                     LinkRow("Setup assistant", Icons.Filled.AutoAwesome) { nav.navigate(Routes.ONBOARDING) }
                     HorizontalDivider(Modifier.padding(vertical = 6.dp))
                     LinkRow("Settings", Icons.Filled.Settings) { nav.navigate(Routes.SETTINGS) }
+                }
+            }
+            item {
+                SectionHeader("Tools")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    LinkRow("Extraction (TDS)", Icons.Filled.Science) { nav.navigate(Routes.TOOLS_EXTRACTION) }
+                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                    LinkRow("Water recipes", Icons.Filled.WaterDrop) { nav.navigate(Routes.TOOLS_WATER) }
+                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                    LinkRow("Grind converter", Icons.Filled.SwapHoriz) { nav.navigate(Routes.TOOLS_GRIND) }
                 }
             }
             EquipmentType.entries.forEach { type ->
@@ -224,6 +238,10 @@ fun EquipmentEditorScreen(nav: NavHostController, itemId: String) {
     var adjust by remember { mutableStateOf<Double?>(existing?.grinder?.adjustStep ?: 2.0) }
     var finerIsLower by remember { mutableStateOf(existing?.grinder?.finerIsLower ?: true) }
     var rangeNote by remember { mutableStateOf(existing?.grinder?.rangeNote ?: "") }
+    var defaultGrind by remember { mutableStateOf(existing?.grinder?.defaultGrind) }
+    var micronsPerStep by remember { mutableStateOf(existing?.grinder?.micronsPerStep) }
+    var hardness by remember { mutableStateOf(existing?.waterHardness) }
+    var alkalinity by remember { mutableStateOf(existing?.waterAlkalinity) }
     var notes by remember { mutableStateOf(existing?.notes ?: "") }
 
     fun save() {
@@ -236,8 +254,11 @@ fun EquipmentEditorScreen(nav: NavHostController, itemId: String) {
             filterFlow = if (type == EquipmentType.FILTER) flow else existing?.filterFlow,
             idealRoast = if (type == EquipmentType.FILTER) idealRoast else existing?.idealRoast,
             grinder = if (type == EquipmentType.GRINDER) {
-                GrinderSpec(unit, cleanStep, maxOf((adjust ?: 2.0).clamped(0.01, 100.0), cleanStep), finerIsLower, rangeNote.sanitized(InputLimits.MAX_SHORT_TEXT))
+                GrinderSpec(unit, cleanStep, maxOf((adjust ?: 2.0).clamped(0.01, 100.0), cleanStep), finerIsLower, rangeNote.sanitized(InputLimits.MAX_SHORT_TEXT),
+                    defaultGrind = defaultGrind, micronsPerStep = micronsPerStep?.takeIf { it > 0 })
             } else existing?.grinder ?: GrinderSpec(),
+            waterHardness = if (type == EquipmentType.WATER) hardness?.clamped(0.0, 500.0) else existing?.waterHardness,
+            waterAlkalinity = if (type == EquipmentType.WATER) alkalinity?.clamped(0.0, 500.0) else existing?.waterAlkalinity,
         )
         container.repository.upsertEquipment(item)
         nav.popBackStack()
@@ -312,8 +333,28 @@ fun EquipmentEditorScreen(nav: NavHostController, itemId: String) {
                         }
                         OutlinedTextField(rangeNote, { rangeNote = it.take(200) }, label = { Text("Pour-over range (e.g. 20–30 clicks)") },
                             singleLine = true, modifier = Modifier.fillMaxWidth())
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            NumberField("Filter starting point", defaultGrind, { defaultGrind = it }, Modifier.weight(1f), 0.0..10_000.0, decimals = 2)
+                            NumberField("µm per step", micronsPerStep, { micronsPerStep = it }, Modifier.weight(1f), 0.0..500.0, decimals = 1)
+                        }
+                        Text("Starting point and µm per step calibrate the grind converter and show recipe grind sizes on this grinder.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("Example: with a typical adjustment of 2, BrewLog suggests going from 24 to 22 clicks when your brew tastes sour and ran fast.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+                EquipmentType.WATER -> item {
+                    SectionHeader("Water")
+                    Spacer(Modifier.height(8.dp))
+                    BrewCard {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            NumberField("Hardness GH (ppm)", hardness, { hardness = it }, Modifier.weight(1f), 0.0..500.0, decimals = 0)
+                            NumberField("Alkalinity KH (ppm)", alkalinity, { alkalinity = it }, Modifier.weight(1f), 0.0..500.0, decimals = 0)
+                        }
+                        if (hardness != null || alkalinity != null) {
+                            Text(com.brewlog.app.domain.WaterChemistry.character(hardness ?: 0.0, alkalinity ?: 0.0),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
                 else -> Unit
@@ -352,6 +393,7 @@ fun SettingsScreen(nav: NavHostController) {
                     SwitchRow("Demo scale (simulated pours)", isDemo) { container.scale.setDemo(it) }
                 }
             }
+            item { EspressoMachineSettingsCard() }
             item {
                 SectionHeader("Espresso pressure monitor")
                 Spacer(Modifier.height(8.dp))
@@ -380,6 +422,15 @@ fun SettingsScreen(nav: NavHostController) {
                 }
             }
             item {
+                SectionHeader("Backup & AI")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    LinkRow("Git backup", Icons.Filled.CloudUpload) { nav.navigate(Routes.GIT_BACKUP) }
+                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                    LinkRow("Ask Claude (AI)", Icons.Filled.AutoAwesome) { nav.navigate(Routes.AI) }
+                }
+            }
+            item {
                 SectionHeader("Brew assistant")
                 Spacer(Modifier.height(8.dp))
                 BrewCard {
@@ -402,11 +453,33 @@ fun SettingsScreen(nav: NavHostController) {
                             valueRange = 0.2f..1.5f, steps = 12)
                     }
                     SwitchRow("3-2-1 ticks before each step", settings.countdownTicks) { v -> update { it.copy(countdownTicks = v) } }
+                    if (!settings.countdownTicks) {
+                        SwitchRow("3-2-1 ticks before opening or closing the valve", settings.valveCountdown) { v -> update { it.copy(valveCountdown = v) } }
+                    }
                     SwitchRow("Weigh the beans first", settings.weighBeansFirst) { v -> update { it.copy(weighBeansFirst = v) } }
                     SwitchRow("Chime at target brew time", settings.finishPing) { v -> update { it.copy(finishPing = v) } }
                     SwitchRow("Keep screen on while brewing", settings.keepAwake) { v -> update { it.copy(keepAwake = v) } }
                     Text("Automatic buffer = your pour rate × reaction time + 1 g, so you hear the ping early enough to stop right on target. " +
-                        "Increase the reaction time if you often overpour. With a scale connected, a brew starts by weighing the beans (you can skip it).",
+                        "Increase the reaction time if you often overpour. Valve ticks (Hario Switch) count down to the moment you open or close the valve. " +
+                        "With a scale connected, a brew starts by weighing the beans (you can skip it).",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            item {
+                SectionHeader("Voice")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    SwitchRow("Spoken step prompts", settings.voicePrompts) { v -> update { it.copy(voicePrompts = v) } }
+                    if (settings.voicePrompts) {
+                        SwitchRow("Announce the next step ahead", settings.voicePreview) { v -> update { it.copy(voicePreview = v) } }
+                        val voice = LocalContainer.current.voice
+                        TextButton(onClick = {
+                            voice.say(com.brewlog.app.domain.StepAnnouncement.text(
+                                com.brewlog.app.domain.RecipeStep(com.brewlog.app.domain.StepKind.BLOOM, 0.0, 45.0)), force = true)
+                        }) { Text("Test voice") }
+                    }
+                    Text("Reads each step out loud (\"Pour to 150 grams.\"), so you can keep your eyes on the kettle. " +
+                        "Uses the phone's text-to-speech, nothing leaves the device.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

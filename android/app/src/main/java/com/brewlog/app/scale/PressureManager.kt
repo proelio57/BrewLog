@@ -238,7 +238,7 @@ class PressureManager(
 
     override fun prepareForBrew(recipe: com.brewlog.app.domain.Recipe) {
         if (_isDemo.value) {
-            demo.simulate(recipe)
+            demo.simulate(recipe, delaySeconds = 2.5)
         } else {
             tare()
             startMonitoring()

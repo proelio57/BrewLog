@@ -18,6 +18,10 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "com.brewlog.app"
+    packaging {
+        // The Anthropic SDK's dependencies (Jackson, Apache HttpComponents) ship the same license files.
+        resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/*.kotlin_module")
+    }
     compileSdk = 37
 
     defaultConfig {
@@ -49,6 +53,17 @@ android {
         }
     }
 
+    // The built-in recipes come straight from ../../Shared/recipes.json, the same file as iOS and web.
+    sourceSets {
+        getByName("main") {
+            assets.srcDir("../../Shared")
+        }
+    }
+    // Tesseract's models are copied out of the APK as files once; uncompressed they can be sized and streamed.
+    androidResources {
+        noCompress += listOf("traineddata")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -73,6 +88,15 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
+    // WebSocket to the espresso machine (GaggiMate) in the local network.
+    implementation(libs.okhttp)
+    // "Ask Claude" for a bean (opt-in, the user's own API key).
+    implementation(libs.anthropic.java)
+    // Label scan: Tesseract OCR on the device (no Google services, nothing uploaded). Models in assets/tessdata.
+    implementation(libs.tesseract4android)
+    // Home Screen widgets (beans & last brew, quick start).
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)

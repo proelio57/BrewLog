@@ -109,7 +109,7 @@ class GrinderSwitchingTest {
         override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
     }
 
-    private val presets by lazy { RecipeLibrary.parse(File("src/main/assets/recipes.json").readText()) }
+    private val presets by lazy { RecipeLibrary.parse(File("../../Shared/recipes.json").readText()) }
 
     @Test
     fun grinderSpecDefaultValuesArePlausible() {

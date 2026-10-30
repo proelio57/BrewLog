@@ -17,6 +17,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -29,9 +30,15 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.brewlog.app.LocalContainer
+import com.brewlog.app.ui.screens.AiSettingsScreen
+import com.brewlog.app.ui.screens.BeanAdviceScreen
 import com.brewlog.app.ui.screens.BeanEditorScreen
 import com.brewlog.app.ui.screens.BeanListScreen
 import com.brewlog.app.ui.screens.BrewDetailScreen
+import com.brewlog.app.ui.screens.ExtractionCalculatorScreen
+import com.brewlog.app.ui.screens.GitBackupScreen
+import com.brewlog.app.ui.screens.GrindConverterScreen
+import com.brewlog.app.ui.screens.WaterCalculatorScreen
 import com.brewlog.app.ui.screens.BrewEditorScreen
 import com.brewlog.app.ui.screens.BrewSetupScreen
 import com.brewlog.app.ui.screens.EquipmentEditorScreen
@@ -60,6 +67,11 @@ object Routes {
     const val PRESETS = "presets"
     const val SETTINGS = "settings"
     const val NEW = "new"
+    const val TOOLS_EXTRACTION = "tools/extraction"
+    const val TOOLS_WATER = "tools/water"
+    const val TOOLS_GRIND = "tools/grind"
+    const val GIT_BACKUP = "settings/git"
+    const val AI = "settings/ai"
 
     fun brewDetail(id: String, isNew: Boolean = false) = "brewDetail/$id?isNew=$isNew"
     fun brewEditor(id: String) = "brewEditor/$id"
@@ -67,6 +79,7 @@ object Routes {
     fun recipeEditor(id: String, duplicate: Boolean = false) = "recipeEditor/$id?duplicate=$duplicate"
     fun bean(id: String) = "bean/$id"
     fun equipment(id: String) = "equipment/$id"
+    fun beanAdvice(id: String) = "beanAdvice/$id"
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -88,6 +101,19 @@ fun AppRoot() {
     val startDestination = remember { if (container.settings.current.onboardingDone) Routes.BREW else Routes.ONBOARDING }
 
     LaunchedEffect(Unit) { container.scale.start() }
+    // Widgets open the app with brewlog://brew, …/weigh, …/journal or …/beans.
+    val link by container.pendingLink.collectAsState()
+    LaunchedEffect(link) {
+        val target = link ?: return@LaunchedEffect
+        container.pendingLink.value = null
+        if (!container.settings.current.onboardingDone || container.activeBrew != null) return@LaunchedEffect
+        when (target) {
+            "brew" -> nav.switchTab(Routes.BREW)
+            "journal" -> nav.switchTab(Routes.JOURNAL)
+            "beans" -> nav.switchTab(Routes.BEANS)
+            "weigh" -> { nav.switchTab(Routes.BREW); nav.navigate(Routes.WEIGH) }
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -127,6 +153,12 @@ fun AppRoot() {
             composable(Routes.RECIPE_PICKER) { RecipePickerScreen(nav) }
             composable(Routes.PRESETS) { PresetPickerScreen(nav) }
             composable(Routes.SETTINGS) { SettingsScreen(nav) }
+            composable(Routes.TOOLS_EXTRACTION) { ExtractionCalculatorScreen(nav) }
+            composable(Routes.TOOLS_WATER) { WaterCalculatorScreen(nav) }
+            composable(Routes.TOOLS_GRIND) { GrindConverterScreen(nav) }
+            composable(Routes.GIT_BACKUP) { GitBackupScreen(nav) }
+            composable(Routes.AI) { AiSettingsScreen(nav) }
+            composable("beanAdvice/{id}") { entry -> BeanAdviceScreen(nav, entry.arguments?.getString("id").orEmpty()) }
             composable(
                 "brewDetail/{id}?isNew={isNew}",
                 arguments = listOf(navArgument("isNew") { type = NavType.BoolType; defaultValue = false }),

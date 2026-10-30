@@ -26,7 +26,7 @@ import java.io.File
 
 /** Same scenarios as DosingAndAdviceTests.swift and web/tests/dosing.test.ts. */
 class DosingAndAdviceTest {
-    private val presets by lazy { RecipeLibrary.parse(File("src/main/assets/recipes.json").readText()) }
+    private val presets by lazy { RecipeLibrary.parse(File("../../Shared/recipes.json").readText()) }
     private fun preset(id: String) = presets.first { it.id == id }
 
     // MARK: Weighing the beans

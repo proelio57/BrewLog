@@ -22,6 +22,7 @@ import com.brewlog.app.scale.ScaleManager
 import com.brewlog.app.ui.AppRoot
 import com.brewlog.app.ui.theme.BrewLogTheme
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 /** Everything the brew needs, frozen when "Start brew" is pressed. */
 data class BrewConfig(
@@ -34,12 +35,15 @@ data class BrewConfig(
     val filter: Equipment?,
     val grindValue: Double?,
     val grindText: String,
+    val water: Equipment? = null,
 )
 
 /** Simple manual dependency container, created once per process. */
 class AppContainer(context: Context) {
     val scope = MainScope()
     private val prefs = context.getSharedPreferences("brewlog", Context.MODE_PRIVATE)
+    /** Small app preferences outside AppSettings (e.g. the AI web search switch). */
+    val preferences get() = prefs
 
     val settings = SettingsRepository(prefs)
     val bundledRecipes: List<Recipe> = context.assets.open("recipes.json").bufferedReader().use { RecipeLibrary.parse(it.readText()) }
@@ -54,16 +58,37 @@ class AppContainer(context: Context) {
     val repository = BrewRepository(context.filesDir, scope)
     val scale = ScaleManager(context.applicationContext, prefs, scope)
     val pressure = com.brewlog.app.scale.PressureManager(context.applicationContext, prefs, scope)
+    val machine = com.brewlog.app.machine.MachineManager(prefs)
     val sound = SoundPlayer { settings.current }
     val haptics = Haptics(context.applicationContext) { settings.current }
     val setup = BrewSetupState(prefs, presets).also { it.restoreCustom(repository.data.value.customRecipes) }
+    val secrets = com.brewlog.app.sync.SecretStore(prefs)
+    val gitSync = com.brewlog.app.sync.GitSync(prefs, secrets, repository) { presets }
+
+    /** Git backup after a brew, when automatic sync is on, and fresh widgets. */
+    fun syncAfterBrew() {
+        scope.launch { gitSync.syncIfEnabled() }
+        updateWidgets()
+    }
+
+    private val appContext = context.applicationContext
+
+    fun updateWidgets() {
+        scope.launch { com.brewlog.app.widget.WidgetSync.update(appContext, repository.data.value, setup.beanId) }
+    }
+
+    /** A brewlog:// link from a widget, handled by the navigation once it's ready. */
+    val pendingLink = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
     init {
         pressure.setEnabled(settings.current.espressoPressureEnabled)
+        machine.start()
     }
 
     /** The live brew survives configuration changes because it lives here, not in the UI. */
     var activeBrew: Pair<BrewConfig, BrewSession>? = null
+
+    val voice = com.brewlog.app.audio.VoicePrompter(context, { settings.current })
 
     fun cue(cue: BrewCue) {
         sound.play(cue)
@@ -87,10 +112,27 @@ class BrewLogApplication : Application() {
 val LocalContainer = staticCompositionLocalOf<AppContainer> { error("AppContainer not provided") }
 
 class MainActivity : ComponentActivity() {
+    private val container get() = (application as BrewLogApplication).container
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        handleLink(intent)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        container.updateWidgets()
+    }
+
+    private fun handleLink(intent: android.content.Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme == "brewlog") container.pendingLink.value = uri.host
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val container = (application as BrewLogApplication).container
+        if (savedInstanceState == null) handleLink(intent)
         setContent {
             CompositionLocalProvider(LocalContainer provides container) {
                 BrewLogTheme {

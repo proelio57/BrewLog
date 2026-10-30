@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +49,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.brewlog.app.LocalContainer
 import com.brewlog.app.domain.BrewMethod
+import com.brewlog.app.domain.EquipmentType
 import com.brewlog.app.domain.Recipe
+import com.brewlog.app.domain.RecipeFilter
 import com.brewlog.app.domain.RecipeLibrary
 import com.brewlog.app.domain.RecipeStep
 import com.brewlog.app.domain.StepKind
@@ -70,6 +75,7 @@ fun RecipeListScreen(nav: NavHostController) {
     val container = LocalContainer.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val data by container.repository.data.collectAsStateWithLifecycle()
+    val settings by container.settings.settings.collectAsStateWithLifecycle()
     var showMenu by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     var importResult by remember { mutableStateOf<String?>(null) }
@@ -133,7 +139,13 @@ fun RecipeListScreen(nav: NavHostController) {
         },
     ) { padding ->
         CardList(padding) {
-            recipeSections(data.customRecipes, container.presets) { recipe -> RecipeRow(recipe) { nav.navigate(Routes.recipe(recipe.id)) } }
+            val filter = BrewMethod.entries.firstOrNull { it.name == settings.recipeFilter }
+            item(key = "filter") {
+                MethodFilterBar(data.customRecipes + container.presets, filter, brewerMethod = brewerMethod(container)) { method ->
+                    container.settings.update { it.copy(recipeFilter = method?.name ?: "") }
+                }
+            }
+            recipeSections(data.customRecipes, container.presets, filter) { recipe -> RecipeRow(recipe) { nav.navigate(Routes.recipe(recipe.id)) } }
         }
     }
 
@@ -161,9 +173,13 @@ fun RecipeListScreen(nav: NavHostController) {
 fun RecipePickerScreen(nav: NavHostController) {
     val container = LocalContainer.current
     val data by container.repository.data.collectAsStateWithLifecycle()
+    val yours = brewerMethod(container)
+    // Start with the recipes for the brewer you've selected.
+    var filter by rememberSaveable { mutableStateOf(yours?.takeIf { it != BrewMethod.UNIVERSAL }) }
     BrewScreen(title = "Choose recipe", onBack = { nav.popBackStack() }) { padding ->
         CardList(padding) {
-            recipeSections(data.customRecipes, container.presets) { recipe ->
+            item(key = "filter") { MethodFilterBar(data.customRecipes + container.presets, filter, brewerMethod = yours) { filter = it } }
+            recipeSections(data.customRecipes, container.presets, filter) { recipe ->
                 RecipeRow(recipe, selected = container.setup.recipe.id == recipe.id) {
                     container.setup.select(recipe)
                     container.haptics.tap()
@@ -175,17 +191,32 @@ fun RecipePickerScreen(nav: NavHostController) {
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.recipeSections(
-    custom: List<Recipe>, presets: List<Recipe>, row: @Composable (Recipe) -> Unit,
+    custom: List<Recipe>, presets: List<Recipe>, method: BrewMethod?, row: @Composable (Recipe) -> Unit,
 ) {
-    if (custom.isNotEmpty()) {
-        item { SectionHeader("My recipes") }
-        items(custom, key = { "c-" + it.id }) { row(it) }
+    RecipeFilter.sections(custom, presets, method).forEach { section ->
+        val prefix = if (section.title == "My recipes") "c-" else ""
+        item(key = "h-" + section.title) { SectionHeader(section.title) }
+        items(section.recipes, key = { prefix + it.id }) { row(it) }
     }
-    BrewMethod.entries.forEach { method ->
-        val recipes = presets.filter { it.method == method }
-        if (recipes.isNotEmpty()) {
-            item { SectionHeader(method.displayName) }
-            items(recipes, key = { it.id }) { row(it) }
+}
+
+/** The type of the brewer selected on the Brew tab. */
+private fun brewerMethod(container: com.brewlog.app.AppContainer): BrewMethod? =
+    container.repository.data.value.equipment
+        .firstOrNull { it.id == container.setup.brewerId && it.type == EquipmentType.BREWER }?.method
+
+/** "All" plus one chip per brewer type. Tapping the selected chip again shows all recipes. */
+@Composable
+private fun MethodFilterBar(recipes: List<Recipe>, selection: BrewMethod?, brewerMethod: BrewMethod?, onSelect: (BrewMethod?) -> Unit) {
+    val haptics = LocalContainer.current.haptics
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { FilterChip(selected = selection == null, onClick = { onSelect(null) }, label = { Text("All") }) }
+        items(RecipeFilter.methods(recipes)) { method ->
+            FilterChip(
+                selected = selection == method,
+                onClick = { onSelect(if (selection == method) null else method); haptics.tap() },
+                label = { Text(if (method == brewerMethod) "${method.displayName} · yours" else method.displayName) },
+            )
         }
     }
 }

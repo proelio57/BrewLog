@@ -98,7 +98,11 @@ data class Recipe(
     val steps: List<RecipeStep> = emptyList(),
     val tips: List<String> = emptyList(),
     val isCustom: Boolean? = null,
+    /** Espresso: peak brew pressure in bar the recipe is designed for (e.g. 9, or 6 for turbo shots). */
+    val pressure: Double? = null,
 ) {
+    val isEspresso: Boolean get() = method == BrewMethod.ESPRESSO
+
     val ratio: Double get() = if (dose > 0) water / dose else 0.0
 
     val ratioText: String get() = "1:" + fmt1(ratio)

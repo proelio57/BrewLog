@@ -49,11 +49,13 @@ class DemoScale(private val scope: CoroutineScope, private val onWeight: (Double
 
     fun simulate(recipe: Recipe, delaySeconds: Double = 2.5) {
         weight = 0.0
-        val low = max(recipe.flowMin, 2.0)
+        val espresso = recipe.isEspresso
+        val low = if (espresso) max(recipe.flowMin, 1.0) else max(recipe.flowMin, 2.0)
         val high = max(recipe.flowMax, low + 0.5)
         plan = recipe.pourSteps.mapIndexed { index, step ->
             PlannedPour(
-                start = if (index == 0) 0.0 else step.time + Random.nextDouble(-1.0, 2.5),
+                // Pour-over: the first pour starts right away. Espresso: the first drops come after the pre-infusion.
+                start = if (index == 0 && !espresso) 0.0 else step.time + Random.nextDouble(-1.0, 2.5),
                 goal = (step.target ?: 0.0) + Random.nextDouble(-1.5, 2.5),
                 rate = Random.nextDouble(low, high),
             )

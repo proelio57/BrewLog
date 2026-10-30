@@ -8,6 +8,7 @@ import com.brewlog.app.domain.AppSettings
 import com.brewlog.app.domain.Bean
 import com.brewlog.app.domain.Brew
 import com.brewlog.app.domain.Equipment
+import com.brewlog.app.domain.MachineSample
 import com.brewlog.app.domain.PingLeadMode
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.WeightSample
@@ -46,6 +47,10 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             .putBoolean("silentModeSound", next.silentModeSound)
             .putBoolean("countdownTicks", next.countdownTicks)
             .putBoolean("weighBeansFirst", next.weighBeansFirst)
+            .putBoolean("valveCountdown", next.valveCountdown)
+            .putBoolean("voicePrompts", next.voicePrompts)
+            .putBoolean("voicePreview", next.voicePreview)
+            .putString("recipeFilter", next.recipeFilter)
             .putBoolean("finishPing", next.finishPing)
             .putBoolean("keepAwake", next.keepAwake)
             .putBoolean("onboardingDone", next.onboardingDone)
@@ -70,6 +75,10 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             silentModeSound = prefs.getBoolean("silentModeSound", d.silentModeSound),
             countdownTicks = prefs.getBoolean("countdownTicks", d.countdownTicks),
             weighBeansFirst = prefs.getBoolean("weighBeansFirst", d.weighBeansFirst),
+            valveCountdown = prefs.getBoolean("valveCountdown", d.valveCountdown),
+            voicePrompts = prefs.getBoolean("voicePrompts", d.voicePrompts),
+            voicePreview = prefs.getBoolean("voicePreview", d.voicePreview),
+            recipeFilter = prefs.getString("recipeFilter", d.recipeFilter) ?: "",
             finishPing = prefs.getBoolean("finishPing", d.finishPing),
             keepAwake = prefs.getBoolean("keepAwake", d.keepAwake),
             onboardingDone = prefs.getBoolean("onboardingDone", d.onboardingDone),
@@ -90,8 +99,17 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
     private val json = Json { ignoreUnknownKeys = true }
     private val dataFile = File(directory, "brewlog.json")
     private val samplesDir = File(directory, "samples").apply { mkdirs() }
+    /** Espresso: pressure/temperature/flow curve per brew. */
+    private val machineDir = File(directory, "machine").apply { mkdirs() }
+    /** Bean photos as downsampled JPEG, one file per bean. */
+    private val photosDir = File(directory, "beans").apply { mkdirs() }
+    private val photoCache = mutableMapOf<String, ByteArray?>()
+    private val _photoVersion = MutableStateFlow(0)
+    /** Bumped whenever a photo changes, so screens reload thumbnails. */
+    val photoVersion: StateFlow<Int> = _photoVersion.asStateFlow()
     private val writeLock = Mutex()
     private val samplesCache = mutableMapOf<String, List<WeightSample>>()
+    private val machineCache = mutableMapOf<String, List<MachineSample>>()
 
     private val _data = MutableStateFlow(load())
     val data: StateFlow<AppData> = _data.asStateFlow()
@@ -132,8 +150,9 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
 
     // Brews
 
-    fun saveNewBrew(brew: Brew, samples: List<WeightSample>) {
+    fun saveNewBrew(brew: Brew, samples: List<WeightSample>, machineSamples: List<MachineSample> = emptyList()) {
         writeSamples(brew.id, samples)
+        if (machineSamples.isNotEmpty()) writeMachineSamples(brew.id, machineSamples)
         update { d ->
             val beans = if (brew.beanId != null) d.beans.map {
                 if (it.id == brew.beanId) it.copy(remaining = max(0.0, it.remaining - brew.dose)) else it
@@ -163,8 +182,39 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
     fun deleteBrew(id: String) {
         update { d -> d.copy(brews = d.brews.filterNot { it.id == id }) }
         synchronized(samplesCache) { samplesCache.remove(id) }
-        scope.launch(Dispatchers.IO) { sampleFile(id)?.delete() }
+        synchronized(machineCache) { machineCache.remove(id) }
+        scope.launch(Dispatchers.IO) {
+            sampleFile(id)?.delete()
+            machineFile(id)?.delete()
+        }
     }
+
+    /** Espresso: the machine/pressure curve of a brew (empty for most brews). */
+    fun machineSamples(brewId: String): List<MachineSample> {
+        synchronized(machineCache) { machineCache[brewId]?.let { return it } }
+        val file = machineFile(brewId) ?: return emptyList()
+        val loaded = try {
+            if (file.exists()) json.decodeFromString(ListSerializer(MachineSample.serializer()), file.readText()) else emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+        synchronized(machineCache) { machineCache[brewId] = loaded }
+        return loaded
+    }
+
+    fun writeMachineSamples(brewId: String, samples: List<MachineSample>) {
+        val file = machineFile(brewId) ?: return
+        synchronized(machineCache) { machineCache[brewId] = samples }
+        scope.launch(Dispatchers.IO) {
+            file.writeText(json.encodeToString(ListSerializer(MachineSample.serializer()), samples))
+        }
+    }
+
+    /** Stores an imported weight curve (backups). */
+    fun importSamples(brewId: String, samples: List<WeightSample>) = writeSamples(brewId, samples)
+
+    private fun machineFile(brewId: String): File? =
+        if (brewId.matches(Regex("[A-Za-z0-9-]{1,64}"))) File(machineDir, "$brewId.json") else null
 
     fun samples(brewId: String): List<WeightSample> {
         synchronized(samplesCache) { samplesCache[brewId]?.let { return it } }
@@ -196,9 +246,34 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
         d.copy(beans = if (d.beans.any { it.id == bean.id }) d.beans.map { if (it.id == bean.id) bean else it } else d.beans + bean)
     }
 
-    fun deleteBean(id: String) = update { d ->
-        d.copy(beans = d.beans.filterNot { it.id == id }, brews = d.brews.map { if (it.beanId == id) it.copy(beanId = null) else it })
+    fun deleteBean(id: String) {
+        update { d ->
+            d.copy(beans = d.beans.filterNot { it.id == id }, brews = d.brews.map { if (it.beanId == id) it.copy(beanId = null) else it })
+        }
+        setBeanPhoto(id, null)
     }
+
+    /** The bean's photo (JPEG or PNG bytes), null when it has none. */
+    fun beanPhoto(beanId: String): ByteArray? {
+        synchronized(photoCache) { if (photoCache.containsKey(beanId)) return photoCache[beanId] }
+        val file = photoFile(beanId)
+        val loaded = if (file != null && file.exists()) runCatching { file.readBytes() }.getOrNull() else null
+        synchronized(photoCache) { photoCache[beanId] = loaded }
+        return loaded
+    }
+
+    fun setBeanPhoto(beanId: String, bytes: ByteArray?) {
+        val file = photoFile(beanId) ?: return
+        val clean = bytes?.takeIf { BrewLogBackup.isPhoto(it) }
+        synchronized(photoCache) { photoCache[beanId] = clean }
+        _photoVersion.value++
+        scope.launch(Dispatchers.IO) {
+            if (clean == null) file.delete() else file.writeBytes(clean)
+        }
+    }
+
+    private fun photoFile(beanId: String): File? =
+        if (beanId.matches(Regex("[A-Za-z0-9-]{1,64}"))) File(photosDir, "$beanId.jpg") else null
 
     fun upsertEquipment(item: Equipment) = update { d ->
         d.copy(equipment = if (d.equipment.any { it.id == item.id }) d.equipment.map { if (it.id == item.id) item else it } else d.equipment + item)

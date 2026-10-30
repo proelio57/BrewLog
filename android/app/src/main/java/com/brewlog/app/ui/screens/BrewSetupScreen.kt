@@ -84,6 +84,7 @@ import com.brewlog.app.ui.components.SectionHeader
 import com.brewlog.app.ui.components.StatView
 import com.brewlog.app.ui.components.TasteProfileBars
 import kotlin.math.max
+import com.brewlog.app.domain.GrindConverter
 
 @Composable
 fun BrewSetupScreen(nav: NavHostController) {
@@ -100,6 +101,7 @@ fun BrewSetupScreen(nav: NavHostController) {
     val grinders = data.equipment.filter { it.type == EquipmentType.GRINDER }.sortedBy { it.name }
     val filters = data.equipment.filter { it.type == EquipmentType.FILTER }.sortedBy { it.name }
     val selectedGrinder = grinders.firstOrNull { it.id == setup.grinderId }
+    val waters = data.equipment.filter { it.type == EquipmentType.WATER }.sortedBy { it.name }
     val selectedBean = beans.firstOrNull { it.id == setup.beanId }
     val recommendation = GrindRecommender.recommend(setup.beanId, selectedGrinder, setup.recipe.id, data.brews)
 
@@ -138,11 +140,18 @@ fun BrewSetupScreen(nav: NavHostController) {
                         beanId = selectedBean?.id,
                         brewer = brewers.firstOrNull { it.id == setup.brewerId },
                         grinder = selectedGrinder,
-                        filter = filters.firstOrNull { it.id == setup.filterId },
+                        filter = if (setup.recipe.isEspresso) null else filters.firstOrNull { it.id == setup.filterId },
                         grindValue = if (selectedGrinder == null) null else setup.grindValue,
                         grindText = setup.grindText,
+                        water = waters.firstOrNull { it.id == setup.waterId },
                     )
-                    container.activeBrew = config to BrewSession(config.recipe, container.scale, { container.settings.current }, container::cue)
+                    container.activeBrew = config to BrewSession(
+                        config.recipe, container.scale, { container.settings.current }, container::cue,
+                        machine = container.machine,
+                        monitorReady = { container.pressure.ready.value },
+                        prepareMonitor = { container.pressure.prepareForBrew(it) },
+                        onSpeak = { container.voice.say(it) },
+                    )
                     nav.navigate(Routes.LIVE)
                 }
             }
@@ -158,11 +167,18 @@ fun BrewSetupScreen(nav: NavHostController) {
             }
             item { RecipeCard(onClick = { nav.navigate(Routes.RECIPE_PICKER) }) }
             item { DoseCard() }
+            if (setup.recipe.isEspresso) {
+                item { MachineCard(setup.scaledRecipe, setup.dose, setup.waterTemp) { nav.navigate(Routes.SETTINGS) } }
+            }
             item {
                 SectionHeader("Coffee")
                 Spacer(Modifier.height(8.dp))
                 BrewCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        selectedBean?.let {
+                            com.brewlog.app.ui.components.BeanThumbnail(it.id, it.roastLevel, size = 36.dp)
+                            Spacer(Modifier.width(10.dp))
+                        }
                         Box(Modifier.weight(1f)) {
                             MenuPickerRow("Beans", Icons.Filled.Eco, beans.map { PickerOption(it.id, it.displayName) }, setup.beanId) { setup.beanId = it }
                         }
@@ -184,20 +200,32 @@ fun BrewSetupScreen(nav: NavHostController) {
                 SectionHeader("Gear & grind")
                 Spacer(Modifier.height(8.dp))
                 BrewCard {
-                    GearRow("Brewer", Icons.Filled.Coffee, brewers, setup.brewerId, { setup.brewerId = it }) { nav.navigate(Routes.PRESETS) }
+                    val espresso = setup.recipe.isEspresso
+                    GearRow(if (espresso) "Machine" else "Brewer", Icons.Filled.Coffee, brewers, setup.brewerId, { setup.brewerId = it }) { nav.navigate(Routes.PRESETS) }
                     HorizontalDivider(Modifier.padding(vertical = 10.dp))
-                    GearRow("Filter", FilterIcon, filters, setup.filterId, { setup.filterId = it }) { nav.navigate(Routes.PRESETS) }
-                    filters.firstOrNull { it.id == setup.filterId }?.subtitle?.takeIf { it.isNotEmpty() }?.let {
-                        Text(it, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
+                    if (!espresso) {
+                        GearRow("Filter", FilterIcon, filters, setup.filterId, { setup.filterId = it }) { nav.navigate(Routes.PRESETS) }
+                        filters.firstOrNull { it.id == setup.filterId }?.subtitle?.takeIf { it.isNotEmpty() }?.let {
+                            Text(it, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
+                        }
+                        HorizontalDivider(Modifier.padding(vertical = 10.dp))
                     }
-                    HorizontalDivider(Modifier.padding(vertical = 10.dp))
                     GearRow("Grinder", Icons.Filled.Build, grinders, setup.grinderId, onSelect = { id ->
                         val g = grinders.firstOrNull { it.id == id }
                         setup.selectGrinder(id, g, data.brews)
                     }, onAdd = { nav.navigate(Routes.PRESETS) })
                     Spacer(Modifier.height(10.dp))
                     GrindInput(selectedGrinder?.grinder, setup.grindValue, { setup.setGrind(it) }, setup.grindText, { setup.grindText = it }, recommendation)
+                    // The recipe's grind size as a setting on this grinder (calibrated grinders only).
+                    selectedGrinder?.let { g -> GrindConverter.hint(setup.recipe.grind, GrindConverter.calibrated(g.grinder, g.name)) }?.let { hint ->
+                        Text("Recipe: $hint on your ${selectedGrinder.name}", Modifier.fillMaxWidth().padding(top = 6.dp),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
+                    }
+                    if (waters.isNotEmpty()) {
+                        HorizontalDivider(Modifier.padding(vertical = 10.dp))
+                        GearRow("Water", Icons.Filled.WaterDrop, waters, setup.waterId, { setup.waterId = it }) { nav.navigate(Routes.TOOLS_WATER) }
+                    }
                 }
             }
         }
@@ -254,7 +282,7 @@ private fun DoseCard() {
     BrewCard {
         Row {
             StatView(setup.dose.grams1(), "Coffee")
-            StatView(recipe.water.grams(), "Water", Icons.Filled.WaterDrop)
+            StatView(recipe.water.grams(), if (recipe.isEspresso) "Yield" else "Water", Icons.Filled.WaterDrop)
             StatView(recipe.ratioText, "Ratio")
             StatView("${setup.waterTemp.toInt()}°", "Temp", Icons.Filled.Thermostat)
         }
@@ -262,7 +290,7 @@ private fun DoseCard() {
         StepperRow("Coffee dose", setup.dose.grams1(), Icons.Filled.Scale,
             onMinus = { setup.dose = max(5.0, setup.dose - 0.5) }, onPlus = { setup.dose = minOf(60.0, setup.dose + 0.5) })
         Spacer(Modifier.height(8.dp))
-        StepperRow("Water temperature", "${setup.waterTemp.toInt()} °C", Icons.Filled.Thermostat,
+        StepperRow(if (recipe.isEspresso) "Brew temperature" else "Water temperature", "${setup.waterTemp.toInt()} °C", Icons.Filled.Thermostat,
             onMinus = { setup.waterTemp = max(70.0, setup.waterTemp - 1) }, onPlus = { setup.waterTemp = minOf(100.0, setup.waterTemp + 1) })
         Spacer(Modifier.height(10.dp))
         Row {

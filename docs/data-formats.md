@@ -67,7 +67,7 @@ twice adds nothing. The same **Import** also reads recipe files and Beanconquero
   UUID, so references and de-duplication still work.
 - `samples`: weight curve per brew as `[seconds, grams]` pairs (`{t, w}` objects are read too). `machine`: espresso
   pressure/temperature/flow per brew (see Espresso shots). Only stored for brews the import adds.
-- `photos` (iOS, optional): bean photo per bean as base64 JPEG (or PNG), downsampled to at most 1024 px, at most
+- `photos` (iOS and Android, optional): bean photo per bean as base64 JPEG (or PNG), downsampled to at most 1024 px, at most
   2 MB each; anything else is ignored. Added on import to new beans and to existing beans that have no photo.
   Apps without bean photos ignore the key.
 - **Bean:** `id, name, roaster, origin, varietal, process, roastLevel, roastDate (or null), tastingNotes, notes,
@@ -84,7 +84,8 @@ twice adds nothing. The same **Import** also reads recipe files and Beanconquero
   notes, externalId`. `tds` (refractometer reading in %, 0–25) and `beverageWeight` (drink in grams) are optional;
   `waterId` / `waterName` point to the water profile used (gear of type `water`).
 - `customRecipes`: recipe objects as in recipe files.
-- Android (for now) exports the bare `data` object (no wrapper, no curves); it's read the same way.
+- Android writes the same wrapped format (with `samples` and `machine`, without `photos`); a bare `data` object
+  (older Android exports) is read too.
 - The file is untrusted: every field is optional with the defaults of a new item, text is sanitized and limited,
   numbers are clamped (e.g. dose ≤ 150 g, water ≤ 3000 g, time ≤ 30 min), unknown fields and enum values are
   ignored, a broken entry (e.g. a bean without a name) only drops itself. Limits: 1000 beans, 1000 gear,

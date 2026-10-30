@@ -73,6 +73,8 @@ data class GrinderSpec(
     val rangeNote: String = "",
     /** Sensible starting default for pour-over / filter brew. */
     val defaultGrind: Double? = null,
+    /** µm one smallest step moves the burrs, for the grind converter (optional). */
+    val micronsPerStep: Double? = null,
 ) {
     private val decimals: Int get() = if (step < 1) (if (step < 0.1) 2 else 1) else 0
 
@@ -125,6 +127,18 @@ data class WeightSample(
     val t: Double,
     /** Grams on the scale. */
     val w: Double,
+)
+
+/**
+ * Espresso: one reading from the machine (GaggiMate) or the pressure sensor during a shot.
+ * Same JSON as iOS and web: {"t": seconds, "p": bar, "c": °C, "f": ml/s}. Stored per brew next to the weight curve.
+ */
+@Serializable
+data class MachineSample(
+    val t: Double,
+    val p: Double,
+    val c: Double? = null,
+    val f: Double? = null,
 )
 
 @Serializable
@@ -183,6 +197,9 @@ data class Equipment(
     val filterFlow: FilterFlow? = null,
     /** Filters only: roast level the paper is designed for (e.g. CAFEC roast-specific papers). */
     val idealRoast: RoastLevel? = null,
+    /** Water profiles only: hardness (GH) and alkalinity (KH) in mg/L as CaCO3. */
+    val waterHardness: Double? = null,
+    val waterAlkalinity: Double? = null,
     /** Grinders only: adjustment scale. */
     val grinder: GrinderSpec = GrinderSpec(),
     val externalId: String? = null,
@@ -232,6 +249,13 @@ data class Brew(
     val filterIdealRoast: RoastLevel? = null,
     val beanId: String? = null,
     val usedScale: Boolean = false,
+    /** Refractometer reading in % (0–25), optional. */
+    val tds: Double? = null,
+    /** Weighed drink in grams, optional (estimated from the water otherwise). */
+    val beverageWeight: Double? = null,
+    /** Water profile used (gear of type water). */
+    val waterId: String? = null,
+    val waterName: String = "",
     val rating: Int = 0,
     val feedback: Set<TasteFeedback> = emptySet(),
     val notes: String = "",
@@ -276,6 +300,13 @@ data class AppSettings(
     val countdownTicks: Boolean = false,
     /** With a scale, a brew starts by weighing the beans (can be skipped). */
     val weighBeansFirst: Boolean = true,
+    /** Hario Switch: 3-2-1 ticks before the valve opens or closes, even when ticks before every step are off. */
+    val valveCountdown: Boolean = true,
+    val voicePrompts: Boolean = false,
+    /** Announce the next step a few seconds ahead. */
+    val voicePreview: Boolean = true,
+    /** Recipe list filter by brewer type (raw value, "" = all). */
+    val recipeFilter: String = "",
     val finishPing: Boolean = true,
     val keepAwake: Boolean = true,
     val onboardingDone: Boolean = false,
