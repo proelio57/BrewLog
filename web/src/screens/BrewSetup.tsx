@@ -1,5 +1,5 @@
 import {
-  Bluetooth, ChevronRight, Coffee, FileText, Leaf, Minus, Plus, PlusCircle, Scale, Settings, SlidersHorizontal, Sparkles, Thermometer, Timer, Wrench, X,
+  Bluetooth, ChevronRight, Circle, CircleCheck, Coffee, FileText, Leaf, Minus, Plus, PlusCircle, Scale, Settings, SlidersHorizontal, Sparkles, Thermometer, Timer, Wrench, X,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { cue, live, machine, navigate, pressure, repository, scale, settings, setup } from '../app'
@@ -136,6 +136,16 @@ export function BrewSetupScreen() {
           <GrindInput spec={grinder?.grinder ?? null} value={s.grindValue} onValue={(v) => setup.patch({ grindValue: v })}
             text={s.grindText} onText={(t) => setup.patch({ grindText: t })} recommendation={recommendation} />
         </Card>
+
+        <SectionHeader title="Before you brew" />
+        <Card>
+          <StepCheck label="Weigh the beans" detail={ready ? 'On the scale, before the brewer goes on' : 'With a scale connected'}
+            checked={appSettings.weighBeansFirst} onChange={(v) => settings.change((x) => ({ ...x, weighBeansFirst: v }))} />
+          {s.recipe.method !== 'espresso' && (
+            <StepCheck label="Rinse the paper" detail="With hot water, then discard it"
+              checked={appSettings.rinsePaper} onChange={(v) => settings.change((x) => ({ ...x, rinsePaper: v }))} />
+          )}
+        </Card>
       </div>
       <div className="bottom-action">
         <button className="btn-primary" onClick={startBrew}>{ready ? <Scale size={20} /> : <Timer size={20} />}{ready ? 'Start brew' : 'Start brew (timer only)'}</button>
@@ -263,5 +273,19 @@ export function ScaleSheet({ onClose }: { onClose: () => void }) {
       <div className="divider" />
       <Toggle label="Demo scale" detail="Simulates pours that follow the recipe, to try BrewLog without a scale." checked={st.isDemo} onChange={(v) => scale.setDemo(v)} />
     </Sheet>
+  )
+}
+
+/** A remembered on/off step shown as a check mark. */
+function StepCheck({ label, detail, checked, onChange }: { label: string; detail: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <button className="row" role="checkbox" aria-checked={checked} onClick={() => onChange(!checked)}
+      style={{ width: '100%', background: 'none', border: 'none', padding: '6px 0', textAlign: 'left', color: 'inherit', cursor: 'pointer' }}>
+      {checked ? <CircleCheck size={22} className="accent" /> : <Circle size={22} color="var(--muted)" />}
+      <span>
+        <div style={{ fontWeight: 600 }}>{label}</div>
+        <div className="small muted">{detail}</div>
+      </span>
+    </button>
   )
 }

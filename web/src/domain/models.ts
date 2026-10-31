@@ -242,6 +242,8 @@ export interface AppSettings {
   countdownTicks: boolean
   /** With a scale, a brew starts by weighing the beans (can be skipped). */
   weighBeansFirst: boolean
+  /** Show "rinse the paper" in the preparation steps (pour-over). */
+  rinsePaper: boolean
   finishPing: boolean
   keepAwake: boolean
   onboardingDone: boolean
@@ -268,6 +270,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   silentModeSound: true,
   countdownTicks: false,
   weighBeansFirst: true,
+  rinsePaper: true,
   finishPing: true,
   keepAwake: true,
   onboardingDone: false,

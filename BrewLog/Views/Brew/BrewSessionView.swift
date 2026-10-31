@@ -218,13 +218,17 @@ struct BrewSessionView: View {
         }
     }
 
+    @AppStorage(SettingsKey.rinsePaper) private var rinsePaper = true
+
     private var pourOverPreparationCard: some View {
-        Card {
+        // Rinsing is optional (Brew tab → Before you brew); the other steps move up when it's off.
+        let steps = (rinsePaper ? ["Rinse the paper with hot water and discard it"] : [])
+            + ["Add \(session.dose.grams1) of coffee\(grindText)", "Shake or swirl to level the bed", "Water at \(Int(config.waterTemp)) °C"]
+        return Card {
             VStack(alignment: .leading, spacing: 10) {
-                Label("Rinse the paper with hot water and discard it", systemImage: "1.circle.fill")
-                Label("Add \(session.dose.grams1) of coffee\(grindText)", systemImage: "2.circle.fill")
-                Label("Shake or swirl to level the bed", systemImage: "3.circle.fill")
-                Label("Water at \(Int(config.waterTemp)) °C", systemImage: "4.circle.fill")
+                ForEach(Array(steps.enumerated()), id: \.offset) { index, text in
+                    Label(text, systemImage: "\(index + 1).circle.fill")
+                }
             }
             .font(.subheadline)
             .symbolRenderingMode(.hierarchical)
