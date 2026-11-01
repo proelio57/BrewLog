@@ -6,6 +6,8 @@ import UIKit
 @Observable
 final class BrewSession {
     enum Phase: Equatable {
+        /// Rinsing the paper (optional, pour-over only, first step).
+        case rinsing
         /// Weighing the beans on the tared scale (optional, before the brewer goes on).
         case dosing
         /// Waiting for the user to put the brewer on the scale and press Ready.
@@ -94,7 +96,11 @@ final class BrewSession {
         // Only once per brew, so the view appearing again doesn't ask again.
         if !prepared {
             prepared = true
-            if AppSettings.weighBeansFirst { weighBeans() }
+            if AppSettings.rinsePaper && !isEspresso {
+                phase = .rinsing
+            } else if AppSettings.weighBeansFirst {
+                weighBeans()
+            }
         }
     }
 
@@ -116,6 +122,16 @@ final class BrewSession {
         voice.stop()
         sound.stop()
         UIApplication.shared.isIdleTimerDisabled = false
+    }
+
+    // MARK: Rinsing the paper
+
+    /// Paper rinsed (or skipped): on to weighing the beans if that's switched on.
+    func rinseDone() {
+        guard phase == .rinsing else { return }
+        phase = .preparing
+        Haptics.tap()
+        if AppSettings.weighBeansFirst { weighBeans() }
     }
 
     // MARK: Weighing the beans
@@ -205,7 +221,7 @@ final class BrewSession {
     private func machineShot(started: Bool, at date: Date) {
         if started {
             switch phase {
-            case .dosing, .preparing:
+            case .rinsing, .dosing, .preparing:
                 ready()
                 begin(at: date)
             case .armed:

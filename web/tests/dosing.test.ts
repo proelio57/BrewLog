@@ -11,6 +11,7 @@ import type { ScaleCommands } from '../src/scale/scaleManager'
 // Same scenarios as DosingAndAdviceTests.swift.
 
 const preset = (id: string): Recipe => PRESET_RECIPES.find((r) => r.id === id)!
+const NO_RINSE = { ...DEFAULT_SETTINGS, rinsePaper: false }
 
 describe('weighing the beans', () => {
   it('rates the reading against the dose', () => {
@@ -52,7 +53,7 @@ describe('weighing the beans', () => {
     const scale = new FakeScale()
     const cues: BrewCue[] = []
     let now = 0
-    const session = new BrewSession(recipe, scale, () => DEFAULT_SETTINGS, (c) => cues.push(c), () => now)
+    const session = new BrewSession(recipe, scale, () => NO_RINSE, (c) => cues.push(c), () => now)
     session.prepare()
     session.prepare()
     expect(session.phase).toBe('dosing')
@@ -77,7 +78,7 @@ describe('weighing the beans', () => {
     const recipe = preset('everyday-3-pour')
     const scale = new FakeScale()
     let now = 0
-    const session = new BrewSession(recipe, scale, () => DEFAULT_SETTINGS, () => undefined, () => now)
+    const session = new BrewSession(recipe, scale, () => NO_RINSE, () => undefined, () => now)
     session.prepare()
     session.tareDose()
     expect(scale.commands).toEqual(['dose', 'tare'])
@@ -97,13 +98,33 @@ describe('weighing the beans', () => {
     expect(stableWeight(steady.slice(0, 3), 200)).toBeNull()
   })
 
+  it('starts with rinsing when switched on, then weighs', () => {
+    const scale = new FakeScale()
+    const session = new BrewSession(preset('everyday-3-pour'), scale, () => DEFAULT_SETTINGS, () => undefined)
+    session.prepare()
+    expect(session.phase).toBe('rinsing')
+    expect(scale.commands).toEqual([])
+    session.rinseDone()
+    expect(session.phase).toBe('dosing')
+    expect(scale.commands).toEqual(['dose'])
+    // Espresso has no paper to rinse.
+    const shot = new BrewSession(preset('espresso-classic'), new FakeScale(), () => DEFAULT_SETTINGS, () => undefined)
+    shot.prepare()
+    expect(shot.phase).toBe('dosing')
+    // Rinsing without weighing goes straight to Ready.
+    const plain = new BrewSession(preset('everyday-3-pour'), new FakeScale(), () => ({ ...DEFAULT_SETTINGS, weighBeansFirst: false }), () => undefined)
+    plain.prepare()
+    plain.rinseDone()
+    expect(plain.phase).toBe('preparing')
+  })
+
   it('skips weighing when switched off or without a scale', () => {
     const scale = new FakeScale()
-    const off = new BrewSession(preset('everyday-3-pour'), scale, () => ({ ...DEFAULT_SETTINGS, weighBeansFirst: false }), () => undefined)
+    const off = new BrewSession(preset('everyday-3-pour'), scale, () => ({ ...NO_RINSE, weighBeansFirst: false }), () => undefined)
     off.prepare()
     expect(off.phase).toBe('preparing')
     scale.isReady = false
-    const noScale = new BrewSession(preset('everyday-3-pour'), scale, () => DEFAULT_SETTINGS, () => undefined)
+    const noScale = new BrewSession(preset('everyday-3-pour'), scale, () => NO_RINSE, () => undefined)
     noScale.prepare()
     expect(noScale.phase).toBe('preparing')
     expect(noScale.dose).toBe(preset('everyday-3-pour').dose)

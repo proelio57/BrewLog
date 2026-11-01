@@ -110,7 +110,7 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
           <div className="readout-label">WEIGHT</div>
           {snapshot.usesScale ? (
             <>
-              <div className="readout">{scaleReadout(snapshot.phase === 'preparing' || snapshot.phase === 'dosing' ? snapshot.weight : Math.max(snapshot.weight, 0))}</div>
+              <div className="readout">{scaleReadout(snapshot.phase === 'preparing' || snapshot.phase === 'dosing' || snapshot.phase === 'rinsing' ? snapshot.weight : Math.max(snapshot.weight, 0))}</div>
               <div className="small muted tnum">{fmt1(Math.max(snapshot.flowRate, 0))} g/s</div>
             </>
           ) : (
@@ -135,6 +135,17 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
         </div>
       )}
 
+      {snapshot.phase === 'rinsing' && (
+        <Card>
+          <div className="row">
+            <Droplet size={32} className="accent" />
+            <div>
+              <div className="title">Rinse the paper</div>
+              <div className="small muted">Pour hot water through the paper in the brewer to rinse out the paper taste and preheat it, then discard the water.</div>
+            </div>
+          </div>
+        </Card>
+      )}
       {snapshot.phase === 'dosing' && <DoseCard weight={snapshot.weight} dose={session.plannedDose} status={snapshot.doseStatus} />}
       {snapshot.phase === 'preparing' && (
         <Card>
@@ -191,6 +202,10 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
       </div>
 
       <div className="grow" />
+      {snapshot.phase === 'rinsing' && <>
+        <button className="link muted" style={{ alignSelf: 'center', padding: 12 }} onClick={() => session.rinseDone()}>Skip rinsing</button>
+        <button className="btn-primary" onClick={() => session.rinseDone()}><CircleCheck size={20} />Rinsed</button>
+      </>}
       {snapshot.phase === 'dosing' && <>
         <div className="row" style={{ justifyContent: 'center', gap: 24 }}>
           <button className="link" style={{ padding: 12 }} onClick={() => session.tareDose()}>Tare</button>
@@ -328,7 +343,6 @@ function DoseCard({ weight, dose, status }: { weight: number; dose: number; stat
 }
 
 function Preparation({ config, recipe, dose }: { config: BrewConfig; recipe: Recipe; dose: number }) {
-  const rinse = useStore(settings).rinsePaper
   const grind = config.grindValue != null && config.grinder ? `, ground at ${formatGrind(config.grinder.grinder, config.grindValue)}`
     : config.grindText ? `, ground ${config.grindText}` : ''
   const items = recipe.method === 'espresso' ? [
@@ -337,8 +351,6 @@ function Preparation({ config, recipe, dose }: { config: BrewConfig; recipe: Rec
     'Flush the group head, lock in the portafilter',
     `Brew at ${Math.round(config.waterTemp)} °C, stop at ${grams(recipe.water)}`,
   ] : [
-    // Rinsing is optional (Brew tab → Before you brew); the other steps move up when it's off.
-    ...(rinse ? ['Rinse the paper with hot water and discard it'] : []),
     `Add ${grams1(dose)} of coffee${grind}`,
     'Shake or swirl to level the bed',
     `Water at ${Math.round(config.waterTemp)} °C`,
