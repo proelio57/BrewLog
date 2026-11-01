@@ -12,7 +12,7 @@ import { type ScaleCommands, monotonicMillis } from '../scale/scaleManager'
 // 1:1 port of BrewSession.swift / BrewSession.kt.
 
 export type BrewCue = 'target' | 'nextStep' | 'finish' | 'tick'
-export type BrewPhase = 'dosing' | 'preparing' | 'armed' | 'brewing' | 'finished'
+export type BrewPhase = 'rinsing' | 'dosing' | 'preparing' | 'armed' | 'brewing' | 'finished'
 
 /** Immutable snapshot of the live brew for the UI. */
 export interface BrewSnapshot {
@@ -174,7 +174,20 @@ export class BrewSession {
     // Only once per brew, so re-mounting the screen doesn't ask again.
     if (this.prepared) return
     this.prepared = true
+    if (this.settings().rinsePaper && !this.isEspresso) {
+      this.phase = 'rinsing'
+      this.publish()
+    } else if (this.settings().weighBeansFirst) {
+      this.weighBeans()
+    }
+  }
+
+  /** Paper rinsed (or skipped): on to weighing the beans if that's switched on. */
+  rinseDone(): void {
+    if (this.phase !== 'rinsing') return
+    this.phase = 'preparing'
     if (this.settings().weighBeansFirst) this.weighBeans()
+    else this.publish()
   }
 
   /** Tare the scale and weigh the beans against the planned dose. */
@@ -243,7 +256,7 @@ export class BrewSession {
 
   private machineShot(started: boolean, atMs: number): void {
     if (started) {
-      if (this.phase === 'preparing' || this.phase === 'dosing') {
+      if (this.phase === 'preparing' || this.phase === 'dosing' || this.phase === 'rinsing') {
         this.ready()
         this.begin(atMs)
       } else if (this.phase === 'armed') {

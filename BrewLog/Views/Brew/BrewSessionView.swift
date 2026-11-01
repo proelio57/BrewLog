@@ -119,7 +119,7 @@ struct BrewSessionView: View {
             VStack(alignment: .trailing, spacing: 0) {
                 Text("WEIGHT").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 if session.usesScale {
-                    Text((session.phase == .preparing || session.phase == .dosing ? session.weight : max(session.weight, 0)).scaleReadout)
+                    Text((session.phase == .preparing || session.phase == .dosing || session.phase == .rinsing ? session.weight : max(session.weight, 0)).scaleReadout)
                         .font(.system(size: 54, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                     Text(String(format: "%.1f g/s", max(session.flowRate, 0)))
@@ -141,6 +141,20 @@ struct BrewSessionView: View {
     @ViewBuilder
     private var stepCard: some View {
         switch session.phase {
+        case .rinsing:
+            Card {
+                HStack(spacing: 14) {
+                    Image(systemName: "drop.triangle")
+                        .font(.title)
+                        .foregroundStyle(Color.accentColor)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Rinse the paper").font(.headline)
+                        Text("Pour hot water through the paper in the brewer to rinse out the paper taste and preheat it, then discard the water.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         case .dosing:
             DoseCard(weight: session.weight, dose: session.plannedDose, status: session.doseStatus)
         case .preparing:
@@ -218,12 +232,9 @@ struct BrewSessionView: View {
         }
     }
 
-    @AppStorage(SettingsKey.rinsePaper) private var rinsePaper = true
-
     private var pourOverPreparationCard: some View {
-        // Rinsing is optional (Brew tab → Before you brew); the other steps move up when it's off.
-        let steps = (rinsePaper ? ["Rinse the paper with hot water and discard it"] : [])
-            + ["Add \(session.dose.grams1) of coffee\(grindText)", "Shake or swirl to level the bed", "Water at \(Int(config.waterTemp)) °C"]
+        // Rinsing is its own (optional) first step now, so it isn't repeated here.
+        let steps = ["Add \(session.dose.grams1) of coffee\(grindText)", "Shake or swirl to level the bed", "Water at \(Int(config.waterTemp)) °C"]
         return Card {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(Array(steps.enumerated()), id: \.offset) { index, text in
@@ -274,6 +285,11 @@ struct BrewSessionView: View {
     @ViewBuilder
     private var controls: some View {
         switch session.phase {
+        case .rinsing:
+            Button("Skip rinsing") { session.rinseDone() }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            primaryButton("Rinsed", symbol: "checkmark.circle.fill") { session.rinseDone() }
         case .dosing:
             HStack(spacing: 24) {
                 Button("Tare", systemImage: "scalemass") { session.tareDose() }
