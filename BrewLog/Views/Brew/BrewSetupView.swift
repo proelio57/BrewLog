@@ -83,12 +83,6 @@ private struct SetupScreen: View {
                       selection: $modeRaw)
             .accessibilityIdentifier("brew.mode")
     }
-        .pickerStyle(.segmented)
-        .padding(.horizontal)
-        .padding(.vertical, 6)
-        .background(Color(.systemGroupedBackground))
-        .accessibilityIdentifier("brew.mode")
-    }
 
     private var screen: some View {
         ScrollView {
