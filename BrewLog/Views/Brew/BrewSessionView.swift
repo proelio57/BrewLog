@@ -40,8 +40,12 @@ struct BrewSessionView: View {
     private var live: some View {
         VStack(spacing: 14) {
             header
-            readouts
-            if session.hasPressure || (session.isEspresso && machine.isConnected) { MachineReadout() }
+            if session.isEspresso && [.armed, .brewing, .finished].contains(session.phase) {
+                ShotReadouts(session: session)
+            } else {
+                readouts
+                if session.hasPressure || (session.isEspresso && machine.isConnected) { MachineReadout() }
+            }
             stepCard
             if session.phase == .brewing || session.phase == .finished {
                 liveCharts
@@ -50,6 +54,7 @@ struct BrewSessionView: View {
             }
             stepsStrip
             Spacer(minLength: 0)
+            if session.stopRequested && session.phase == .brewing { StopNowBanner() }
             controls
         }
         .padding(.horizontal)
@@ -60,6 +65,7 @@ struct BrewSessionView: View {
             Button("Keep brewing", role: .cancel) {}
         }
         .animation(.easeInOut(duration: 0.25), value: session.phase)
+        .animation(.easeInOut(duration: 0.25), value: session.stopRequested)
         .modifier(MachineWarningAlert())
     }
 
