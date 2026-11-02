@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.32",
+          "buildVersion": "32",
+          "date": "2026-11-02T00:04:36Z",
+          "localizedDescription": "Merge pull request #8 from proelio57/feature/rinse-step\n\nRinsing the paper is its own step in the brew flow",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.32/BrewLog.ipa",
+          "size": 2794721,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.29",
           "buildVersion": "29",
           "date": "2026-10-31T22:47:25Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.9/BrewLog.ipa",
           "size": 1665316,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.6",
-          "buildVersion": "6",
-          "date": "2026-10-14T18:32:51Z",
-          "localizedDescription": "chore: version 0.1.x\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.6/BrewLog.ipa",
-          "size": 1662310,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.29",
-      "versionDate": "2026-10-31T22:47:25Z",
-      "versionDescription": "Merge pull request #7 from proelio57/feature/optional-rinse\n\nRinsing the paper is an optional, remembered step",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.29/BrewLog.ipa",
-      "size": 2787400
+      "version": "0.1.32",
+      "versionDate": "2026-11-02T00:04:36Z",
+      "versionDescription": "Merge pull request #8 from proelio57/feature/rinse-step\n\nRinsing the paper is its own step in the brew flow",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.32/BrewLog.ipa",
+      "size": 2794721
     }
   ],
   "news": []
