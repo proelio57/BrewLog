@@ -84,6 +84,8 @@ struct RecipeRow: View {
 // MARK: - Picker (from the Brew tab)
 
 struct RecipePickerView: View {
+    /// Espresso mode lists only espresso recipes, Filter only the others.
+    var espresso = false
     @Environment(BrewSetup.self) private var setup
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \SavedRecipe.createdAt, order: .reverse) private var saved: [SavedRecipe]
@@ -98,15 +100,19 @@ struct RecipePickerView: View {
 
     var body: some View {
         List {
-            let custom = saved.compactMap(\.recipe)
-            Section {
-                MethodFilterBar(recipes: custom + RecipeLibrary.presets, selection: methodBinding($filterRaw),
-                                brewerMethod: brewerMethod)
+            let custom = saved.compactMap(\.recipe).filter { $0.method.isEspresso == espresso }
+            let presets = RecipeLibrary.presets.filter { $0.method.isEspresso == espresso }
+            // A filter left on a method of the other mode shows everything of this mode.
+            let method = BrewMethod(rawValue: filterRaw).flatMap { $0.isEspresso == espresso ? $0 : nil }
+            if !espresso {
+                Section {
+                    MethodFilterBar(recipes: custom + presets, selection: methodBinding($filterRaw),
+                                    brewerMethod: brewerMethod)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
-            ForEach(RecipeFilter.sections(custom: custom, presets: RecipeLibrary.presets,
-                                          method: BrewMethod(rawValue: filterRaw)), id: \.title) { section in
+            ForEach(RecipeFilter.sections(custom: custom, presets: presets, method: method), id: \.title) { section in
                 Section(section.title) { ForEach(section.recipes) { row($0) } }
             }
         }
@@ -116,7 +122,7 @@ struct RecipePickerView: View {
             // Start with the recipes for the brewer you've selected.
             guard !appeared else { return }
             appeared = true
-            if let brewerMethod, brewerMethod != .universal { filterRaw = brewerMethod.rawValue }
+            if !espresso, let brewerMethod, brewerMethod != .universal, !brewerMethod.isEspresso { filterRaw = brewerMethod.rawValue }
         }
     }
 
@@ -176,6 +182,8 @@ struct RecipeDetailView: View {
     let recipe: Recipe
 
     @Environment(BrewSetup.self) private var setup
+    @Environment(\.espressoSetup) private var espressoSetup
+    @AppStorage(SettingsKey.brewMode) private var brewMode = BrewMode.filter.rawValue
     @Environment(AppRouter.self) private var router
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -266,7 +274,10 @@ struct RecipeDetailView: View {
                 }
 
                 Button {
-                    setup.select(recipe)
+                    // An espresso recipe goes to the espresso setup and opens the Brew tab on Espresso.
+                    let mode = BrewMode.of(recipe)
+                    (mode == .espresso ? espressoSetup : setup).select(recipe)
+                    brewMode = mode.rawValue
                     router.tab = .brew
                 } label: {
                     Label("Brew this", systemImage: "drop.fill")

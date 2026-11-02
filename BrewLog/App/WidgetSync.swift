@@ -4,6 +4,13 @@ import WidgetKit
 
 /// Keeps the Home and Lock Screen widgets up to date (see `WidgetSnapshot`).
 enum WidgetSync {
+    /// The widgets show (and "Brew" starts) the mode selected on the Brew tab.
+    @MainActor
+    static func update(context: ModelContext, pourOver: BrewSetup, espresso: BrewSetup) {
+        let mode = BrewMode(rawValue: UserDefaults.standard.string(forKey: SettingsKey.brewMode) ?? "") ?? .filter
+        update(context: context, setup: mode == .espresso ? espresso : pourOver)
+    }
+
     /// Called when the app goes to the background and after a brew is saved.
     @MainActor
     static func update(context: ModelContext, setup: BrewSetup) {

@@ -5,6 +5,7 @@ import SwiftData
 struct BrewLogApp: App {
     let container: ModelContainer
     @State private var setup = BrewSetup()
+    @State private var espressoSetup = BrewSetup(scope: .espresso)
     @State private var router = AppRouter()
 
     init() {
@@ -20,6 +21,7 @@ struct BrewLogApp: App {
         WindowGroup {
             RootView()
                 .environment(setup)
+                .environment(\.espressoSetup, espressoSetup)
                 .environment(router)
                 .environment(ScaleManager.shared)
                 .environment(MachineManager.shared)
@@ -64,11 +66,14 @@ final class BrewSetup {
     var recipe: Recipe
     var dose: Double
     var waterTemp: Double
-    var beanID: UUID? { didSet { save(beanID, SettingsKey.lastBeanID) } }
-    var brewerID: UUID? { didSet { save(brewerID, SettingsKey.lastBrewerID) } }
-    var grinderID: UUID? { didSet { save(grinderID, SettingsKey.lastGrinderID) } }
-    var filterID: UUID? { didSet { save(filterID, SettingsKey.lastFilterID) } }
-    var waterID: UUID? { didSet { save(waterID, SettingsKey.lastWaterID) } }
+    var beanID: UUID? { didSet { save(beanID, "beanID") } }
+    var brewerID: UUID? { didSet { save(brewerID, "brewerID") } }
+    var grinderID: UUID? { didSet { save(grinderID, "grinderID") } }
+    var filterID: UUID? { didSet { save(filterID, "filterID") } }
+    var waterID: UUID? { didSet { save(waterID, "waterID") } }
+    /// Pour-over or espresso: each remembers its own recipe, bean and gear.
+    let scope: SetupScope
+    @ObservationIgnored private let defaults: UserDefaults
     var grindValue: Double?
     var grindText: String = ""
     /// Bean + grinder for which the grind was set explicitly (setup assistant, "Brew again").
@@ -109,21 +114,27 @@ final class BrewSetup {
                                        lastBrew: lastBrew, espresso: recipe.method.isEspresso)
     }
 
-    init() {
-        let defaults = UserDefaults.standard
-        let recipe = RecipeLibrary.preset(id: defaults.string(forKey: SettingsKey.lastRecipeID) ?? "")
+    init(scope: SetupScope = .pourOver, defaults: UserDefaults = .standard) {
+        self.scope = scope
+        self.defaults = defaults
+        let espresso = scope == .espresso
+        let recipe = RecipeLibrary.preset(id: defaults.string(forKey: scope.key("recipeID")) ?? "")
+            ?? RecipeLibrary.presets.first { $0.method.isEspresso == espresso }
             ?? RecipeLibrary.presets.first
             ?? RecipeLibrary.blankRecipe()
         self.recipe = recipe
         self.dose = recipe.dose
         self.waterTemp = recipe.temperature
-        func load(_ key: String) -> UUID? { defaults.string(forKey: key).flatMap(UUID.init(uuidString:)) }
-        self.beanID = load(SettingsKey.lastBeanID)
-        self.brewerID = load(SettingsKey.lastBrewerID)
-        self.grinderID = load(SettingsKey.lastGrinderID)
-        self.filterID = load(SettingsKey.lastFilterID)
-        self.waterID = load(SettingsKey.lastWaterID)
+        func load(_ name: String) -> UUID? { defaults.string(forKey: scope.key(name)).flatMap(UUID.init(uuidString:)) }
+        self.beanID = load("beanID")
+        self.brewerID = load("brewerID")
+        self.grinderID = load("grinderID")
+        self.filterID = load("filterID")
+        self.waterID = load("waterID")
     }
+
+    /// The key under which this setup remembers its recipe (custom recipes are restored from it at launch).
+    var recipeIDKey: String { scope.key("recipeID") }
 
     var scaledRecipe: Recipe { recipe.scaled(toDose: dose) }
 
@@ -131,10 +142,49 @@ final class BrewSetup {
         self.recipe = recipe
         dose = recipe.dose
         waterTemp = recipe.temperature
-        UserDefaults.standard.set(recipe.id, forKey: SettingsKey.lastRecipeID)
+        defaults.set(recipe.id, forKey: recipeIDKey)
     }
 
-    private func save(_ id: UUID?, _ key: String) {
-        UserDefaults.standard.set(id?.uuidString, forKey: key)
+    private func save(_ id: UUID?, _ name: String) {
+        defaults.set(id?.uuidString, forKey: scope.key(name))
+    }
+}
+
+extension BrewSetup {
+    /// Before the Filter | Espresso switch an espresso recipe could sit in the pour-over setup: hand it (with its
+    /// gear and bean, where espresso has none yet) to the espresso setup and give pour-over a pour-over recipe.
+    /// Returns whether something moved, so the Brew tab can open on Espresso.
+    @discardableResult
+    static func moveEspressoRecipe(from pourOver: BrewSetup, to espresso: BrewSetup) -> Bool {
+        guard pourOver.recipe.method.isEspresso else { return false }
+        espresso.select(pourOver.recipe)
+        espresso.dose = pourOver.dose
+        if espresso.brewerID == nil { espresso.brewerID = pourOver.brewerID }
+        if espresso.grinderID == nil { espresso.grinderID = pourOver.grinderID }
+        if espresso.beanID == nil { espresso.beanID = pourOver.beanID }
+        if espresso.grindValue == nil { espresso.grindValue = pourOver.grindValue }
+        pourOver.select(RecipeLibrary.presets.first { !$0.method.isEspresso } ?? RecipeLibrary.blankRecipe())
+        return true
+    }
+}
+
+/// Which brew setup: pour-over keeps today's `setup.*` keys, espresso has its own `espresso.*` keys.
+enum SetupScope {
+    case pourOver, espresso
+
+    var keyPrefix: String { self == .pourOver ? "setup." : "espresso." }
+
+    func key(_ name: String) -> String { keyPrefix + name }
+}
+
+private struct EspressoSetupKey: EnvironmentKey {
+    static let defaultValue = BrewSetup(scope: .espresso)
+}
+
+extension EnvironmentValues {
+    /// The espresso setup; `BrewSetup` in the environment is the pour-over one.
+    var espressoSetup: BrewSetup {
+        get { self[EspressoSetupKey.self] }
+        set { self[EspressoSetupKey.self] = newValue }
     }
 }

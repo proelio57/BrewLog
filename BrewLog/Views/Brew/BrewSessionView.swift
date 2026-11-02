@@ -40,8 +40,12 @@ struct BrewSessionView: View {
     private var live: some View {
         VStack(spacing: 14) {
             header
-            readouts
-            if session.hasPressure || (session.isEspresso && machine.isConnected) { MachineReadout() }
+            if session.isEspresso && [.armed, .brewing, .finished].contains(session.phase) {
+                ShotReadouts(session: session)
+            } else {
+                readouts
+                if session.hasPressure || (session.isEspresso && machine.isConnected) { MachineReadout() }
+            }
             stepCard
             if session.phase == .brewing || session.phase == .finished {
                 liveCharts
@@ -50,6 +54,7 @@ struct BrewSessionView: View {
             }
             stepsStrip
             Spacer(minLength: 0)
+            if session.stopRequested && session.phase == .brewing { StopNowBanner() }
             controls
         }
         .padding(.horizontal)
@@ -60,6 +65,7 @@ struct BrewSessionView: View {
             Button("Keep brewing", role: .cancel) {}
         }
         .animation(.easeInOut(duration: 0.25), value: session.phase)
+        .animation(.easeInOut(duration: 0.25), value: session.stopRequested)
         .modifier(MachineWarningAlert())
     }
 
@@ -353,11 +359,25 @@ struct BrewSessionView: View {
         brew.recipeID = session.recipe.id
         brew.recipeName = session.recipe.name
         brew.recipe = session.recipe
+        if session.isEspresso, let pressure = ShotMonitor.targetPressure(recipe: session.recipe.pressure,
+                                                                          machineTarget: session.machineTargetPressure),
+           pressure != session.recipe.pressure {
+            // The analysis judges the shot against the pressure GaggiMate was set to.
+            var snapshot = session.recipe
+            snapshot.pressure = pressure
+            brew.recipe = snapshot
+        }
         brew.dose = session.dose
         brew.targetWater = session.recipe.water
         brew.finalWeight = session.finalWeight
         brew.totalTime = session.elapsed
         brew.waterTemp = config.waterTemp
+        if session.isEspresso {
+            let measured = session.machineSamples.compactMap(\.c)
+            brew.waterTemp = ShotMonitor.shotTemperature(
+                recipe: config.waterTemp, machineTarget: session.machineTargetTemperature,
+                measuredAverage: measured.isEmpty ? nil : measured.reduce(0, +) / Double(measured.count))
+        }
         brew.grindValue = config.grindValue
         brew.grindSetting = config.grindText
         brew.setGrinder(config.grinder)
