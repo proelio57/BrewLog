@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Release notes for the commit being released (HEAD): what changed, without "Merge pull request …" lines,
-# Co-Authored-By trailers or conventional-commit prefixes ("feat(ios): "). For a merge commit the notes are the
-# messages of the commits it brings in; otherwise the commit's own message. Needs the history of the merged
+# Release notes for the commit being released (HEAD): only what users notice, i.e. commits of type feat, fix or
+# perf ("feat(ios): …"). CI, build, docs, chore, test and refactor commits and merge lines are left out, as are
+# Co-Authored-By trailers and the type prefixes. For a merge commit the notes come from the commits it brings
+# in; otherwise from the commit itself. Needs the history of the merged
 # branch (CI: actions/checkout with fetch-depth). At most 2000 characters (SideStore / GitHub release notes).
 set -euo pipefail
 
@@ -20,7 +21,11 @@ for message in sys.stdin.read().split("\x1e"):
     lines = [l for l in lines if not re.match(r"(?i)^(co-authored-by|signed-off-by):", l)]
     if not lines:
         continue
-    subject = re.sub(r"^[a-z]+(\([^)]*\))?!?:\s*", "", lines[0])
+    match = re.match(r"^([a-z]+)(\([^)]*\))?!?:\s*", lines[0])
+    # Only user-facing changes; untyped commits (e.g. edits on github.com) are not release notes either.
+    if not match or match.group(1) not in ("feat", "fix", "perf"):
+        continue
+    subject = lines[0][match.end():]
     subject = subject[:1].upper() + subject[1:]
     body = "\n".join(lines[1:]).strip()
     out.append("• " + subject + ("\n" + body if body else ""))
