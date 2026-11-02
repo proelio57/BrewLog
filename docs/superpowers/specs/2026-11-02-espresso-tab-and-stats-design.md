@@ -17,8 +17,13 @@ Platform: **iOS** (SwiftUI, iOS 17+). Android is paused; web follows later (pari
 3. **Espresso mode screen** (inside the Brew tab): device strip (scale, GaggiMate, BOOKOO Espresso Monitor — each with state and, when
    live, weight / pressure / temperature), recipe card (espresso recipes), dose · yield · ratio · temperature,
    bean, grinder and grind, big **Pull shot** button.
-4. **Automatic shot**: Pull shot opens the shot screen, tares the scale and arms. With a controllable GaggiMate
-   the app sends the recipe as profile and starts the shot itself. The timer starts by itself on the first of:
+4. **GaggiMate wins** (revised 2026-11-02): the machine's settings are always right. When it is connected the
+   espresso screen shows its target temperature, target pressure and profile ("from GaggiMate") instead of the
+   recipe's, Pull shot never sends a profile (only the existing explicit "Send recipe" does), and the brew is
+   saved and analysed with the machine's target temperature (else the measured average, else the recipe) and
+   target pressure (else the recipe).
+4b. **Automatic shot**: Pull shot opens the shot screen, tares the scale and arms. With a controllable GaggiMate
+   the app starts the shot itself (without changing its profile). The timer starts by itself on the first of:
    machine pump on, pressure ≥ 1 bar (monitor), or weight ≥ auto-start threshold.
 5. **Stop at the target yield**: once `weight + flow × stopLag ≥ yield` the app stops a controllable machine
    (`stopShot`), otherwise plays the target cue with a "Stop now" banner. `stopLag` setting: 0.5–2.5 s,

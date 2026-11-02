@@ -19,6 +19,7 @@
 - Settled rule without a machine: ≥ 4 readings within the last 1.5 s, all within ±0.3 g, and weight ≥ 90 % of the yield.
 - Pump stop with a machine: finish 3 s later (existing behaviour, keep).
 - Start triggers (existing, keep): machine pump on, pressure ≥ 1 bar, weight ≥ `AppSettings.autoStartThreshold`.
+- GaggiMate wins: when connected, temperature = machine `targetTemperature` → measured average (`MachineSample.c`) → recipe; pressure target = machine `targetPressure` → recipe `pressure`. Pull shot never calls `sendProfile`.
 - New settings keys: `autoStopShot` (Bool, default true), `shotStopLag` (Double, default 1.0).
 - Copy is English, sentence case, no exclamation marks (matches the app).
 - Verification: pure logic with `scripts/test-pure-swift.sh` (Task 1); everything with iOS CI: `gh workflow run ios.yml --ref "$(git branch --show-current)"` then `gh run watch "$(gh run list --branch "$(git branch --show-current)" --workflow ios.yml --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status` → exit 0, "Executed N tests, with 0 failures".
@@ -47,6 +48,8 @@
   - read-only: `firstDropsTime: TimeInterval?` (first t with grams ≥ 1), `liveRatio: Double?` (grams / dose, nil when dose ≤ 0 or grams < 1), `stopped: Bool`
   - `static func shouldStop(weight: Double, flow: Double, yield: Double, lag: Double) -> Bool`
   - `static func isSettled(_ readings: [(t: TimeInterval, grams: Double)], now: TimeInterval) -> Bool`
+  - `static func shotTemperature(recipe: Double, machineTarget: Double?, measuredAverage: Double?) -> Double` (first non-nil, finite, 70–105 °C of target → average → recipe)
+  - `static func targetPressure(recipe: Double?, machineTarget: Double?) -> Double?` (machine target in 1–15 bar wins)
   - `scripts/test-pure-swift.sh <test file> <source files…>`: builds a throw-away SwiftPM package (module `BrewLog`, `-swift-version 5`) in a temp dir and runs it in `swift:6.1`; exit status of the tests.
 
 - [ ] **Step 1: Write the failing tests** in `BrewLogTests/ShotMonitorTests.swift` (`@testable import BrewLog`):
@@ -84,6 +87,13 @@ func testNoYieldNoStop() {
     XCTAssertEqual(m.ingest(grams: 50, flow: 3, at: 10), .none)
     XCTAssertNil(m.liveRatio)
 }
+func testGaggiMateWins() {
+    XCTAssertEqual(ShotMonitor.shotTemperature(recipe: 93, machineTarget: 91, measuredAverage: 90.4), 91)
+    XCTAssertEqual(ShotMonitor.shotTemperature(recipe: 93, machineTarget: nil, measuredAverage: 90.4), 90.4)
+    XCTAssertEqual(ShotMonitor.shotTemperature(recipe: 93, machineTarget: 0, measuredAverage: nil), 93) // implausible
+    XCTAssertEqual(ShotMonitor.targetPressure(recipe: 9, machineTarget: 6), 6)
+    XCTAssertEqual(ShotMonitor.targetPressure(recipe: 9, machineTarget: nil), 9)
+}
 func testNoReadingsNoDecision() {
     XCTAssertFalse(ShotMonitor.isSettled([], now: 10))
     XCTAssertFalse(ShotMonitor.isSettled([(t: 9.9, grams: 30), (t: 10, grams: 30)], now: 10)) // < 4 readings
@@ -94,7 +104,7 @@ func testNoReadingsNoDecision() {
 
 - [ ] **Step 3: Implement `ShotMonitor`** in `BrewLog/Brewing/ShotMonitor.swift` (Foundation only). Keep the last 1.5 s of readings for `isSettled`; `ingest` returns `.stop` at most once and only when `autoStop && yield > 0`; returns `.finish` once settled at ≥ 0.9 × yield (also after a `.stop`).
 
-- [ ] **Step 4: Run the tests** — same command → Expected: `Executed 7 tests, with 0 failures`.
+- [ ] **Step 4: Run the tests** — same command → Expected: `Executed 8 tests, with 0 failures`.
 
 - [ ] **Step 5: Commit** — `git add BrewLog/Brewing/ShotMonitor.swift BrewLogTests/ShotMonitorTests.swift scripts/test-pure-swift.sh && git commit -m "feat(ios): ShotMonitor decides when an espresso shot stops and finishes"`
 
@@ -133,7 +143,8 @@ func testNoReadingsNoDecision() {
 
 - [ ] **Step 1:** Create the `ShotMonitor` in `begin(at:)` when `isEspresso` with `yield: recipe.water`, `dose: dose`, `stopLag: AppSettings.shotStopLag`, `autoStop: AppSettings.autoStopShot`.
 - [ ] **Step 2:** In `ingest` (phase `.brewing`, espresso only) call `monitor.ingest(grams:flow:at:)` with `t = date - startDate`; on `.stop`: if `followsMachine && machine.canControl` → `machine.stopShot()`, else `stopRequested = true; fire(.target)`; on `.finish` → `onAutoFinish?()` (skip when `followsMachine`; the pump-stop path finishes those).
-- [ ] **Step 3:** Update `peakPressure` / `currentPressure` in `recordPressure`, `currentTemperature` from `machineReading`; expose `firstDropsTime` and `liveRatio` from the monitor.
+- [ ] **Step 3:** Update `peakPressure` / `currentPressure` in `recordPressure`, `currentTemperature` from `machineReading`; expose `firstDropsTime` and `liveRatio` from the monitor. Capture `machine.status.targetTemperature` / `targetPressure` at `begin(at:)` (`machineTargetTemperature`, `machineTargetPressure`, read-only).
+- [ ] **Step 3b:** In `BrewSessionView.finish()` for espresso: `brew.waterTemp = ShotMonitor.shotTemperature(recipe: config.waterTemp, machineTarget: session.machineTargetTemperature, measuredAverage: <average of session.machineSamples c>)`; when `ShotMonitor.targetPressure(...)` differs from `recipe.pressure`, save the recipe snapshot with that pressure so `EspressoAnalyzer` judges against the machine.
 - [ ] **Step 4:** Build on CI → Expected: success, all tests pass.
 - [ ] **Step 5: Commit** — `feat(ios): espresso shots stop at the target yield and finish by themselves`
 
@@ -166,7 +177,7 @@ func testNoReadingsNoDecision() {
 - Produces: `enum BrewMode: String { case filter, espresso }`; `struct EspressoSetupView: View`; `struct DeviceStrip: View` (scale · GaggiMate · monitor, each: name, state label, live value `12.3 g` / `8.9 bar` / `93 °C`; tap opens the existing sheets).
 
 - [ ] **Step 1:** `BrewSetupView`: `Picker("Mode", selection: $brewMode)` with `.pickerStyle(.segmented)` pinned at the top (`@AppStorage(SettingsKey.brewMode)`); Filter shows today's content minus `machineSection`; the recipe picker gets `espresso: false`.
-- [ ] **Step 2:** `EspressoSetupView`: `DeviceStrip`, recipe card (`RecipePickerView(setup: espressoSetup, espresso: true)`), dose / yield / ratio / temperature, bean, grinder + `GrindInputView`, `MachineCard`, primary button "Pull shot" → `BrewConfig` from the espresso setup; when `MachineManager.shared.canControl` call `sendProfile(recipe:dose:temperature:)` first.
+- [ ] **Step 2:** `EspressoSetupView`: `DeviceStrip`, recipe card (`RecipePickerView(setup: espressoSetup, espresso: true)`), dose / yield / ratio, temperature (when GaggiMate is connected: its target temperature, target pressure and profile, labelled "from GaggiMate", no stepper; otherwise the recipe's with the stepper), bean, grinder + `GrindInputView`, `MachineCard`, primary button "Pull shot" → `BrewConfig` from the espresso setup with `waterTemp` = machine target when connected. Pull shot never calls `sendProfile`.
 - [ ] **Step 3:** brewlog://start starts the selected mode (Filter → today's `startBrew`, Espresso → "Pull shot").
 - [ ] **Step 4:** Build on CI → success, all tests pass.
 - [ ] **Step 5: Commit** — `feat(ios): Filter | Espresso switch with its own espresso screen`
