@@ -266,3 +266,48 @@ extension Double {
     /// Live scale readout without unit, e.g. "123.4".
     var scaleReadout: String { String(format: "%.1f", noiseFree) }
 }
+
+/// A small two-way capsule switch with a sliding thumb (Filter | Espresso, Journal | Stats). Sits in the toolbar.
+struct CapsuleOption<Value: Hashable> {
+    let value: Value
+    let title: String
+    let symbol: String
+}
+
+struct CapsuleSwitch<Value: Hashable>: View {
+    let options: [CapsuleOption<Value>]
+    @Binding var selection: Value
+    @Namespace private var thumb
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(options, id: \.value) { option in
+                let selected = option.value == selection
+                Button {
+                    guard !selected else { return }
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { selection = option.value }
+                    Haptics.tap()
+                } label: {
+                    Label(option.title, systemImage: option.symbol)
+                        .labelStyle(.titleAndIcon)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .foregroundStyle(selected ? Color.white : Color.secondary)
+                        .background {
+                            if selected {
+                                Capsule().fill(Color.accentColor.gradient).matchedGeometryEffect(id: "thumb", in: thumb)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? [.isSelected] : [])
+            }
+        }
+        .padding(3)
+        .background(Color(.tertiarySystemFill), in: Capsule())
+        .fixedSize()
+    }
+}

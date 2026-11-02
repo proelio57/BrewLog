@@ -75,9 +75,11 @@ private struct SetupScreen: View {
     }
 
     private var modePicker: some View {
-        Picker("Mode", selection: $modeRaw) {
-            ForEach(BrewMode.allCases) { Text($0.title).tag($0.rawValue) }
-        }
+        CapsuleSwitch(options: [CapsuleOption(value: BrewMode.filter.rawValue, title: "Filter", symbol: "drop.fill"),
+                                CapsuleOption(value: BrewMode.espresso.rawValue, title: "Espresso", symbol: "cup.and.saucer.fill")],
+                      selection: $modeRaw)
+            .accessibilityIdentifier("brew.mode")
+    }
         .pickerStyle(.segmented)
         .padding(.horizontal)
         .padding(.vertical, 6)
@@ -129,6 +131,7 @@ private struct SetupScreen: View {
                 }
                 .accessibilityIdentifier("brew.quickWeigh")
             }
+            ToolbarItem(placement: .principal) { modePicker }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showSettings = true } label: { Image(systemName: "gearshape") }
                     .accessibilityLabel("Settings")
@@ -138,7 +141,6 @@ private struct SetupScreen: View {
                 Button("Done") { grindFocused = false }
             }
         }
-        .safeAreaInset(edge: .top, spacing: 0) { modePicker }
         .safeAreaInset(edge: .bottom) { startButton }
     }
 
