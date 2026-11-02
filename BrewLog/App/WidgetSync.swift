@@ -6,7 +6,8 @@ import WidgetKit
 enum WidgetSync {
     /// Called when the app goes to the background and after a brew is saved.
     @MainActor
-    static func update(context: ModelContext, selectedBeanID: UUID?) {
+    static func update(context: ModelContext, setup: BrewSetup) {
+        let selectedBeanID = setup.beanID
         var last = FetchDescriptor<Brew>(sortBy: [SortDescriptor(\.date, order: .reverse)])
         last.fetchLimit = 1
         let brew = (try? context.fetch(last))?.first
@@ -22,6 +23,9 @@ enum WidgetSync {
 
         let weekAgo = Date().addingTimeInterval(-7 * 86_400)
         let recent = FetchDescriptor<Brew>(predicate: #Predicate { $0.date >= weekAgo })
+        // Enough history for the streak and the 7-day chart.
+        let since = Date().addingTimeInterval(-120 * 86_400)
+        let history = (try? context.fetch(FetchDescriptor<Brew>(predicate: #Predicate { $0.date >= since }))) ?? []
         let snapshot = WidgetSnapshot(
             lastBrew: brew.map {
                 WidgetSnapshot.LastBrew(recipeName: $0.recipeName, date: $0.date, rating: $0.rating,
@@ -29,10 +33,13 @@ enum WidgetSync {
             },
             bean: bean.map {
                 WidgetSnapshot.BeanInfo(name: $0.name, roaster: $0.roaster, roastDate: $0.roastDate,
-                                        remaining: $0.remaining, bagWeight: $0.bagWeight)
+                                        remaining: $0.remaining, bagWeight: $0.bagWeight,
+                                        lastDose: ($0.brews ?? []).max(by: { $0.date < $1.date })?.dose)
             },
             next: bean.flatMap(nextBrew),
-            brewsThisWeek: (try? context.fetchCount(recent)) ?? 0)
+            brewsThisWeek: (try? context.fetchCount(recent)) ?? 0,
+            activity: history.sorted { $0.date > $1.date }.prefix(400).map { WidgetSnapshot.Activity(date: $0.date, rating: $0.rating) },
+            setup: WidgetSnapshot.Setup(recipeName: setup.recipe.name, dose: setup.dose))
 
         // Widget reloads are budgeted by iOS: only when something changed.
         if var previous = SharedStore.load() {

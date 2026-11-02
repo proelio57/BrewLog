@@ -47,24 +47,27 @@ struct RootView: View {
             if !UserDefaults.standard.bool(forKey: SettingsKey.onboardingDone) {
                 router.cover = .onboarding
             }
-            WidgetSync.update(context: context, selectedBeanID: setup.beanID)
+            WidgetSync.update(context: context, setup: setup)
             await RecipeFeed.shared.syncIfNeeded()
         }
         .onChange(of: scenePhase) { _, phase in
             guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
             if phase == .background {
-                WidgetSync.update(context: context, selectedBeanID: setup.beanID)
+                WidgetSync.update(context: context, setup: setup)
                 GitSync.shared.syncIfEnabled(context: context)
                 return
             }
             guard phase == .active else { return }
             Task { await RecipeFeed.shared.syncIfNeeded() }
         }
-        // Widgets open the app with brewlog://brew, …/weigh, …/journal or …/beans.
+        // Widgets open the app with brewlog://brew, …/start, …/weigh, …/journal or …/beans.
         .onOpenURL { url in
             guard let link = AppLink(url: url) else { return }
             switch link {
             case .brew: router.tab = .brew
+            case .start:
+                router.tab = .brew
+                router.startBrewRequested = true
             case .journal: router.tab = .history
             case .beans: router.tab = .beans
             case .weigh:

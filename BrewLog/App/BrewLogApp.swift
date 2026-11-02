@@ -43,6 +43,8 @@ enum RootCover: String, Identifiable {
 final class AppRouter {
     var tab: AppTab = .brew
     var cover: RootCover?
+    /// Set by the widgets' brewlog://start: the Brew tab starts the brew as soon as it's shown.
+    var startBrewRequested = false
 
     /// Switches between full-screen flows (dismiss first, then present, to avoid presentation glitches).
     func present(_ next: RootCover?) {
