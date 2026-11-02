@@ -71,7 +71,8 @@ struct RatingTrendChart: View {
             .chartXSelection(value: $selected)
             .chartYScale(domain: 0...5)
             .chartYAxis { AxisMarks(position: .leading, values: [1, 3, 5]) { _ in AxisGridLine().foregroundStyle(.quaternary); AxisValueLabel() } }
-            .chartXScale(domain: (weeks.first?.start ?? .now)...(weeks.last?.start ?? .now))
+            // Through the end of this week, so the newest point (centred in its week) isn't cut off.
+            .chartXScale(domain: (weeks.first?.start ?? .now)...(weeks.last?.start ?? .now).addingTimeInterval(7 * 86_400))
             .chartXAxis { AxisMarks(values: .stride(by: .weekOfYear, count: 3)) { _ in AxisValueLabel(format: .dateTime.day().month()) } }
             .frame(height: 140)
             .accessibilityLabel("Average rating per week")

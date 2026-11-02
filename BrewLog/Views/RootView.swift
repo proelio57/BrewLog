@@ -86,5 +86,9 @@ struct RootView: View {
                   let recipe = savedRecipes.first(where: { $0.id == id })?.recipe else { continue }
             setup.select(recipe)
         }
+        // An own espresso recipe from before the Filter | Espresso switch belongs to the espresso setup.
+        if BrewSetup.moveEspressoRecipe(from: setup, to: espressoSetup) {
+            UserDefaults.standard.set(BrewMode.espresso.rawValue, forKey: SettingsKey.brewMode)
+        }
     }
 }

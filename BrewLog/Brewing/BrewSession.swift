@@ -424,11 +424,9 @@ final class BrewSession {
             guard let startDate else { return }
             maxWeight = max(maxWeight, grams)
             appendSample(t: date.timeIntervalSince(startDate), grams: grams, force: false)
-            if shotMonitor != nil {
-                checkShot(grams: grams, at: date.timeIntervalSince(startDate))
-            } else {
-                checkTargetPing()
-            }
+            checkShot(grams: grams, at: date.timeIntervalSince(startDate))
+            // Auto stop cues the yield itself; without it the recipe's yield ping stays.
+            if !(shotMonitor.map { $0.autoStop && $0.yield > 0 } ?? false) { checkTargetPing() }
         default:
             break
         }
