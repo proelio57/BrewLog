@@ -56,7 +56,10 @@ private struct SetupScreen: View {
     @State private var showPresets = false
     @FocusState private var grindFocused: Bool
 
-    private var brewers: [Equipment] { equipment.filter { $0.type == .brewer } }
+    /// Espresso lists only espresso machines, Filter only the other brewers (V60, Switch, …).
+    private var brewers: [Equipment] {
+        equipment.filter { $0.type == .brewer && ($0.method == .espresso) == espresso }
+    }
     private var grinders: [Equipment] { equipment.filter { $0.type == .grinder } }
     private var filters: [Equipment] { equipment.filter { $0.type == .filter } }
     private var waters: [Equipment] { equipment.filter { $0.type == .water } }
@@ -184,6 +187,9 @@ private struct SetupScreen: View {
             .onChange(of: setup.recipe.id, applyRecommendation)
             .onAppear {
                 if setup.grindValue == nil { restoreGrind() }
+                // A brewer of the other mode (e.g. a V60 carried over to espresso) gives way to this mode's first.
+                if let id = setup.brewerID, !brewers.contains(where: { $0.id == id }) { setup.brewerID = brewers.first?.id }
+                if setup.brewerID == nil, let first = brewers.first { setup.brewerID = first.id }
                 startIfRequested()
             }
             .onChange(of: router.startBrewRequested) { startIfRequested() }
