@@ -54,7 +54,7 @@ private struct StatusWidgetView: View {
                     Color.clear
                 }
             }
-            .widgetURL(AppLink.brew.url)
+            .widgetURL(AppLink.start.url)
     }
 
     @ViewBuilder
@@ -192,8 +192,8 @@ struct BrewLogQuickWidget: Widget {
             QuickWidgetView(entry: entry)
         }
         .configurationDisplayName("Quick start")
-        .description("Start a brew or weigh with one tap.")
-        .supportedFamilies([.systemSmall, .accessoryCircular])
+        .description("Starts a brew with what's set up on the Brew tab, or Quick weigh.")
+        .supportedFamilies([.accessoryCircular, .accessoryRectangular, .systemSmall])
     }
 }
 
@@ -201,23 +201,50 @@ private struct QuickWidgetView: View {
     let entry: SnapshotEntry
     @Environment(\.widgetFamily) private var family
 
+    private var setup: WidgetSnapshot.Setup? { entry.snapshot?.setup }
+    private var today: Int { entry.snapshot?.stats(now: entry.date)?.brewsToday ?? 0 }
+
     var body: some View {
         Group {
-            if family == .accessoryCircular {
+            switch family {
+            case .accessoryCircular:
+                // A tap starts the brew; the circle shows how many cups today.
                 ZStack {
                     AccessoryWidgetBackground()
-                    Image(systemName: "drop.fill").font(.title2)
+                    VStack(spacing: 0) {
+                        Image(systemName: "play.fill").font(.caption)
+                        Text("\(today)").font(.system(.title3, design: .rounded).weight(.bold))
+                        Text("today").font(.system(size: 9, weight: .semibold))
+                    }
                 }
-                .widgetURL(AppLink.brew.url)
-            } else {
+                .widgetURL(AppLink.start.url)
+            case .accessoryRectangular:
+                VStack(alignment: .leading, spacing: 2) {
+                    Label("Brew", systemImage: "play.circle.fill").font(.headline).widgetAccentable()
+                    if let setup {
+                        Text("\(setup.recipeName) · \(Int(setup.dose.rounded())) g").font(.caption).lineLimit(1)
+                    }
+                    if let grind = entry.snapshot?.next?.grind, !grind.isEmpty {
+                        Text(grind).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    } else {
+                        Text(today == 0 ? "No coffee yet today" : "\(today) today").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .widgetURL(AppLink.start.url)
+            default:
                 VStack(spacing: 8) {
-                    WidgetButton(title: "Brew", symbol: "drop.circle.fill", link: .brew, large: true)
+                    WidgetButton(title: "Brew", symbol: "play.circle.fill", link: .start, large: true)
                     WidgetButton(title: "Weigh", symbol: "scalemass.fill", link: .weigh, large: true)
+                    if let setup {
+                        Text("\(setup.recipeName) · \(Int(setup.dose.rounded())) g")
+                            .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    }
                 }
             }
         }
         .containerBackground(for: .widget) {
-            if family == .accessoryCircular { Color.clear } else { accent.opacity(0.12) }
+            if family == .systemSmall { accent.opacity(0.12) } else { Color.clear }
         }
     }
 }

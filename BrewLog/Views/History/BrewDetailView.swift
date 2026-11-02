@@ -55,7 +55,7 @@ struct BrewDetailView: View {
                     Button("Save") {
                         storeSuggestion(analysis)
                         try? context.save()
-                        WidgetSync.update(context: context, selectedBeanID: setup.beanID)
+                        WidgetSync.update(context: context, setup: setup)
                         GitSync.shared.syncIfEnabled(context: context)
                         onDone?()
                     }

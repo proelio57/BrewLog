@@ -136,7 +136,18 @@ struct BrewSetupView: View {
             .onChange(of: setup.recipe.id, applyRecommendation)
             .onAppear {
                 if setup.grindValue == nil { restoreGrind() }
+                startIfRequested()
             }
+            .onChange(of: router.startBrewRequested) { startIfRequested() }
+    }
+
+    /// The widgets' "Brew" (brewlog://start) starts the brew with what's set up here.
+    private func startIfRequested() {
+        guard router.startBrewRequested else { return }
+        router.startBrewRequested = false
+        guard activeBrew == nil, router.cover == nil else { return }
+        // Let the tab switch settle before the brew screen slides up.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { if activeBrew == nil { startBrew() } }
     }
 
     private func reconciler(_ keyPath: ReferenceWritableKeyPath<BrewSetup, UUID?>) -> ([UUID], [UUID]) -> Void {
