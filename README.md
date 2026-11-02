@@ -49,6 +49,7 @@ A pour-over brewing companion for iPhone, with matching [Android](android/README
   - Share recipes as `.json` files and import them again (Recipes → **+**). Hand-written files only need a name and steps, see [docs/data-formats.md](docs/data-formats.md).
   - Import a **Beanconqueror** backup (`Beanconqueror.zip` or `.json`) with brews, beans, grinders and brewers (Journal → **⋯**). Importing it again only adds what's new.
 - **Espresso**: espresso recipes (classic 1:2, ristretto, lungo, turbo shot, allongé) with a shot screen, yield ping and an espresso-specific analysis (shot time, ratio, first drops, pressure). Works with just a scale.
+- **Espresso tab** (iOS): a Filter | Espresso switch at the top of the Brew tab; espresso remembers its own recipe, dose, bean and gear. Scale, GaggiMate and pressure sensor at a glance; GaggiMate's temperature, pressure and profile win over the recipe. The shot starts by itself, shows time, weight, ratio, flow, pressure, temperature and first drops live, stops at the target yield (or says "Stop now") and ends by itself.
 - **GaggiMate**: connect a Gaggia with GaggiMate over Wi-Fi (Settings → Espresso machine). BrewLog records pressure, temperature and flow, starts and stops with the shot, can start/stop the shot, switch modes, nudge the temperature and send a recipe to the machine as a profile. A scale connected to GaggiMate is used for the weight.
 - **Online recipe updates**: the app downloads the recipe list from `Shared/recipes.json` every few hours, so new or corrected recipes don't need an app update.
 

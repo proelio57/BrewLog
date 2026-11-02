@@ -308,6 +308,8 @@ struct SettingsView: View {
     @State private var machineHost = MachineManager.shared.host
 
     @AppStorage(SettingsKey.autoStartThreshold) private var autoStartThreshold = 1.5
+    @AppStorage(SettingsKey.autoStopShot) private var autoStopShot = true
+    @AppStorage(SettingsKey.shotStopLag) private var shotStopLag = 1.0
     @AppStorage(SettingsKey.pingLeadMode) private var pingLeadMode = PingLeadMode.auto.rawValue
     @AppStorage(SettingsKey.pingLeadGrams) private var pingLeadGrams = 3.0
     @AppStorage(SettingsKey.reactionTime) private var reactionTime = 0.6
@@ -338,6 +340,20 @@ struct SettingsView: View {
             }
 
             machineSection
+
+            Section {
+                Toggle("Stop at the target yield", isOn: $autoStopShot)
+                if autoStopShot {
+                    VStack(alignment: .leading) {
+                        Text("Stop lead \(shotStopLag, specifier: "%.1f") s")
+                        Slider(value: $shotStopLag, in: 0.5...2.5, step: 0.1)
+                    }
+                }
+            } header: {
+                Text("Espresso shot")
+            } footer: {
+                Text("BrewLog stops the shot when the weight plus the current flow times this lead reaches the yield, so drips land on target.")
+            }
 
             Section {
                 VStack(alignment: .leading) {
