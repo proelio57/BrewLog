@@ -50,6 +50,9 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          # History of the merged branch, for the release notes (scripts/release-notes.sh).
+          fetch-depth: 100
 
       - uses: maxim-lobanov/setup-xcode@v1
         with:

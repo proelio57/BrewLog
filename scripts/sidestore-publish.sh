@@ -68,7 +68,7 @@ case "${1:-}" in
     ;;
   release)
     ipa=$2 version=$3 build=$4
-    notes=$(git log -1 --format=%B | head -c 2000)
+    notes=$("$ROOT/scripts/release-notes.sh")
     checkout_branch
     # Make sure the branch exists, so the release tag can point at it (the release repo may be empty).
     push_branch "Set up SideStore branch" copy_recipes
