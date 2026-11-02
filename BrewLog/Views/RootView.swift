@@ -4,6 +4,7 @@ import SwiftData
 struct RootView: View {
     @Environment(AppRouter.self) private var router
     @Environment(BrewSetup.self) private var setup
+    @Environment(\.espressoSetup) private var espressoSetup
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var context
     @Query private var savedRecipes: [SavedRecipe]
@@ -77,10 +78,13 @@ struct RootView: View {
         }
     }
 
+    /// Own recipes aren't presets, so each setup (pour-over and espresso) gets its own back from the store.
     private func restoreCustomRecipe() {
-        guard let id = UserDefaults.standard.string(forKey: SettingsKey.lastRecipeID),
-              RecipeLibrary.preset(id: id) == nil,
-              let recipe = savedRecipes.first(where: { $0.id == id })?.recipe else { return }
-        setup.select(recipe)
+        for setup in [setup, espressoSetup] {
+            guard let id = UserDefaults.standard.string(forKey: setup.recipeIDKey),
+                  RecipeLibrary.preset(id: id) == nil,
+                  let recipe = savedRecipes.first(where: { $0.id == id })?.recipe else { continue }
+            setup.select(recipe)
+        }
     }
 }

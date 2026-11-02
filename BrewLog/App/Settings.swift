@@ -29,6 +29,8 @@ enum SettingsKey {
     static let machineHost = "machine.host"
     static let pressureEnabled = "pressure.enabled"
     static let pressureDemo = "pressure.demo"
+    static let autoStopShot = "autoStopShot"
+    static let shotStopLag = "shotStopLag"
 
     // Last used setup
     static let lastRecipeID = "setup.recipeID"
@@ -67,6 +69,8 @@ enum AppSettings {
             SettingsKey.keepAwake: true,
             SettingsKey.quickWeighAutoStart: true,
             SettingsKey.chartShowsFlow: true,
+            SettingsKey.autoStopShot: true,
+            SettingsKey.shotStopLag: 1.0,
         ])
     }
 
@@ -88,4 +92,8 @@ enum AppSettings {
     static var voicePrompts: Bool { d.bool(forKey: SettingsKey.voicePrompts) }
     static var voicePreview: Bool { d.bool(forKey: SettingsKey.voicePreview) }
     static var keepAwake: Bool { d.bool(forKey: SettingsKey.keepAwake) }
+    /// Espresso: stop the shot (or say "Stop now") just before the target yield.
+    static var autoStopShot: Bool { d.bool(forKey: SettingsKey.autoStopShot) }
+    /// Seconds of flow still on its way to the cup after the stop (0.5–2.5 s).
+    static var shotStopLag: Double { min(max(d.double(forKey: SettingsKey.shotStopLag), 0.5), 2.5) }
 }
