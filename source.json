@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.38",
+          "buildVersion": "38",
+          "date": "2026-11-02T12:30:49Z",
+          "localizedDescription": "Merge pull request #10 from proelio57/fix/widget-circle\n\nRoomier circular Lock Screen widgets",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.38/BrewLog.ipa",
+          "size": 2916779,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.35",
           "buildVersion": "35",
           "date": "2026-11-02T09:26:43Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.11/BrewLog.ipa",
           "size": 1899192,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.10",
-          "buildVersion": "10",
-          "date": "2026-10-16T13:08:04Z",
-          "localizedDescription": "fix(android): read espresso recipes from the shared recipe list\n\nThe online recipe list now contains espresso recipes (method espresso, step\nkinds preinfuse/extract). Without these enum values the Android feed sync\nfailed as a whole.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.10/BrewLog.ipa",
-          "size": 1845927,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.35",
-      "versionDate": "2026-11-02T09:26:43Z",
-      "versionDescription": "Merge pull request #9 from proelio57/feature/widgets-stats\n\niOS widgets: Coffee stats, Beans left, dynamic Quick start, tap to brew",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.35/BrewLog.ipa",
-      "size": 2916132
+      "version": "0.1.38",
+      "versionDate": "2026-11-02T12:30:49Z",
+      "versionDescription": "Merge pull request #10 from proelio57/fix/widget-circle\n\nRoomier circular Lock Screen widgets",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.38/BrewLog.ipa",
+      "size": 2916779
     }
   ],
   "news": []
