@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.47",
+          "buildVersion": "47",
+          "date": "2026-11-02T16:55:56Z",
+          "localizedDescription": "• ShotMonitor decides when an espresso shot stops and finishes\n\n• Espresso remembers its own setup\n\n• Espresso shots stop at the target yield and finish by themselves\n\n• Live shot readouts with ratio, flow, pressure and temperature\n\n• Filter | Espresso switch with its own espresso screen\n\n• Espresso auto-stop settings\n\n• BrewStats computes activity, trends, beans and recipes\n\n• Brews feed the statistics\n\n• Statistics for pour-over and espresso with charts and trends\n\n• Keep the yield ping without auto stop and own espresso recipes in the espresso setup",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.47/BrewLog.ipa",
+          "size": 3137881,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.40",
           "buildVersion": "40",
           "date": "2026-11-02T12:50:57Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.13/BrewLog.ipa",
           "size": 2291145,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.12",
-          "buildVersion": "12",
-          "date": "2026-10-17T11:24:53Z",
-          "localizedDescription": "feat(ios): BrewLog backup export/import and grind remembered per grinder\n\n- Settings → Backup & import: export everything as one JSON file in the format\n  shared with web and Android ({app, format, exportedAt, data, samples, machine},\n  dates in ms, lowercase ids). Import merges by id and never replaces anything;\n  it detects the wrapped format and the bare app data of Android exports.\n  Non-UUID ids from the web app map to stable UUIDs. Everything is parsed\n  leniently, sanitized and clamped (BrewLogBackup.swift).\n- Switching grinders restores that grinder's own setting (set by hand after the\n  last brew, else the history recommendation, else a starting value from the\n  preset's defaultGrind or the typical range), like Android. No filter starting\n  value for espresso.\n- Tests for the format (Linux-runnable), SwiftData import/export round trip and\n  grind memory.\n- docs: backup format in data-formats.md, parity guide with real file paths and\n  an honest feature matrix.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.12/BrewLog.ipa",
-          "size": 2034694,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.40",
-      "versionDate": "2026-11-02T12:50:57Z",
-      "versionDescription": "• Release notes say what changed, not \"Merge pull request\"\nscripts/release-notes.sh builds the notes from the commits a merge brings\nin (or the commit itself), without merge lines, Co-Authored-By trailers or\n\"feat(ios):\" prefixes. Used for the SideStore source, the iOS release and the\nAndroid release; the workflows now check out enough history for it.",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.40/BrewLog.ipa",
-      "size": 2916777
+      "version": "0.1.47",
+      "versionDate": "2026-11-02T16:55:56Z",
+      "versionDescription": "• ShotMonitor decides when an espresso shot stops and finishes\n\n• Espresso remembers its own setup\n\n• Espresso shots stop at the target yield and finish by themselves\n\n• Live shot readouts with ratio, flow, pressure and temperature\n\n• Filter | Espresso switch with its own espresso screen\n\n• Espresso auto-stop settings\n\n• BrewStats computes activity, trends, beans and recipes\n\n• Brews feed the statistics\n\n• Statistics for pour-over and espresso with charts and trends\n\n• Keep the yield ping without auto stop and own espresso recipes in the espresso setup",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.47/BrewLog.ipa",
+      "size": 3137881
     }
   ],
   "news": []
