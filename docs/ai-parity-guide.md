@@ -45,6 +45,7 @@ Use this reference table to find the corresponding implementation files across p
 | **Live Timer / Heads-Up** | `Brewing/BrewLiveActivity.swift`, `ActivityShared/`, `BrewLogWidgets/` (Live Activity & Dynamic Island) | `brewing/BrewNotificationManager.kt` | – |
 | **Bluetooth Scale (BLE)** | `Scale/ScaleManager.swift`, `Scale/BookooProtocol.swift` | `scale/ScaleManager.kt`, `scale/BookooProtocol.kt` | `scale/scaleManager.ts`, `scale/bookoo.ts` (Web Bluetooth) |
 | **Pressure Sensor (BOOKOO Espresso Monitor)** | `Scale/PressureMonitor.swift`, `Scale/BookooMonitorProtocol.swift` | `scale/PressureManager.kt`, `scale/BookooPressureProtocol.kt` | `scale/pressure.ts` |
+| **Brew Statistics** | `Analysis/BrewStats.swift`, `Analysis/BrewStats+Brew.swift`, `Views/Stats/StatsView.swift`, `Views/Stats/StatsCharts.swift` | – | – |
 | **Espresso Tab** | `Brewing/ShotMonitor.swift`, `Views/Espresso/EspressoSetupView.swift`, `Views/Espresso/DeviceStrip.swift`, `Views/Espresso/ShotReadouts.swift`, `Views/Brew/BrewSetupView.swift` | – | – |
 | **Espresso Machine (GaggiMate)** | `Machine/MachineManager.swift`, `Machine/MachineStatus.swift` | `machine/MachineManager.kt`, `machine/GaggiMate.kt`, `ui/screens/MachineViews.kt` | `machine/machineManager.ts`, `machine/gaggimate.ts` |
 | **Audio & Haptics** | `Audio/SoundPlayer.swift` | `audio/SoundPlayer.kt` | `audio/sound.ts` |
@@ -99,6 +100,7 @@ Use this reference table to find the corresponding implementation files across p
 | **Espresso Mode** (recipes, shot screen, espresso analysis) | Yes | Yes | Yes | Android: shot screen, espresso analysis; the BOOKOO Espresso Monitor starts the timer at ≥ 1 bar and records the pressure curve (saved per brew, in backups as `machine`). |
 | **BOOKOO Espresso Monitor** (pressure) | Yes | Yes | Yes | |
 | **Espresso Tab** (Filter \| Espresso switch on the Brew tab, own remembered espresso setup, device strip, GaggiMate values win, live shot numbers) | Yes | No (paused) | No | GaggiMate's target temperature, pressure and profile are shown and saved instead of the recipe's; Pull shot never sends a profile. |
+| **Brew Statistics** (Journal → Stats: pour-over / espresso, 30 / 90 days / all; brews per week, rating trend, times, ratios, extraction, first drops, peak pressure, channeling, shot scatter, beans and recipes ranking) | Yes | No (paused) | No | `BrewStats` (pure, tested); a ranking needs at least 2 rated brews. |
 | **Auto Stop at Yield** (stop when weight + flow × lead ≥ yield, "Stop now" without machine control, finish when the cup has settled) | Yes | No (paused) | No | `ShotMonitor`; settings "Stop at the target yield" and "Stop lead" (0.5–2.5 s, default 1.0). |
 | **GaggiMate** | Yes | Yes | Partial | Web only when the app is opened over http (browsers block `ws://` from https pages). |
 | **Backup Export** (wrapped format with curves) | Yes | Yes | Yes | Android writes the same wrapped format with `samples`, `machine` and `photos`. Bean photos, TDS and water fields: iOS only so far; Android and web ignore them on import (unknown keys), so they are lost when re-exported there. |
