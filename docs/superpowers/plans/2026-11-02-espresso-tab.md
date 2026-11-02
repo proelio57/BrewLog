@@ -1,10 +1,10 @@
-# Espresso Tab Implementation Plan
+# Espresso Mode Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** An Espresso tab with its own remembered setup and a shot screen that starts, measures (weight, flow, ratio, pressure, temperature), stops at the target yield and finishes by itself.
+**Goal:** An Espresso mode in the Brew tab (switch *Filter | Espresso* at the top) with its own remembered setup and a shot screen that starts, measures (weight, flow, ratio, pressure, temperature), stops at the target yield and finishes by itself.
 
-**Architecture:** Shot decisions (stop now, finished, live numbers) live in a pure `ShotMonitor` that `BrewSession` feeds with readings; the views only show its state. Espresso gets a second `BrewSetup` instance with its own UserDefaults keys, injected through a custom environment key. The tab bar becomes Brew · Espresso · Journal · Beans · Gear; the recipe library moves into Gear.
+**Architecture:** Shot decisions (stop now, finished, live numbers) live in a pure `ShotMonitor` that `BrewSession` feeds with readings; the views only show its state. Espresso gets a second `BrewSetup` instance with its own UserDefaults keys, injected through a custom environment key. The Brew tab gets a segmented control *Filter | Espresso* at the top; the tab bar stays unchanged.
 
 **Tech Stack:** Swift 5 mode, SwiftUI, SwiftData, iOS 17; XCTest. Pure logic also runs on Linux (`swift:6.1` Docker image).
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - iOS only. Android is paused; web later. Parity guide gets rows with Android "No (paused)", Web "No".
-- Tabs exactly: Brew · Espresso · Journal · Beans · Gear (five, no "More").
+- Tab bar unchanged (Brew · Recipes · Journal · Beans · Gear). The Brew tab's mode is a segmented `Picker` *Filter | Espresso* at the top, remembered under `SettingsKey.brewMode` (`"filter"` default, `"espresso"`).
 - Pour-over setup keeps the existing `setup.*` keys (no migration); espresso uses the same names with prefix `espresso.` (e.g. `espresso.recipeID`).
 - Stop rule: stop when `weight + max(flow, 0) × stopLag ≥ yield`. `stopLag` default 1.0 s, range 0.5–2.5 s, step 0.1.
 - Settled rule without a machine: ≥ 4 readings within the last 1.5 s, all within ±0.3 g, and weight ≥ 90 % of the yield.
@@ -29,7 +29,7 @@
 - Scale disconnects mid-shot (no readings): the shot neither stops nor finishes on its own; the user's Stop still works (ShotMonitor test `testNoReadingsNoDecision`).
 - Machine connected but not controllable (`canControl == false`): "Stop now" cue and banner instead of `stopShot` (Task 3 step on the cue path; checked in manual run list).
 - Recipe without a positive yield (water ≤ 0): auto stop is off for that shot, no division by zero in the live ratio (ShotMonitor test `testNoYieldNoStop`).
-- Switching tabs while a shot screen is open: the full-screen shot stays; returning keeps the setups apart (Task 2 test `testScopesDoNotShareKeys`).
+- Switching Filter ↔ Espresso: each mode keeps its own recipe, dose, bean and grind (Task 2 test `testScopesDoNotShareKeys`); a brewlog://start link starts the mode that is selected.
 
 ---
 
@@ -152,26 +152,24 @@ func testNoReadingsNoDecision() {
 - [ ] **Step 3:** Build on CI → Expected: success.
 - [ ] **Step 4: Commit** — `feat(ios): live shot readouts with ratio, flow, pressure and temperature`
 
-### Task 5: Espresso tab and tab bar
+### Task 5: Filter | Espresso switch and the espresso screen
 
 **Files:**
-- Create: `BrewLog/Views/Espresso/EspressoView.swift`
+- Create: `BrewLog/Views/Espresso/EspressoSetupView.swift`
 - Create: `BrewLog/Views/Espresso/DeviceStrip.swift`
-- Modify: `BrewLog/App/BrewLogApp.swift` (`AppTab`: `case brew, espresso, history, beans, gear`)
-- Modify: `BrewLog/Views/RootView.swift` (tabs)
+- Modify: `BrewLog/Views/Brew/BrewSetupView.swift` (segmented control at the top; Filter content as today without `machineSection`; Espresso content = `EspressoSetupView`)
 - Modify: `BrewLog/Views/Recipes/RecipeViews.swift` (`RecipePickerView(setup: BrewSetup, espresso: Bool)`)
-- Modify: `BrewLog/Views/Brew/BrewSetupView.swift` (pour-over only: remove `machineSection`, picker with `espresso: false`)
-- Modify: `BrewLog/Views/Gear/GearViews.swift` (row "Recipes" → `RecipeListView()`)
+- Modify: `BrewLog/App/Settings.swift` (`SettingsKey.brewMode`)
 
 **Interfaces:**
-- Consumes: `\.espressoSetup` (Task 2), `MachineManager.shared`, `PressureMonitor.shared`, `ScaleManager.shared`, existing `MachineCard`, `BrewConfig`, `BrewSessionView`.
-- Produces: `struct EspressoView: View`; `struct DeviceStrip: View` (scale · GaggiMate · monitor, each: name, state label, live value: `12.3 g`, `8.9 bar`, `93 °C`; tap opens the existing scale / machine / monitor sheets).
+- Consumes: `\.espressoSetup` (Task 2), `MachineManager.shared`, `PressureMonitor.shared`, `ScaleManager.shared`, existing `MachineCard`, `GrindInputView`, `BrewConfig`, `BrewSessionView`.
+- Produces: `enum BrewMode: String { case filter, espresso }`; `struct EspressoSetupView: View`; `struct DeviceStrip: View` (scale · GaggiMate · monitor, each: name, state label, live value `12.3 g` / `8.9 bar` / `93 °C`; tap opens the existing sheets).
 
-- [ ] **Step 1:** `EspressoView`: `DeviceStrip`, recipe card (espresso recipes via `RecipePickerView(setup: espressoSetup, espresso: true)`), dose / yield / ratio / temperature card (steppers like the Brew tab), bean picker, grinder + grind input (reuse `GrindInputView`), existing `MachineCard`, primary button "Pull shot" → `BrewConfig` from the espresso setup; when `MachineManager.shared.canControl`, call `sendProfile(recipe:dose:temperature:)` before presenting.
-- [ ] **Step 2:** Tab bar: Brew (`drop.circle.fill`), Espresso (`cup.and.saucer.fill`), Journal, Beans, Gear; `AppLink.start` keeps starting the pour-over brew.
-- [ ] **Step 3:** `RecipePickerView` filters by `espresso`; the Brew tab never shows espresso recipes; Gear gets "Recipes".
-- [ ] **Step 4:** Build on CI → Expected: success, all tests pass.
-- [ ] **Step 5: Commit** — `feat(ios): Espresso tab with devices, its own setup and Pull shot`
+- [ ] **Step 1:** `BrewSetupView`: `Picker("Mode", selection: $brewMode)` with `.pickerStyle(.segmented)` pinned at the top (`@AppStorage(SettingsKey.brewMode)`); Filter shows today's content minus `machineSection`; the recipe picker gets `espresso: false`.
+- [ ] **Step 2:** `EspressoSetupView`: `DeviceStrip`, recipe card (`RecipePickerView(setup: espressoSetup, espresso: true)`), dose / yield / ratio / temperature, bean, grinder + `GrindInputView`, `MachineCard`, primary button "Pull shot" → `BrewConfig` from the espresso setup; when `MachineManager.shared.canControl` call `sendProfile(recipe:dose:temperature:)` first.
+- [ ] **Step 3:** brewlog://start starts the selected mode (Filter → today's `startBrew`, Espresso → "Pull shot").
+- [ ] **Step 4:** Build on CI → success, all tests pass.
+- [ ] **Step 5: Commit** — `feat(ios): Filter | Espresso switch with its own espresso screen`
 
 ### Task 6: Settings and docs
 

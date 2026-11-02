@@ -8,13 +8,13 @@ Platform: **iOS** (SwiftUI, iOS 17+). Android is paused; web follows later (pari
 
 ## A. Espresso tab
 
-1. **Tab bar** (five tabs, no "More"): Brew · Espresso · Journal · Beans · Gear. The Recipes tab goes away; its
-   list (create, import, share) moves to Gear → "Recipes". The Brew tab shows pour-over recipes only, the
-   Espresso tab espresso recipes only.
+1. **Switch at the top of the Brew tab** (revised 2026-11-02): a segmented control *Filter | Espresso*, remembered.
+   The tab bar stays as it is (Brew · Recipes · Journal · Beans · Gear). Filter shows the pour-over setup and only
+   pour-over recipes in the picker; Espresso shows the espresso screen and only espresso recipes.
 2. **Separate remembered setup** for espresso (recipe, dose, temperature, bean, machine = brewer, grinder, grind):
    picking a pour-over recipe never changes the espresso setup and vice versa. Pour-over keeps the existing
    `setup.*` keys (no migration); espresso uses `espresso.*`.
-3. **Espresso tab screen**: device strip (scale, GaggiMate, BOOKOO Espresso Monitor — each with state and, when
+3. **Espresso mode screen** (inside the Brew tab): device strip (scale, GaggiMate, BOOKOO Espresso Monitor — each with state and, when
    live, weight / pressure / temperature), recipe card (espresso recipes), dose · yield · ratio · temperature,
    bean, grinder and grind, big **Pull shot** button.
 4. **Automatic shot**: Pull shot opens the shot screen, tares the scale and arms. With a controllable GaggiMate
