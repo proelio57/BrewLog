@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.40",
+          "buildVersion": "40",
+          "date": "2026-11-02T12:50:57Z",
+          "localizedDescription": "• Release notes say what changed, not \"Merge pull request\"\nscripts/release-notes.sh builds the notes from the commits a merge brings\nin (or the commit itself), without merge lines, Co-Authored-By trailers or\n\"feat(ios):\" prefixes. Used for the SideStore source, the iOS release and the\nAndroid release; the workflows now check out enough history for it.",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.40/BrewLog.ipa",
+          "size": 2916777,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.38",
           "buildVersion": "38",
           "date": "2026-11-02T12:30:49Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.12/BrewLog.ipa",
           "size": 2034694,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.11",
-          "buildVersion": "11",
-          "date": "2026-10-16T13:42:28Z",
-          "localizedDescription": "feat: BOOKOO Espresso Monitor on iOS, protocol fixed on Android\n\nThe pressure sensor now follows BOOKOO's published protocol\n(espresso_monitor/protocols.md, as used by Beanconqueror) on both platforms:\nstart 02 0C 01 00 00 00 0F, stop 02 0C 00 00 00 00 0E, 10-byte data\npackets 02 1B 00 00 <bar*100 hi> <lo> <battery>. The previous Android\nparser expected 20-byte 03 0B packets and dropped every real reading, and\nnever sent the start command after connecting.\n\n- iOS: PressureMonitor (CoreBluetooth, demo sensor), settings sheet, pressure\n  recorded with each shot (group-head sensor wins over the machine reading),\n  shot timer starts when the pressure rises.\n- Scale scans on both platforms ignore the monitor (\"BOOKOO_EM\").\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.11/BrewLog.ipa",
-          "size": 1899192,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.38",
-      "versionDate": "2026-11-02T12:30:49Z",
-      "versionDescription": "Merge pull request #10 from proelio57/fix/widget-circle\n\nRoomier circular Lock Screen widgets",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.38/BrewLog.ipa",
-      "size": 2916779
+      "version": "0.1.40",
+      "versionDate": "2026-11-02T12:50:57Z",
+      "versionDescription": "• Release notes say what changed, not \"Merge pull request\"\nscripts/release-notes.sh builds the notes from the commits a merge brings\nin (or the commit itself), without merge lines, Co-Authored-By trailers or\n\"feat(ios):\" prefixes. Used for the SideStore source, the iOS release and the\nAndroid release; the workflows now check out enough history for it.",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.40/BrewLog.ipa",
+      "size": 2916777
     }
   ],
   "news": []
