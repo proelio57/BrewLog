@@ -41,3 +41,22 @@ final class BrewSetupScopeTests: XCTestCase {
         XCTAssertEqual(SetupScope.espresso.keyPrefix, "espresso.")
     }
 }
+
+final class BrewSetupMigrationTests: XCTestCase {
+    func testEspressoRecipeInPourOverSetupMovesOver() throws {
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let shot = try XCTUnwrap(RecipeLibrary.presets.first { $0.method.isEspresso })
+        let grinder = UUID()
+        // Before the switch existed, an espresso recipe lived in the one (pour-over) setup.
+        defaults.set(shot.id, forKey: "setup.recipeID")
+        defaults.set(grinder.uuidString, forKey: "setup.grinderID")
+        let pourOver = BrewSetup(scope: .pourOver, defaults: defaults)
+        let espresso = BrewSetup(scope: .espresso, defaults: defaults)
+
+        XCTAssertTrue(BrewSetup.moveEspressoRecipe(from: pourOver, to: espresso))
+        XCTAssertEqual(espresso.recipe.id, shot.id)
+        XCTAssertEqual(espresso.grinderID, grinder)
+        XCTAssertFalse(pourOver.recipe.method.isEspresso)
+        XCTAssertFalse(BrewSetup.moveEspressoRecipe(from: pourOver, to: espresso))
+    }
+}

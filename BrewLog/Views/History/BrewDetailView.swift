@@ -8,7 +8,9 @@ struct BrewDetailView: View {
     var onDone: (() -> Void)?
 
     @Environment(\.modelContext) private var context
-    @Environment(BrewSetup.self) private var setup
+    @Environment(BrewSetup.self) private var pourOverSetup
+    @Environment(\.espressoSetup) private var espressoSetup
+    @AppStorage(SettingsKey.brewMode) private var brewMode = BrewMode.filter.rawValue
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Brew.date, order: .reverse) private var allBrews: [Brew]
@@ -55,7 +57,7 @@ struct BrewDetailView: View {
                     Button("Save") {
                         storeSuggestion(analysis)
                         try? context.save()
-                        WidgetSync.update(context: context, setup: setup)
+                        WidgetSync.update(context: context, pourOver: pourOverSetup, espresso: espressoSetup)
                         GitSync.shared.syncIfEnabled(context: context)
                         onDone?()
                     }
@@ -357,6 +359,10 @@ struct BrewDetailView: View {
 
     private func brewAgainButton(_ analysis: BrewAnalysis?) -> some View {
         Button {
+            // Espresso brews go back to the espresso setup, pour-over to the pour-over one.
+            let mode: BrewMode = brew.isEspresso ? .espresso : .filter
+            let setup = mode == .espresso ? espressoSetup : pourOverSetup
+            brewMode = mode.rawValue
             if let recipe = brew.recipe {
                 // Reload the original (unscaled) recipe if it still exists, then apply this brew's dose.
                 let base = RecipeLibrary.preset(id: brew.recipeID) ?? recipe

@@ -31,6 +31,7 @@ enum SettingsKey {
     static let pressureDemo = "pressure.demo"
     static let autoStopShot = "autoStopShot"
     static let shotStopLag = "shotStopLag"
+    static let brewMode = "brewMode"
 
     // Last used setup
     static let lastRecipeID = "setup.recipeID"
@@ -96,4 +97,14 @@ enum AppSettings {
     static var autoStopShot: Bool { d.bool(forKey: SettingsKey.autoStopShot) }
     /// Seconds of flow still on its way to the cup after the stop (0.5–2.5 s).
     static var shotStopLag: Double { min(max(d.double(forKey: SettingsKey.shotStopLag), 0.5), 2.5) }
+}
+
+/// The Brew tab's switch: pour-over (filter) or espresso, each with its own setup.
+enum BrewMode: String, CaseIterable, Identifiable {
+    case filter, espresso
+    var id: String { rawValue }
+    var title: String { self == .filter ? "Filter" : "Espresso" }
+
+    /// The mode a recipe belongs to.
+    static func of(_ recipe: Recipe) -> BrewMode { recipe.method.isEspresso ? .espresso : .filter }
 }

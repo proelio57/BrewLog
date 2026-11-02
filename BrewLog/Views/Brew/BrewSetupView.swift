@@ -15,9 +15,33 @@ struct BrewConfig: Identifiable {
     let grindText: String
 }
 
+/// The Brew tab: a Filter | Espresso switch at the top, each mode with its own remembered setup.
 struct BrewSetupView: View {
+    @Environment(BrewSetup.self) private var pourOverSetup
+    @Environment(\.espressoSetup) private var espressoSetup
+    @AppStorage(SettingsKey.brewMode) private var modeRaw = BrewMode.filter.rawValue
+
+    var body: some View {
+        let mode = BrewMode(rawValue: modeRaw) ?? .filter
+        NavigationStack {
+            // Below this point `BrewSetup` is the selected mode's setup (recipe picker included).
+            SetupScreen(mode: mode, modeRaw: $modeRaw)
+                .environment(mode == .espresso ? espressoSetup : pourOverSetup)
+                .id(mode)
+        }
+        .onAppear {
+            if BrewSetup.moveEspressoRecipe(from: pourOverSetup, to: espressoSetup) { modeRaw = BrewMode.espresso.rawValue }
+        }
+    }
+}
+
+private struct SetupScreen: View {
+    let mode: BrewMode
+    @Binding var modeRaw: String
+
     @Environment(BrewSetup.self) private var setup
     @Environment(ScaleManager.self) private var scale
+    @Environment(MachineManager.self) private var machine
     @Environment(AppRouter.self) private var router
     @AppStorage(SettingsKey.setupBannerDismissed) private var setupBannerDismissed = false
     @AppStorage(SettingsKey.weighBeansFirst) private var weighBeansFirst = true
@@ -44,20 +68,41 @@ struct BrewSetupView: View {
     }
 
     // Split into parts: as one expression the body is too complex for the type checker.
+    private var espresso: Bool { mode == .espresso }
+
     var body: some View {
-        NavigationStack {
-            observingSetup(presentingSheets(screen))
+        observingSetup(presentingSheets(screen))
+    }
+
+    private var modePicker: some View {
+        Picker("Mode", selection: $modeRaw) {
+            ForEach(BrewMode.allCases) { Text($0.title).tag($0.rawValue) }
         }
+        .pickerStyle(.segmented)
+        .padding(.horizontal)
+        .padding(.vertical, 6)
+        .background(Color(.systemGroupedBackground))
+        .accessibilityIdentifier("brew.mode")
     }
 
     private var screen: some View {
         ScrollView {
             VStack(spacing: 18) {
                 if equipment.isEmpty && !setupBannerDismissed { setupBanner }
-                ScaleStatusCard()
+                if espresso {
+                    DeviceStrip { showSettings = true }
+                } else {
+                    ScaleStatusCard()
+                }
                 recipeCard
-                doseCard
-                machineSection
+                if espresso {
+                    EspressoSetupView()
+                    MachineCard(recipe: setup.scaledRecipe, dose: setup.dose, temperature: setup.waterTemp) {
+                        showSettings = true
+                    }
+                } else {
+                    doseCard
+                }
                 VStack(alignment: .leading, spacing: 8) {
                     SectionHeader(title: "Coffee")
                     beanCard
@@ -93,6 +138,7 @@ struct BrewSetupView: View {
                 Button("Done") { grindFocused = false }
             }
         }
+        .safeAreaInset(edge: .top, spacing: 0) { modePicker }
         .safeAreaInset(edge: .bottom) { startButton }
     }
 
@@ -160,15 +206,6 @@ struct BrewSetupView: View {
 
     // MARK: Cards
 
-    @ViewBuilder
-    private var machineSection: some View {
-        if setup.recipe.method.isEspresso {
-            MachineCard(recipe: setup.scaledRecipe, dose: setup.dose, temperature: setup.waterTemp) {
-                showSettings = true
-            }
-        }
-    }
-
     private var setupBanner: some View {
         Card {
             HStack(alignment: .top, spacing: 12) {
@@ -198,7 +235,7 @@ struct BrewSetupView: View {
 
     private var recipeCard: some View {
         NavigationLink {
-            RecipePickerView()
+            RecipePickerView(espresso: espresso)
         } label: {
             Card {
                 VStack(alignment: .leading, spacing: 12) {
@@ -233,7 +270,7 @@ struct BrewSetupView: View {
             VStack(alignment: .leading, spacing: 12) {
                 StepCheck(title: "Weigh the beans", detail: scale.isReady ? "On the scale, before the brewer goes on" : "With a scale connected",
                           isOn: $weighBeansFirst)
-                if !setup.recipe.method.isEspresso {
+                if !espresso {
                     Divider()
                     StepCheck(title: "Rinse the paper", detail: "With hot water, then discard it", isOn: $rinsePaper)
                 }
@@ -304,7 +341,6 @@ struct BrewSetupView: View {
         @Bindable var setup = setup
         return Card {
             VStack(spacing: 14) {
-                let espresso = setup.recipe.method.isEspresso
                 gearRow(espresso ? "Machine" : "Brewer", symbol: "cup.and.saucer.fill", items: brewers, selection: $setup.brewerID)
                 Divider()
                 if !espresso {
@@ -372,8 +408,8 @@ struct BrewSetupView: View {
             startBrew()
         } label: {
             HStack {
-                Image(systemName: scale.isReady ? "scalemass.fill" : "timer")
-                Text(scale.isReady ? "Start brew" : "Start brew (timer only)")
+                Image(systemName: espresso ? "cup.and.saucer.fill" : (scale.isReady ? "scalemass.fill" : "timer"))
+                Text(startTitle)
             }
             .font(.headline)
             .frame(maxWidth: .infinity)
@@ -384,6 +420,11 @@ struct BrewSetupView: View {
         .padding(.horizontal)
         .padding(.bottom, 8)
         .background(.bar.opacity(0.0))
+    }
+
+    private var startTitle: String {
+        if espresso { return "Pull shot" }
+        return scale.isReady ? "Start brew" : "Start brew (timer only)"
     }
 
     /// The grind as typed or stepped by hand: remembered for the selected grinder.
@@ -414,11 +455,12 @@ struct BrewSetupView: View {
         activeBrew = BrewConfig(
             recipe: setup.scaledRecipe,
             dose: setup.dose,
-            waterTemp: setup.waterTemp,
+            // GaggiMate's target temperature wins: the machine's settings are always right.
+            waterTemp: espresso ? (EspressoSetupView.machineTemperature(machine) ?? setup.waterTemp) : setup.waterTemp,
             bean: selectedBean,
             brewer: brewers.first { $0.id == setup.brewerID },
             grinder: selectedGrinder,
-            filter: setup.recipe.method.isEspresso ? nil : filters.first { $0.id == setup.filterID },
+            filter: espresso ? nil : filters.first { $0.id == setup.filterID },
             water: waters.first { $0.id == setup.waterID },
             grindValue: selectedGrinder == nil ? nil : setup.grindValue,
             grindText: setup.grindText

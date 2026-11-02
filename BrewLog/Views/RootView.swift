@@ -48,13 +48,13 @@ struct RootView: View {
             if !UserDefaults.standard.bool(forKey: SettingsKey.onboardingDone) {
                 router.cover = .onboarding
             }
-            WidgetSync.update(context: context, setup: setup)
+            WidgetSync.update(context: context, pourOver: setup, espresso: espressoSetup)
             await RecipeFeed.shared.syncIfNeeded()
         }
         .onChange(of: scenePhase) { _, phase in
             guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
             if phase == .background {
-                WidgetSync.update(context: context, setup: setup)
+                WidgetSync.update(context: context, pourOver: setup, espresso: espressoSetup)
                 GitSync.shared.syncIfEnabled(context: context)
                 return
             }

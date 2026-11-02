@@ -150,6 +150,24 @@ final class BrewSetup {
     }
 }
 
+extension BrewSetup {
+    /// Before the Filter | Espresso switch an espresso recipe could sit in the pour-over setup: hand it (with its
+    /// gear and bean, where espresso has none yet) to the espresso setup and give pour-over a pour-over recipe.
+    /// Returns whether something moved, so the Brew tab can open on Espresso.
+    @discardableResult
+    static func moveEspressoRecipe(from pourOver: BrewSetup, to espresso: BrewSetup) -> Bool {
+        guard pourOver.recipe.method.isEspresso else { return false }
+        espresso.select(pourOver.recipe)
+        espresso.dose = pourOver.dose
+        if espresso.brewerID == nil { espresso.brewerID = pourOver.brewerID }
+        if espresso.grinderID == nil { espresso.grinderID = pourOver.grinderID }
+        if espresso.beanID == nil { espresso.beanID = pourOver.beanID }
+        if espresso.grindValue == nil { espresso.grindValue = pourOver.grindValue }
+        pourOver.select(RecipeLibrary.presets.first { !$0.method.isEspresso } ?? RecipeLibrary.blankRecipe())
+        return true
+    }
+}
+
 /// Which brew setup: pour-over keeps today's `setup.*` keys, espresso has its own `espresso.*` keys.
 enum SetupScope {
     case pourOver, espresso
