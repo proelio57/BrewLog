@@ -42,6 +42,21 @@ final class BrewSession {
     /// The last settled reading while weighing; "Ready" keeps it even after the cup is lifted off.
     private(set) var settledDose: Double?
 
+    // Espresso shot (see `ShotMonitor`)
+    /// Seconds into the shot of the first gram in the cup.
+    var firstDropsTime: TimeInterval? { shotMonitor?.firstDropsTime }
+    /// Grams in the cup per gram of coffee so far.
+    var liveRatio: Double? { shotMonitor?.liveRatio }
+    private(set) var peakPressure: Double = 0
+    private(set) var currentPressure: Double?
+    private(set) var currentTemperature: Double?
+    /// The yield is (almost) reached but the app can't stop the machine: the shot screen says "Stop now".
+    private(set) var stopRequested = false
+    /// GaggiMate's targets when the shot started; they win over the recipe's (the machine's settings are right).
+    private(set) var machineTargetTemperature: Double?
+    private(set) var machineTargetPressure: Double?
+    private var shotMonitor: ShotMonitor?
+
     @ObservationIgnored private let scale: ScaleManager
     @ObservationIgnored private let sound: SoundPlayer
     @ObservationIgnored private let voice = VoicePrompter.shared
@@ -239,6 +254,7 @@ final class BrewSession {
     }
 
     private func machineReading(_ status: GaggiMateStatus, at date: Date) {
+        if let temperature = status.temperature, temperature.isFinite { currentTemperature = temperature }
         if weighsViaMachine, let grams = status.weight { ingest(grams, at: date) }
         // With the pressure sensor connected, its (faster, group-head) readings make the curve.
         guard !monitor.isReady else { return }
@@ -253,7 +269,12 @@ final class BrewSession {
     }
 
     private func recordPressure(_ bar: Double, temperature: Double?, flow: Double?, at date: Date) {
-        guard phase == .brewing, let startDate, machineSamples.count < Self.maxSamples else { return }
+        guard phase == .brewing, let startDate else { return }
+        if bar.isFinite {
+            currentPressure = bar
+            peakPressure = max(peakPressure, bar)
+        }
+        guard machineSamples.count < Self.maxSamples else { return }
         let t = date.timeIntervalSince(startDate)
         guard t - lastMachineSampleT >= 0.2 else { return }
         lastMachineSampleT = t
@@ -403,7 +424,11 @@ final class BrewSession {
             guard let startDate else { return }
             maxWeight = max(maxWeight, grams)
             appendSample(t: date.timeIntervalSince(startDate), grams: grams, force: false)
-            checkTargetPing()
+            if shotMonitor != nil {
+                checkShot(grams: grams, at: date.timeIntervalSince(startDate))
+            } else {
+                checkTargetPing()
+            }
         default:
             break
         }
@@ -418,6 +443,18 @@ final class BrewSession {
         if usesScale && !weighsViaMachine { scale.brewStarted() }
         machineSamples = []
         lastMachineSampleT = -1
+        if isEspresso {
+            // Measured by a scale: the monitor stops at the yield and ends the shot once the cup has settled.
+            shotMonitor = usesScale ? ShotMonitor(yield: recipe.water, dose: dose, stopLag: AppSettings.shotStopLag,
+                                                  autoStop: AppSettings.autoStopShot) : nil
+            peakPressure = 0
+            currentPressure = nil
+            stopRequested = false
+            if machine.isConnected {
+                machineTargetTemperature = machine.status.targetTemperature
+                machineTargetPressure = machine.status.targetPressure
+            }
+        }
         // The first step at 0:00 is silent; just mark it as started.
         for (index, step) in recipe.steps.enumerated() where step.time <= 0 {
             startPinged.insert(index)
@@ -524,6 +561,27 @@ final class BrewSession {
         if weight >= target - pingLead {
             targetPinged.insert(index)
             fire(.target)
+        }
+    }
+
+    /// Espresso: stop just before the yield (the machine if the app controls it, else "Stop now"), finish when settled.
+    private func checkShot(grams: Double, at t: TimeInterval) {
+        guard var shot = shotMonitor else { return }
+        let action = shot.ingest(grams: grams, flow: flowRate, at: t)
+        shotMonitor = shot
+        switch action {
+        case .stop:
+            if followsMachine && machine.canControl && machine.status.isBrewing {
+                machine.stopShot()
+            } else {
+                stopRequested = true
+            }
+            fire(.target)
+        case .finish:
+            // With a machine, the pump stopping ends the shot (see `machineShot`).
+            if !followsMachine { onAutoFinish?() }
+        case .none:
+            break
         }
     }
 

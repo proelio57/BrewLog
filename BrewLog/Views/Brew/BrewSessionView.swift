@@ -353,11 +353,25 @@ struct BrewSessionView: View {
         brew.recipeID = session.recipe.id
         brew.recipeName = session.recipe.name
         brew.recipe = session.recipe
+        if session.isEspresso, let pressure = ShotMonitor.targetPressure(recipe: session.recipe.pressure,
+                                                                          machineTarget: session.machineTargetPressure),
+           pressure != session.recipe.pressure {
+            // The analysis judges the shot against the pressure GaggiMate was set to.
+            var snapshot = session.recipe
+            snapshot.pressure = pressure
+            brew.recipe = snapshot
+        }
         brew.dose = session.dose
         brew.targetWater = session.recipe.water
         brew.finalWeight = session.finalWeight
         brew.totalTime = session.elapsed
         brew.waterTemp = config.waterTemp
+        if session.isEspresso {
+            let measured = session.machineSamples.compactMap(\.c)
+            brew.waterTemp = ShotMonitor.shotTemperature(
+                recipe: config.waterTemp, machineTarget: session.machineTargetTemperature,
+                measuredAverage: measured.isEmpty ? nil : measured.reduce(0, +) / Double(measured.count))
+        }
         brew.grindValue = config.grindValue
         brew.grindSetting = config.grindText
         brew.setGrinder(config.grinder)
