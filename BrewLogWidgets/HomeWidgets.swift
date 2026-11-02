@@ -211,12 +211,10 @@ private struct QuickWidgetView: View {
                 // A tap starts the brew; the circle shows how many cups today.
                 ZStack {
                     AccessoryWidgetBackground()
-                    VStack(spacing: 0) {
-                        Image(systemName: "play.fill").font(.caption)
-                        Text("\(today)").font(.system(.title3, design: .rounded).weight(.bold))
-                        Text("today").font(.system(size: 9, weight: .semibold))
-                    }
+                    CircleValue(symbol: "play.fill", value: today)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Start a brew. \(today) today")
                 .widgetURL(AppLink.start.url)
             case .accessoryRectangular:
                 VStack(alignment: .leading, spacing: 2) {

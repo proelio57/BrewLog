@@ -65,17 +65,14 @@ private struct StatsWidgetView: View {
         }
     }
 
+    /// Like the system's circular widgets: a small symbol over one big number, well inside the circle.
     private var circular: some View {
         ZStack {
             AccessoryWidgetBackground()
-            VStack(spacing: 0) {
-                Image(systemName: "cup.and.saucer.fill").font(.caption)
-                Text("\(stats?.weekTotal ?? 0)")
-                    .font(.system(.title2, design: .rounded).weight(.bold))
-                    .minimumScaleFactor(0.6)
-                Text("week").font(.system(size: 9, weight: .semibold))
-            }
+            CircleValue(symbol: "cup.and.saucer.fill", value: stats?.weekTotal ?? 0)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(stats?.weekTotal ?? 0) brews this week")
     }
 
     private var rectangular: some View {
@@ -354,5 +351,23 @@ private struct BeansLeftWidgetView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+/// A symbol over a number for the circular Lock Screen widgets, with room to the edge like the system widgets.
+struct CircleValue: View {
+    let symbol: String
+    let value: Int
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Image(systemName: symbol).font(.system(size: 13, weight: .semibold))
+            Text("\(value)")
+                .font(.system(size: 24, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+        }
+        .padding(8)
     }
 }
