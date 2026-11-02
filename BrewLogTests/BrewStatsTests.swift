@@ -38,6 +38,7 @@ final class BrewStatsTests: XCTestCase {
         XCTAssertEqual(s.weeks.last?.averageRating, 4.5)
         XCTAssertEqual(s.weeks[10].averageRating, 3.0)
         XCTAssertEqual(s.brews, 4)
+        XCTAssertEqual(s.averageRating, 4.0)
         XCTAssertLessThan(s.weeks[0].start, s.weeks[11].start)
     }
 
@@ -104,6 +105,7 @@ final class BrewStatsTests: XCTestCase {
         XCTAssertEqual(s.weeks.count, 12)
         XCTAssertTrue(s.weeks.allSatisfy { $0.brews == 0 && $0.averageRating == nil })
         XCTAssertNil(s.trend)
+        XCTAssertNil(s.averageRating)
         XCTAssertNil(s.averageRatio)
         XCTAssertNil(s.averageTime)
         XCTAssertTrue(s.beans.isEmpty)

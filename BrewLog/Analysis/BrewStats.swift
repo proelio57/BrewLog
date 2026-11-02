@@ -61,6 +61,8 @@ enum BrewStats {
         var brews: Int
         var weeks: [Week]
         var trend: Trend?
+        /// Over all rated brews in the range (unrated ones don't count).
+        var averageRating: Double?
         var averageRatio: Double?
         var averageTime: Double?
         /// Pour-over: average of brew time minus target time (positive = slower than the recipe).
@@ -115,6 +117,7 @@ enum BrewStats {
             brews: selected.count,
             weeks: weeks,
             trend: trend(weeks),
+            averageRating: average(selected.filter { $0.rating > 0 }.map { Double($0.rating) }),
             averageRatio: average(ratios),
             averageTime: average(times),
             averageTimeDelta: espresso ? nil : average(deltas),

@@ -6,6 +6,7 @@ struct HistoryListView: View {
     @Query(sort: \Brew.date, order: .reverse) private var brews: [Brew]
     @State private var search = ""
     @State private var showImport = false
+    @AppStorage("journal.view") private var view = "journal"
 
     private var filtered: [Brew] {
         guard !search.isEmpty else { return brews }
@@ -20,7 +21,9 @@ struct HistoryListView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if brews.isEmpty {
+                if view == "stats" && !brews.isEmpty {
+                    StatsView()
+                } else if brews.isEmpty {
                     ContentUnavailableView {
                         Label("No brews yet", systemImage: "cup.and.saucer")
                     } description: {
@@ -30,7 +33,6 @@ struct HistoryListView: View {
                     }
                 } else {
                     List {
-                        if search.isEmpty { statsSection }
                         ForEach(filtered) { brew in
                             NavigationLink {
                                 BrewDetailView(brew: brew)
@@ -44,6 +46,19 @@ struct HistoryListView: View {
                 }
             }
             .navigationTitle("Journal")
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if !brews.isEmpty {
+                    Picker("View", selection: $view) {
+                        Text("Journal").tag("journal")
+                        Text("Stats").tag("stats")
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+                    .padding(.vertical, 6)
+                    .background(Color(.systemGroupedBackground))
+                    .accessibilityIdentifier("journal.view")
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -55,20 +70,6 @@ struct HistoryListView: View {
                 }
             }
             .fileImport(isPresented: $showImport)
-        }
-    }
-
-    private var statsSection: some View {
-        let rated = brews.filter { $0.rating > 0 }
-        let average = rated.isEmpty ? 0 : Double(rated.map(\.rating).reduce(0, +)) / Double(rated.count)
-        let thisWeek = brews.filter { $0.date > Date().addingTimeInterval(-7 * 86_400) }.count
-        return Section {
-            HStack {
-                StatView(value: "\(brews.count)", label: "Brews")
-                StatView(value: "\(thisWeek)", label: "This week")
-                StatView(value: rated.isEmpty ? "–" : String(format: "%.1f★", average), label: "Avg rating")
-            }
-            .padding(.vertical, 4)
         }
     }
 
