@@ -46,20 +46,15 @@ struct HistoryListView: View {
                 }
             }
             .navigationTitle("Journal")
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if !brews.isEmpty {
-                    Picker("View", selection: $view) {
-                        Text("Journal").tag("journal")
-                        Text("Stats").tag("stats")
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
-                    .padding(.vertical, 6)
-                    .background(Color(.systemGroupedBackground))
-                    .accessibilityIdentifier("journal.view")
-                }
-            }
             .toolbar {
+                if !brews.isEmpty {
+                    ToolbarItem(placement: .principal) {
+                        CapsuleSwitch(options: [CapsuleOption(value: "journal", title: "Journal", symbol: "list.bullet"),
+                                                CapsuleOption(value: "stats", title: "Stats", symbol: "chart.bar.fill")],
+                                      selection: $view)
+                            .accessibilityIdentifier("journal.view")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button { showImport = true } label: {

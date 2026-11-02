@@ -159,7 +159,6 @@ extension BrewSetup {
         guard pourOver.recipe.method.isEspresso else { return false }
         espresso.select(pourOver.recipe)
         espresso.dose = pourOver.dose
-        if espresso.brewerID == nil { espresso.brewerID = pourOver.brewerID }
         if espresso.grinderID == nil { espresso.grinderID = pourOver.grinderID }
         if espresso.beanID == nil { espresso.beanID = pourOver.beanID }
         if espresso.grindValue == nil { espresso.grindValue = pourOver.grindValue }

@@ -56,7 +56,10 @@ private struct SetupScreen: View {
     @State private var showPresets = false
     @FocusState private var grindFocused: Bool
 
-    private var brewers: [Equipment] { equipment.filter { $0.type == .brewer } }
+    /// Espresso lists only espresso machines, Filter only the other brewers (V60, Switch, …).
+    private var brewers: [Equipment] {
+        equipment.filter { $0.type == .brewer && ($0.method == .espresso) == espresso }
+    }
     private var grinders: [Equipment] { equipment.filter { $0.type == .grinder } }
     private var filters: [Equipment] { equipment.filter { $0.type == .filter } }
     private var waters: [Equipment] { equipment.filter { $0.type == .water } }
@@ -75,14 +78,10 @@ private struct SetupScreen: View {
     }
 
     private var modePicker: some View {
-        Picker("Mode", selection: $modeRaw) {
-            ForEach(BrewMode.allCases) { Text($0.title).tag($0.rawValue) }
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal)
-        .padding(.vertical, 6)
-        .background(Color(.systemGroupedBackground))
-        .accessibilityIdentifier("brew.mode")
+        CapsuleSwitch(options: [CapsuleOption(value: BrewMode.filter.rawValue, title: "Filter", symbol: "drop.fill"),
+                                CapsuleOption(value: BrewMode.espresso.rawValue, title: "Espresso", symbol: "cup.and.saucer.fill")],
+                      selection: $modeRaw)
+            .accessibilityIdentifier("brew.mode")
     }
 
     private var screen: some View {
@@ -129,6 +128,7 @@ private struct SetupScreen: View {
                 }
                 .accessibilityIdentifier("brew.quickWeigh")
             }
+            ToolbarItem(placement: .principal) { modePicker }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showSettings = true } label: { Image(systemName: "gearshape") }
                     .accessibilityLabel("Settings")
@@ -138,7 +138,6 @@ private struct SetupScreen: View {
                 Button("Done") { grindFocused = false }
             }
         }
-        .safeAreaInset(edge: .top, spacing: 0) { modePicker }
         .safeAreaInset(edge: .bottom) { startButton }
     }
 
@@ -182,6 +181,9 @@ private struct SetupScreen: View {
             .onChange(of: setup.recipe.id, applyRecommendation)
             .onAppear {
                 if setup.grindValue == nil { restoreGrind() }
+                // A brewer of the other mode (e.g. a V60 carried over to espresso) gives way to this mode's first.
+                if let id = setup.brewerID, !brewers.contains(where: { $0.id == id }) { setup.brewerID = brewers.first?.id }
+                if setup.brewerID == nil, let first = brewers.first { setup.brewerID = first.id }
                 startIfRequested()
             }
             .onChange(of: router.startBrewRequested) { startIfRequested() }
