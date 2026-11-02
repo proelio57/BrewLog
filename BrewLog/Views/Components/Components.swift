@@ -267,7 +267,9 @@ extension Double {
     var scaleReadout: String { String(format: "%.1f", noiseFree) }
 }
 
-/// A small two-way capsule switch with a sliding thumb (Filter | Espresso, Journal | Stats). Sits in the toolbar.
+/// A small capsule switch with a thumb that slides (tap or drag), e.g. Filter | Espresso, Journal | Stats.
+/// The thumb slides first and the selection follows when it has arrived, so the content swap doesn't cut
+/// the animation short.
 struct CapsuleOption<Value: Hashable> {
     let value: Value
     let title: String
@@ -277,37 +279,97 @@ struct CapsuleOption<Value: Hashable> {
 struct CapsuleSwitch<Value: Hashable>: View {
     let options: [CapsuleOption<Value>]
     @Binding var selection: Value
-    @Namespace private var thumb
+    @State private var shown: Value?
+    @State private var dragX: CGFloat?
+    @State private var widths: [Value: CGFloat] = [:]
+
+    private static var slide: Animation { .spring(response: 0.32, dampingFraction: 0.82) }
+    private var current: Value { shown ?? selection }
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(options, id: \.value) { option in
-                let selected = option.value == selection
-                Button {
-                    guard !selected else { return }
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { selection = option.value }
-                    Haptics.tap()
-                } label: {
-                    Label(option.title, systemImage: option.symbol)
-                        .labelStyle(.titleAndIcon)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .foregroundStyle(selected ? Color.white : Color.secondary)
-                        .background {
-                            if selected {
-                                Capsule().fill(Color.accentColor.gradient).matchedGeometryEffect(id: "thumb", in: thumb)
-                            }
-                        }
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selected ? [.isSelected] : [])
+                label(option)
+                    .background(GeometryReader { proxy in
+                        Color.clear.preference(key: SegmentWidths.self, value: [AnyHashable(option.value): proxy.size.width])
+                    })
             }
         }
+        .onPreferenceChange(SegmentWidths.self) { values in
+            widths = Dictionary(uniqueKeysWithValues: options.compactMap { option in
+                values[AnyHashable(option.value)].map { (option.value, $0) }
+            })
+        }
+        .background(alignment: .leading) { thumb }
         .padding(3)
         .background(Color(.tertiarySystemFill), in: Capsule())
         .fixedSize()
+        .contentShape(Capsule())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in dragX = value.location.x - 3 }
+                .onEnded { value in
+                    dragX = nil
+                    pick(option(at: value.location.x - 3))
+                }
+        )
+        .onChange(of: selection) { _, new in shown = new }
+    }
+
+    private func label(_ option: CapsuleOption<Value>) -> some View {
+        let selected = option.value == current
+        return Label(option.title, systemImage: option.symbol)
+            .labelStyle(.titleAndIcon)
+            .font(.subheadline.weight(.semibold))
+            .lineLimit(1)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .foregroundStyle(selected ? Color.white : Color.secondary)
+            .accessibilityAddTraits(selected ? [.isButton, .isSelected] : [.isButton])
+            .accessibilityAction { pick(option.value) }
+    }
+
+    /// The accent capsule under the selected option; follows the finger while dragging.
+    @ViewBuilder
+    private var thumb: some View {
+        let index = options.firstIndex { $0.value == current } ?? 0
+        let width = widths[options[index].value] ?? 0
+        let offset = options.prefix(index).reduce(CGFloat(0)) { $0 + (widths[$1.value] ?? 0) }
+        let total = options.reduce(CGFloat(0)) { $0 + (widths[$1.value] ?? 0) }
+        let x = dragX.map { min(max($0 - width / 2, 0), max(total - width, 0)) } ?? offset
+        Capsule()
+            .fill(Color.accentColor.gradient)
+            .frame(width: width)
+            .offset(x: x)
+            .animation(dragX == nil ? Self.slide : .interactiveSpring(), value: x)
+            .animation(Self.slide, value: width)
+    }
+
+    private func option(at x: CGFloat) -> Value {
+        var start: CGFloat = 0
+        for option in options {
+            let width = widths[option.value] ?? 0
+            if x < start + width { return option.value }
+            start += width
+        }
+        return options.last?.value ?? selection
+    }
+
+    private func pick(_ value: Value) {
+        guard value != current || value != selection else {
+            withAnimation(Self.slide) { shown = selection }
+            return
+        }
+        withAnimation(Self.slide) { shown = value }
+        Haptics.tap()
+        // Let the thumb arrive before the content behind it changes.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) { selection = value }
+    }
+}
+
+private struct SegmentWidths: PreferenceKey {
+    static var defaultValue: [AnyHashable: CGFloat] = [:]
+    static func reduce(value: inout [AnyHashable: CGFloat], nextValue: () -> [AnyHashable: CGFloat]) {
+        value.merge(nextValue()) { $1 }
     }
 }
