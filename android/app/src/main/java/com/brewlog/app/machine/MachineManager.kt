@@ -28,13 +28,55 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
-// Port of MachineManager.swift / machineManager.ts. GaggiMate over its local WebSocket, or a demo machine.
+// Port of MachineManager.swift / machineManager.ts. Espresso machine connections (GaggiMate, Decent DE1, La Marzocco, demo).
+
+enum class MachineCapability {
+    PROFILES, TEMPERATURE_NUDGE, MACHINE_SCALE, START_STOP, POWER
+}
 
 enum class MachineKind(val raw: String, val title: String) {
-    NONE("none", "None"), GAGGIMATE("gaggimate", "GaggiMate"), DEMO("demo", "Demo machine");
+    NONE("none", "None"),
+    GAGGIMATE("gaggimate", "GaggiMate"),
+    DECENT("decent", "Decent DE1"),
+    LA_MARZOCCO("laMarzocco", "La Marzocco"),
+    DEMO("demo", "Demo machine");
+
+    val capabilities: Set<MachineCapability>
+        get() = when (this) {
+            NONE -> emptySet()
+            GAGGIMATE, DEMO -> setOf(
+                MachineCapability.PROFILES,
+                MachineCapability.TEMPERATURE_NUDGE,
+                MachineCapability.MACHINE_SCALE,
+                MachineCapability.START_STOP,
+            )
+            DECENT -> setOf(MachineCapability.START_STOP)
+            LA_MARZOCCO -> setOf(MachineCapability.POWER, MachineCapability.TEMPERATURE_NUDGE)
+        }
+
+    val connectionNote: String
+        get() = when (this) {
+            NONE -> "Shots are timed with your scale"
+            GAGGIMATE -> "Over your Wi-Fi"
+            DECENT -> "Over Bluetooth"
+            LA_MARZOCCO -> "Through your La Marzocco account"
+            DEMO -> "Simulated, to try it out"
+        }
 
     companion object {
+        val connectable: List<MachineKind> = listOf(GAGGIMATE, DECENT, LA_MARZOCCO)
+
         fun from(raw: String?): MachineKind = entries.firstOrNull { it.raw == raw } ?: NONE
+
+        fun suggested(brewerName: String): MachineKind? {
+            val lower = brewerName.lowercase()
+            return when {
+                lower.contains("gaggimate") -> GAGGIMATE
+                lower.contains("decent") -> DECENT
+                lower.contains("marzocco") -> LA_MARZOCCO
+                else -> null
+            }
+        }
     }
 }
 
@@ -46,12 +88,16 @@ data class MachineState(
     val kind: MachineKind = MachineKind.NONE,
     val host: String = "gaggimate.local",
     val connection: MachineConnection = MachineConnection.OFF,
-    val status: GaggiMateStatus = GaggiMateStatus(),
+    val status: MachineStatus = MachineStatus(),
     /** Feedback for the last command, e.g. "Profile sent". */
     val notice: String? = null,
     /** The machine refused to start because of a warning (e.g. low water). */
     val startBlockedBy: List<String> = emptyList(),
-)
+) {
+    val isConnected: Boolean get() = connection == MachineConnection.CONNECTED
+    val canControl: Boolean get() = MachineCapability.START_STOP in kind.capabilities && isConnected
+    val readsPressure: Boolean get() = kind != MachineKind.NONE && kind != MachineKind.LA_MARZOCCO && status.hasPressure != false
+}
 
 class MachineManager(private val prefs: SharedPreferences) {
     private val main = Handler(Looper.getMainLooper())
@@ -69,11 +115,15 @@ class MachineManager(private val prefs: SharedPreferences) {
     private var nextRequest = 0
     private val demo = DemoMachine { status, telemetry -> apply(status, telemetry) }
 
-    val isConnected: Boolean get() = _state.value.connection == MachineConnection.CONNECTED
-    val status: GaggiMateStatus get() = _state.value.status
+    val isConnected: Boolean get() = _state.value.isConnected
+    val canControl: Boolean get() = _state.value.canControl
+    val readsPressure: Boolean get() = _state.value.readsPressure
+    val status: MachineStatus get() = _state.value.status
     val displayName: String
         get() = when (_state.value.kind) {
             MachineKind.GAGGIMATE -> "GaggiMate"
+            MachineKind.DECENT -> "Decent DE1"
+            MachineKind.LA_MARZOCCO -> "La Marzocco"
             MachineKind.DEMO -> "Demo machine"
             MachineKind.NONE -> "No machine"
         }
@@ -176,16 +226,17 @@ class MachineManager(private val prefs: SharedPreferences) {
         demo.stop()
         val kind = _state.value.kind
         _state.update {
-            it.copy(status = GaggiMateStatus(), connection = when (kind) {
+            it.copy(status = MachineStatus(), connection = when (kind) {
                 MachineKind.NONE -> MachineConnection.OFF
                 MachineKind.DEMO -> MachineConnection.CONNECTED
                 MachineKind.GAGGIMATE -> MachineConnection.CONNECTING
+                MachineKind.DECENT, MachineKind.LA_MARZOCCO -> MachineConnection.OFF
             })
         }
         when (kind) {
             MachineKind.DEMO -> demo.start()
             MachineKind.GAGGIMATE -> connect()
-            MachineKind.NONE -> Unit
+            MachineKind.DECENT, MachineKind.LA_MARZOCCO, MachineKind.NONE -> Unit
         }
     }
 

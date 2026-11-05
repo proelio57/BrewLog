@@ -19,8 +19,8 @@ import java.util.Locale
 // Port of MachineStatus.swift / gaggimate.ts: GaggiMate's WebSocket protocol (docs/websocket-api.yaml in
 // jniebuhr/gaggimate). No Android dependencies; unit-testable on the JVM.
 
-/** Live state of a GaggiMate controller, merged from its partial `evt:status` frames. */
-data class GaggiMateStatus(
+/** Live state of the espresso machine, merged from its partial frames or Bluetooth readings. */
+data class MachineStatus(
     val temperature: Double? = null,
     val targetTemperature: Double? = null,
     val pressure: Double? = null,
@@ -47,7 +47,7 @@ data class GaggiMateStatus(
     val hasWeight: Boolean get() = scaleConnected && weight != null
 
     /** Missing keys keep their value, null clears it. Numbers are clamped to sane ranges. */
-    fun merge(frame: JsonObject): GaggiMateStatus {
+    fun merge(frame: JsonObject): MachineStatus {
         fun number(key: String, current: Double?, lo: Double, hi: Double): Double? {
             if (key !in frame) return current
             val value = (frame[key] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull
@@ -110,6 +110,8 @@ data class GaggiMateStatus(
         fun isTelemetry(frame: JsonObject): Boolean = "pr" in frame || "ct" in frame
     }
 }
+
+typealias GaggiMateStatus = MachineStatus
 
 enum class MachineMode(val value: Int, val title: String) {
     STANDBY(0, "Standby"), BREW(1, "Brew"), STEAM(2, "Steam"), WATER(3, "Water"),

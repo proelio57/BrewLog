@@ -34,7 +34,8 @@ data class WidgetSnapshot(
         fun daysOffRoast(now: Instant = Instant.now(), zone: ZoneId = ZoneId.systemDefault()): Int? {
             val roast = roastDate ?: return null
             val from = Instant.ofEpochMilli(roast).atZone(zone).toLocalDate()
-            return ChronoUnit.DAYS.between(from, LocalDate.ofInstant(now, zone)).toInt()
+            val to = now.atZone(zone).toLocalDate()
+            return ChronoUnit.DAYS.between(from, to).toInt()
         }
 
         /** 0…1 of the bag left. */

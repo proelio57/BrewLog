@@ -5,6 +5,7 @@ import com.brewlog.app.domain.InputLimits
 import com.brewlog.app.domain.MachineSample
 import com.brewlog.app.machine.GaggiMateStatus
 import com.brewlog.app.machine.MachineManager
+import com.brewlog.app.machine.MachineStatus
 import com.brewlog.app.domain.PingLeadMode
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.StepAnnouncement
@@ -251,17 +252,19 @@ class BrewSession(
         }
     }
 
-    private fun machineReading(status: GaggiMateStatus, atMs: Long) {
+    private val usesSensor: Boolean get() = monitorReady() && (machine == null || !machine.readsPressure)
+
+    private fun machineReading(status: MachineStatus, atMs: Long) {
         val grams = status.weight
         if (weighsViaMachine && grams != null) ingest(grams, atMs)
         // With the pressure sensor connected, its (faster, group-head) readings make the curve.
-        if (monitorReady()) return
+        if (usesSensor) return
         recordPressure(status.pressure ?: 0.0, status.temperature, status.flow, atMs)
     }
 
     /** A reading from the BOOKOO Espresso Monitor. */
     fun monitorReading(bar: Double, atMs: Long) {
-        if (!isEspresso) return
+        if (!isEspresso || !usesSensor) return
         // Without a machine connection, rising pressure means the pump started: start the shot timer.
         if (phase == BrewPhase.ARMED && !followsMachine && bar >= 1) begin(atMs)
         val status = if (machine?.isConnected == true) machine.status else null
