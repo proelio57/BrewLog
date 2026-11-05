@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.58",
+          "buildVersion": "58",
+          "date": "2026-11-05T12:49:07Z",
+          "localizedDescription": "• The mode switch no longer resets or hitches when the screen behind it changes\nThe Filter | Espresso switch sat inside the .id(mode) subtree, so every switch\nrebuilt it with empty widths and the thumb grew in from zero. It now lives\noutside, segments are equally wide (laid out in one pass, no preference\nround trip), taps no longer jump the thumb to the finger first, and quick\ntaps back and forth cancel the pending swap instead of swapping twice.\n\nClaude-Session: https://claude.ai/code/session_01641JjvwhhHSdTbVTqCXwLC\n\n• Import GaggiMate profiles as espresso recipes\nFrom a profile file exported from GaggiMate's web interface (Import) or\nstraight from the connected machine (Settings > Espresso machine). Phases\nmap to pre-infusion, yield, pressure and are kept as tips.\n\nClaude-Session: https://claude.ai/code/session_01641JjvwhhHSdTbVTqCXwLC\n\n• With GaggiMate the pressure comes from the machine, no pressure sensor offered\nThe BOOKOO pressure sensor is only for machines BrewLog can't connect to\n(or a GaggiMate without a pressure sensor). With GaggiMate the sensor row is\nhidden in Settings and on the machine card, the device strip shows the\nmachine's pressure, and the shot records the machine's readings even if a\nsensor is still paired.\n\nClaude-Session: https://claude.ai/code/session_01641JjvwhhHSdTbVTqCXwLC",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.58/BrewLog.ipa",
+          "size": 3195625,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.55",
           "buildVersion": "55",
           "date": "2026-11-02T23:26:49Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.26/BrewLog.ipa",
           "size": 2775382,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.17",
-          "buildVersion": "17",
-          "date": "2026-10-22T21:55:14Z",
-          "localizedDescription": "Merge pull request #3 from proelio57/feature/weigh-beans-recipe-advice\n\nWeigh the beans before brewing; recipe advice never repeats the brewed recipe",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.17/BrewLog.ipa",
-          "size": 2743549,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.55",
-      "versionDate": "2026-11-02T23:26:49Z",
-      "versionDescription": "• The mode switch's thumb slides (tap or drag) before the screen changes",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.55/BrewLog.ipa",
-      "size": 3166440
+      "version": "0.1.58",
+      "versionDate": "2026-11-05T12:49:07Z",
+      "versionDescription": "• The mode switch no longer resets or hitches when the screen behind it changes\nThe Filter | Espresso switch sat inside the .id(mode) subtree, so every switch\nrebuilt it with empty widths and the thumb grew in from zero. It now lives\noutside, segments are equally wide (laid out in one pass, no preference\nround trip), taps no longer jump the thumb to the finger first, and quick\ntaps back and forth cancel the pending swap instead of swapping twice.\n\nClaude-Session: https://claude.ai/code/session_01641JjvwhhHSdTbVTqCXwLC\n\n• Import GaggiMate profiles as espresso recipes\nFrom a profile file exported from GaggiMate's web interface (Import) or\nstraight from the connected machine (Settings > Espresso machine). Phases\nmap to pre-infusion, yield, pressure and are kept as tips.\n\nClaude-Session: https://claude.ai/code/session_01641JjvwhhHSdTbVTqCXwLC\n\n• With GaggiMate the pressure comes from the machine, no pressure sensor offered\nThe BOOKOO pressure sensor is only for machines BrewLog can't connect to\n(or a GaggiMate without a pressure sensor). With GaggiMate the sensor row is\nhidden in Settings and on the machine card, the device strip shows the\nmachine's pressure, and the shot records the machine's readings even if a\nsensor is still paired.\n\nClaude-Session: https://claude.ai/code/session_01641JjvwhhHSdTbVTqCXwLC",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.58/BrewLog.ipa",
+      "size": 3195625
     }
   ],
   "news": []
