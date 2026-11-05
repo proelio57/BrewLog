@@ -1,7 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// First-launch setup assistant: brewer → filter → grinder → beans → scale. Every step is optional.
+/// First-launch setup assistant: brewer → espresso machine → filter → grinder → beans → scale. Every step is optional;
+/// the machine step only shows when an espresso machine was picked, the filter step only for pour-over brewers.
 struct OnboardingView: View {
     /// Called when the assistant is finished or skipped.
     var onFinish: () -> Void
@@ -9,13 +10,15 @@ struct OnboardingView: View {
     var onJustWeigh: () -> Void
 
     enum Step: Int, CaseIterable {
-        case welcome, brewer, filter, grinder, beans, scale, done
-        static let questions: [Step] = [.brewer, .filter, .grinder, .beans, .scale]
+        case welcome, brewer, machine, filter, grinder, beans, scale, done
+        static let questions: [Step] = [.brewer, .machine, .filter, .grinder, .beans, .scale]
     }
 
     @Environment(\.modelContext) private var context
     @Environment(BrewSetup.self) private var setup
+    @Environment(\.espressoSetup) private var espressoSetup
     @Environment(ScaleManager.self) private var scale
+    @Environment(MachineManager.self) private var machine
     @Query private var equipment: [Equipment]
 
     @State private var step: Step = .welcome
@@ -35,6 +38,9 @@ struct OnboardingView: View {
     @State private var knowsRoastDate = false
     @State private var roastDate = Date()
     @FocusState private var focused: Bool
+    @State private var machineHost = MachineManager.shared.host
+    @State private var showDecent = false
+    @State private var showLaMarzocco = false
 
     private static let customGrinderKey = "__custom__"
     private let brewerPresets = EquipmentPreset.all.filter { $0.type == .brewer }
@@ -77,11 +83,38 @@ struct OnboardingView: View {
     }
 
     private func advance() {
+        if step == .machine { applyMachineHost() }
         if step == .done {
             finish()
-        } else if let next = Step(rawValue: step.rawValue + 1) {
+        } else if let next = neighbour(after: step) {
             go(to: next)
         }
+    }
+
+    private var chosenEspressoMachines: [EquipmentPreset] {
+        brewers.compactMap { name in brewerPresets.first { $0.name == name } }.filter { $0.method == .espresso }
+    }
+
+    /// Steps that make sense for the brewers picked: the machine step only with an espresso machine,
+    /// the filter step not when only espresso machines were picked.
+    private func isRelevant(_ candidate: Step) -> Bool {
+        switch candidate {
+        case .machine: return !chosenEspressoMachines.isEmpty
+        case .filter: return brewers.isEmpty || chosenEspressoMachines.count < brewers.count
+        default: return true
+        }
+    }
+
+    private func neighbour(after current: Step) -> Step? {
+        var next = Step(rawValue: current.rawValue + 1)
+        while let candidate = next, !isRelevant(candidate) { next = Step(rawValue: candidate.rawValue + 1) }
+        return next
+    }
+
+    private func neighbour(before current: Step) -> Step? {
+        var previous = Step(rawValue: current.rawValue - 1)
+        while let candidate = previous, !isRelevant(candidate) { previous = Step(rawValue: candidate.rawValue - 1) }
+        return previous
     }
 
     private var hasChoice: Bool {
@@ -92,6 +125,7 @@ struct OnboardingView: View {
             if grinder == Self.customGrinderKey { return !customGrinderName.sanitized(maxLength: 80).isEmpty }
             return grinder != nil
         case .beans: return !beanName.sanitized(maxLength: 80).isEmpty
+        case .machine: return machine.kind != .none
         default: return true
         }
     }
@@ -99,7 +133,8 @@ struct OnboardingView: View {
     private var topBar: some View {
         HStack {
             Button {
-                if let previous = Step(rawValue: step.rawValue - 1) { go(to: previous) }
+                if step == .machine { applyMachineHost() }
+                if let previous = neighbour(before: step) { go(to: previous) }
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.headline)
@@ -110,7 +145,7 @@ struct OnboardingView: View {
             .accessibilityLabel("Back")
             Spacer()
             HStack(spacing: 6) {
-                ForEach(Step.questions, id: \.self) { question in
+                ForEach(Step.questions.filter(isRelevant), id: \.self) { question in
                     Capsule()
                         .fill(question.rawValue <= step.rawValue ? Color.accentColor : Color(.tertiarySystemFill))
                         .frame(width: question == step ? 22 : 8, height: 8)
@@ -162,6 +197,7 @@ struct OnboardingView: View {
         switch step {
         case .welcome: welcome
         case .brewer: brewerStep
+        case .machine: machineStep
         case .filter: filterStep
         case .grinder: grinderStep
         case .beans: beansStep
@@ -252,21 +288,153 @@ struct OnboardingView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header("What do you brew with?", "Pick one or more. The first one becomes your default.")
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    ForEach(brewerPresets) { preset in
-                        let index = brewers.firstIndex(of: preset.name)
-                        SelectableTile(title: preset.name,
-                                       subtitle: preset.method?.displayName ?? "",
-                                       symbol: preset.method?.symbol ?? "cup.and.saucer",
-                                       isSelected: index != nil,
-                                       badge: index == 0 && brewers.count > 1 ? "Default" : nil) {
-                            toggle(preset.name, in: &brewers)
-                        }
-                    }
-                }
+                SectionHeader(title: "Pour-over")
+                brewerGrid(brewerPresets.filter { $0.method != .espresso })
+                SectionHeader(title: "Espresso machines")
+                brewerGrid(brewerPresets.filter { $0.method == .espresso })
             }
             .padding()
         }
+    }
+
+    private func brewerGrid(_ presets: [EquipmentPreset]) -> some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+            ForEach(presets) { preset in
+                let index = brewers.firstIndex(of: preset.name)
+                SelectableTile(title: preset.name,
+                               subtitle: preset.method?.displayName ?? "",
+                               symbol: preset.method?.symbol ?? "cup.and.saucer",
+                               isSelected: index != nil,
+                               badge: index == 0 && brewers.count > 1 ? "Default" : nil) {
+                    toggle(preset.name, in: &brewers)
+                }
+            }
+        }
+    }
+
+    // MARK: Espresso machine
+
+    private var machineStep: some View {
+        @Bindable var machine = machine
+        let names = chosenEspressoMachines.map(\.name)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                header("Connect your espresso machine",
+                       "BrewLog can record pressure, temperature and the shot from these machines. Yours isn't listed? Skip: the scale times the shot.")
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                    ForEach(MachineKind.connectable + [.demo, .none]) { kind in
+                        SelectableTile(title: kind == .none ? "Not connected" : kind.displayName,
+                                       subtitle: kind.connectionNote,
+                                       symbol: kind.symbol,
+                                       isSelected: machine.kind == kind,
+                                       badge: names.contains { MachineKind.suggested(forBrewerNamed: $0) == kind } ? "Yours" : nil) {
+                            applyMachineHost()
+                            machine.kind = kind
+                            Haptics.tap()
+                        }
+                    }
+                }
+                machineConnection
+            }
+            .padding()
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .sheet(isPresented: $showDecent) { DecentConnectSheet() }
+        .sheet(isPresented: $showLaMarzocco) { LaMarzoccoAccountSheet() }
+        .onAppear {
+            // Preselect the connection that fits the machine picked on the previous page.
+            if machine.kind == .none, let kind = names.lazy.compactMap(MachineKind.suggested(forBrewerNamed:)).first {
+                machine.kind = kind
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var machineConnection: some View {
+        switch machine.kind {
+        case .gaggimate:
+            Card {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Address of your GaggiMate").font(.subheadline.weight(.semibold))
+                    TextField("gaggimate.local", text: $machineHost)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($focused)
+                        .onSubmit(applyMachineHost)
+                        .padding(10)
+                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                        .accessibilityIdentifier("onboarding.machineHost")
+                    if gaggiMateURL(host: machineHost) == nil {
+                        Text("Enter a host name like gaggimate.local or an IP address like 192.168.1.20.")
+                            .font(.caption).foregroundStyle(.red)
+                    } else {
+                        Text("Use the address from GaggiMate's web interface. Phone and machine need the same Wi-Fi.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    machineStatus
+                }
+            }
+        case .decent:
+            Card {
+                VStack(alignment: .leading, spacing: 10) {
+                    Button { showDecent = true } label: {
+                        Label(machine.decent.hasSavedMachine ? "Paired: \(machine.decent.connectedName ?? "DE1")" : "Find my DE1",
+                              systemImage: "antenna.radiowaves.left.and.right")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    Text("Switch the DE1 on and close the Decent tablet app: the DE1 talks to one app at a time.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    machineStatus
+                }
+            }
+        case .laMarzocco:
+            Card {
+                VStack(alignment: .leading, spacing: 10) {
+                    Button { showLaMarzocco = true } label: {
+                        Label(machine.laMarzocco.signedInAs == nil ? "Sign in to La Marzocco"
+                              : (machine.laMarzocco.machine?.name ?? "Choose your machine"),
+                              systemImage: "person.crop.circle")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    Text("Uses your La Marzocco account through their servers. Your login stays in this phone's Keychain.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    machineStatus
+                }
+            }
+        case .demo:
+            Label("The demo machine simulates shots so you can try everything.", systemImage: "info.circle")
+                .font(.caption).foregroundStyle(.secondary)
+        case .none:
+            Label("You can connect a machine any time in Settings → Espresso machine.", systemImage: "info.circle")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var machineStatus: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(machine.isConnected ? Color.green : (machine.state == .connecting ? Color.orange : Color.secondary))
+                .frame(width: 8, height: 8)
+            Text(machineStatusText).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var machineStatusText: String {
+        switch machine.state {
+        case .off: return "Not connected"
+        case .connecting: return "Connecting…"
+        case .connected:
+            if let temperature = machine.status.temperature { return String(format: "Connected · %.1f °C", temperature) }
+            return "Connected"
+        case .unreachable: return machine.notice ?? "Not reachable yet. You can finish and connect later."
+        }
+    }
+
+    /// Saves the typed GaggiMate address (it's applied when leaving the field or the page, not on every key).
+    private func applyMachineHost() {
+        guard machine.kind == .gaggimate, machine.host != machineHost, gaggiMateURL(host: machineHost) != nil else { return }
+        machine.host = machineHost
     }
 
     // MARK: Filter
@@ -501,6 +669,10 @@ struct OnboardingView: View {
                 Card {
                     VStack(spacing: 14) {
                         summaryRow("Brewer", "cup.and.saucer.fill", brewers.first)
+                        if !chosenEspressoMachines.isEmpty {
+                            summaryRow("Machine", "cup.and.heat.waves.fill",
+                                       machine.kind == .none ? nil : machine.displayName + (machine.isConnected ? " · connected" : ""))
+                        }
                         summaryRow("Filter", "doc.fill", filters.first)
                         summaryRow("Grinder", "gearshape.2.fill", grinderSummary)
                         summaryRow("Beans", "leaf.fill", beanName.sanitized(maxLength: 80).isEmpty ? nil : beanName)
@@ -557,7 +729,9 @@ struct OnboardingView: View {
         }
 
         let chosenBrewers = brewers.compactMap { name in brewerPresets.first { $0.name == name } }.map(ensure)
-        if let first = chosenBrewers.first { setup.brewerID = first.id }
+        // Pour-over and espresso each remember their own brewer.
+        if let first = chosenBrewers.first(where: { !$0.isEspressoMachine }) { setup.brewerID = first.id }
+        if let first = chosenBrewers.first(where: \.isEspressoMachine) { espressoSetup.brewerID = first.id }
 
         let chosenFilters = filters.compactMap { name in filterPresets.first { $0.name == name } }.map(ensure)
         if let first = chosenFilters.first { setup.filterID = first.id }

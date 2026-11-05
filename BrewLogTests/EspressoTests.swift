@@ -223,4 +223,16 @@ final class EspressoTests: XCTestCase {
         XCTAssertEqual(profile["dose"] as? Double, 20)
         XCTAssertTrue((profile["description"] as? String ?? "").contains("40 g out"))
     }
+
+    // MARK: Machine suggestion
+
+    func testMachineKindSuggestedFromBrewerName() {
+        XCTAssertEqual(MachineKind.suggested(forBrewerNamed: "Gaggia Classic (GaggiMate)"), .gaggimate)
+        XCTAssertEqual(MachineKind.suggested(forBrewerNamed: "Decent DE1"), .decent)
+        XCTAssertEqual(MachineKind.suggested(forBrewerNamed: "La Marzocco Linea Micra"), .laMarzocco)
+        XCTAssertEqual(MachineKind.suggested(forBrewerNamed: "la marzocco linea mini"), .laMarzocco)
+        XCTAssertNil(MachineKind.suggested(forBrewerNamed: "Gaggia Classic"), "a plain Gaggia has no app connection")
+        XCTAssertNil(MachineKind.suggested(forBrewerNamed: "Rancilio Silvia"))
+        XCTAssertNil(MachineKind.suggested(forBrewerNamed: "Hario V60 02"))
+    }
 }

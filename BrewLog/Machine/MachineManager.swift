@@ -16,6 +16,41 @@ enum MachineKind: String, CaseIterable, Identifiable {
     }
 }
 
+extension MachineKind {
+    /// The connection that fits an espresso machine picked by name (setup assistant), or nil if it has none.
+    static func suggested(forBrewerNamed name: String) -> MachineKind? {
+        let name = name.lowercased()
+        if name.contains("gaggimate") { return .gaggimate }
+        if name.contains("decent") { return .decent }
+        if name.contains("marzocco") { return .laMarzocco }
+        return nil
+    }
+
+    /// The machines a person can connect (the demo is offered separately).
+    static let connectable: [MachineKind] = [.gaggimate, .decent, .laMarzocco]
+
+    var symbol: String {
+        switch self {
+        case .none: return "xmark.circle"
+        case .gaggimate: return "wifi"
+        case .decent: return "antenna.radiowaves.left.and.right"
+        case .laMarzocco: return "cloud"
+        case .demo: return "play.circle"
+        }
+    }
+
+    /// How BrewLog connects, for the setup assistant.
+    var connectionNote: String {
+        switch self {
+        case .none: return "Shots are timed with your scale"
+        case .gaggimate: return "Over your Wi-Fi"
+        case .decent: return "Over Bluetooth"
+        case .laMarzocco: return "Through your La Marzocco account"
+        case .demo: return "Simulated, to try it out"
+        }
+    }
+}
+
 /// What BrewLog can do with a kind of machine beyond reading its state.
 struct MachineCapabilities: OptionSet {
     let rawValue: Int

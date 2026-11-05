@@ -19,10 +19,10 @@ struct GearListView: View {
                     NavigationLink { SettingsView() } label: { Label("Settings", systemImage: "gearshape") }
                 }
                 ToolsSection()
-                ForEach(EquipmentType.allCases) { type in
-                    let items = equipment.filter { $0.type == type }
+                ForEach(GearGroup.all) { group in
+                    let items = equipment.filter(group.contains)
                     if !items.isEmpty {
-                        Section(type.displayName) {
+                        Section(group.title) {
                             ForEach(items) { item in
                                 NavigationLink { EquipmentEditorView(item: item) } label: { EquipmentRow(item: item) }
                             }
@@ -55,11 +55,26 @@ struct GearListView: View {
     }
 }
 
+/// The gear list's sections: the equipment types, with espresso machines apart from the pour-over brewers.
+struct GearGroup: Identifiable {
+    let id: String
+    let title: String
+    let contains: (Equipment) -> Bool
+
+    static let all: [GearGroup] = EquipmentType.allCases.flatMap { type -> [GearGroup] in
+        guard type == .brewer else {
+            return [GearGroup(id: type.rawValue, title: type.displayName) { $0.type == type }]
+        }
+        return [GearGroup(id: "brewer", title: type.displayName) { $0.type == .brewer && !$0.isEspressoMachine },
+                GearGroup(id: "espresso", title: "Espresso machines") { $0.isEspressoMachine }]
+    }
+}
+
 private struct EquipmentRow: View {
     let item: Equipment
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: item.type.symbol)
+            Image(systemName: item.isEspressoMachine ? "cup.and.heat.waves.fill" : item.type.symbol)
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
@@ -80,14 +95,23 @@ struct PresetPickerView: View {
 
     private let order: [EquipmentType] = [.brewer, .filter, .grinder, .kettle, .scale, .water]
 
+    /// Like the gear list: espresso machines in their own section.
+    private var sections: [(title: String, contains: (EquipmentPreset) -> Bool)] {
+        order.flatMap { type -> [(title: String, contains: (EquipmentPreset) -> Bool)] in
+            guard type == .brewer else { return [(type.displayName, { $0.type == type })] }
+            return [(type.displayName, { $0.type == .brewer && $0.method != .espresso }),
+                    ("Espresso machines", { $0.type == .brewer && $0.method == .espresso })]
+        }
+    }
+
     var body: some View {
         List {
-            ForEach(order) { type in
+            ForEach(sections, id: \.title) { section in
                 let presets = EquipmentPreset.all.filter {
-                    $0.type == type && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search))
+                    section.contains($0) && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search))
                 }
                 if !presets.isEmpty {
-                    Section(type.displayName) {
+                    Section(section.title) {
                         ForEach(presets) { preset in
                             let added = equipment.contains { $0.name == preset.name }
                             Button {

@@ -5,6 +5,10 @@
 
 ---
 
+> **Android is behind iOS** on the espresso tab, auto stop, statistics, rinse step, GaggiMate profiles, Decent DE1,
+> La Marzocco and the gear/setup-assistant changes. The step-by-step port list is in
+> [`docs/gemini-android-parity.md`](gemini-android-parity.md).
+
 ## 1. Core Philosophy & Non-Negotiable Invariants
 
 Before writing or modifying any code in this repository, Claude and Gemini must respect these core invariants:
