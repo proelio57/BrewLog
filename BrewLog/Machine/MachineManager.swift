@@ -33,6 +33,9 @@ final class MachineManager {
     private(set) var notice: String?
     /// The machine refused to start because of a warning (e.g. low water) and waits for a decision.
     private(set) var startBlockedBy: [String] = []
+    /// The profiles stored on the machine, for the profile picker (see `refreshProfiles()`).
+    private(set) var profiles: [MachineProfileSummary] = []
+    private(set) var profilesLoading = false
 
     var kind: MachineKind = MachineKind(rawValue: UserDefaults.standard.string(forKey: SettingsKey.machineKind) ?? "") ?? .none {
         didSet {
@@ -105,6 +108,9 @@ final class MachineManager {
 
     var canControl: Bool { kind != .none && isConnected }
 
+    /// The machine keeps profiles that can be listed and selected from BrewLog.
+    var canChooseProfile: Bool { (kind == .gaggimate || kind == .demo) && isConnected }
+
     func setMode(_ mode: MachineMode) {
         if kind == .demo { demo.setMode(mode); return }
         send(["tp": "req:change-mode", "mode": mode.rawValue])
@@ -176,15 +182,66 @@ final class MachineManager {
     /// they already are recipes here. `completion` gets nil if the machine didn't answer.
     func fetchProfiles(completion: @escaping ([Recipe]?) -> Void) {
         guard kind == .gaggimate else { completion(nil); return }
+        requestProfiles { summaries in
+            completion(summaries.map { $0.filter { !$0.isBrewLogs }.compactMap(\.recipe) })
+        }
+    }
+
+    /// Loads the machine's profile list into `profiles` (selected first, then favorites).
+    func refreshProfiles() {
+        if kind == .demo {
+            profiles = demo.profiles
+            return
+        }
+        guard kind == .gaggimate, isConnected, !profilesLoading else { return }
+        profilesLoading = true
+        requestProfiles { [weak self] summaries in
+            guard let self else { return }
+            self.profilesLoading = false
+            if let summaries {
+                self.profiles = summaries
+            } else {
+                self.notice = "Couldn't read the profiles from the machine."
+            }
+        }
+    }
+
+    /// Selects a profile on the machine; `completion` gets whether the machine accepted it.
+    func selectProfile(_ id: String, completion: @escaping (Bool) -> Void) {
+        if kind == .demo {
+            demo.selectProfile(id)
+            profiles = demo.profiles
+            completion(true)
+            return
+        }
+        send(["tp": "req:profiles:select", "id": id]) { [weak self] response in
+            guard let self else { return }
+            let accepted = response != nil && response?["error"] == nil
+            if accepted {
+                self.notice = nil
+                self.refreshProfiles()
+            } else {
+                self.notice = "The machine didn't select the profile" + ((response?["error"] as? String).map { ": \($0)" } ?? ".")
+            }
+            completion(accepted)
+        }
+    }
+
+    /// The BrewLog recipe a profile was sent from (`sendProfile` remembers the profile id per recipe).
+    func recipeID(forProfile id: String) -> String? {
+        let prefix = "machine.profile."
+        return UserDefaults.standard.dictionaryRepresentation()
+            .first { $0.key.hasPrefix(prefix) && ($0.value as? String) == id }
+            .map { String($0.key.dropFirst(prefix.count)) }
+    }
+
+    private func requestProfiles(completion: @escaping ([MachineProfileSummary]?) -> Void) {
         send(["tp": "req:profiles:list"]) { response in
-            guard let response, response["error"] == nil, let profiles = response["profiles"] as? [Any] else {
+            guard let response, response["error"] == nil, response["profiles"] is [Any] else {
                 completion(nil)
                 return
             }
-            let own = profiles.filter {
-                (($0 as? [String: Any])?["label"] as? String)?.hasPrefix(GaggiMateProfile.labelPrefix) != true
-            }
-            completion(GaggiMateProfile.recipes(from: own))
+            completion(GaggiMateProfile.summaries(fromListResponse: response))
         }
     }
 
@@ -230,6 +287,8 @@ final class MachineManager {
         disconnect()
         demo.stop()
         status = GaggiMateStatus()
+        profiles = []
+        profilesLoading = false
         switch kind {
         case .none:
             state = .off
@@ -314,6 +373,7 @@ final class MachineManager {
     private func connectionLost() {
         let wasBrewing = status.isBrewing
         disconnect()
+        profilesLoading = false
         state = .unreachable
         if wasBrewing { onShot?(false, Date()) }
         status = GaggiMateStatus()
@@ -391,6 +451,25 @@ private final class DemoMachine {
 
     func setMode(_ mode: MachineMode) {
         status.mode = mode.rawValue
+        onStatus?(status, false)
+    }
+
+    /// Two espresso presets stand in for the profiles on a real machine.
+    private var selectedProfile: String?
+
+    var profiles: [MachineProfileSummary] {
+        let recipes = RecipeLibrary.presets.filter(\.method.isEspresso).prefix(2)
+        let selected = selectedProfile ?? recipes.first?.id
+        return recipes.map {
+            MachineProfileSummary(id: $0.id, label: $0.name, isSelected: $0.id == selected, isFavorite: false,
+                                  isBrewLogs: false, recipe: $0)
+        }
+        .sorted { $0.isSelected && !$1.isSelected }
+    }
+
+    func selectProfile(_ id: String) {
+        selectedProfile = id
+        status.profile = profiles.first { $0.id == id }?.label
         onStatus?(status, false)
     }
 

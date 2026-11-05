@@ -186,6 +186,12 @@ WebSocket `ws://<host>/ws` (default host `gaggimate.local`), JSON messages with 
   `preinfusion` phases → pre-infusion step, the highest brew-phase pressure → pressure (default 9 bar). Every phase is
   kept as a tip, e.g. `Phase 2: Extraction · 30 s · 2 ml/s, max 9 bar · to 36 g`. Utility profiles and, from the
   machine, BrewLog's own `BrewLog · …` profiles are skipped.
+- Profile picker (iOS, espresso screen → "Profile"): `req:profiles:list` lists them (selected first, then favorites;
+  utility profiles hidden); tapping one sends `req:profiles:select {rid, id}` → `res:profiles:select {rid, error?}` and
+  brews with it: a profile BrewLog sent selects its BrewLog recipe again (found through the remembered profile id),
+  any other is imported as a recipe (as above) and selected. `evt:status.p` carries the selected profile's label only.
+  Pump `pressure`/`flow` `-1` means "hold the current value" and is not read as a pressure; a `ratio` target sets the
+  yield to dose × ratio when there is no `volumetric` target.
 
 ## Online recipe list
 

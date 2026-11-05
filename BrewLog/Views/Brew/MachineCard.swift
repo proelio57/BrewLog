@@ -8,6 +8,7 @@ struct MachineCard: View {
     var onOpenSettings: () -> Void
 
     @Environment(MachineManager.self) private var machine
+    @State private var showProfiles = false
 
     var body: some View {
         Card {
@@ -48,7 +49,16 @@ struct MachineCard: View {
             StatView(value: status.temperature.map { String(format: "%.1f°", $0) } ?? "–", label: "Boiler",
                      symbol: "thermometer.medium")
             StatView(value: status.targetTemperature.map { String(format: "%.0f°", $0) } ?? "–", label: "Target")
-            StatView(value: status.profile ?? "–", label: "Profile")
+            if machine.canChooseProfile {
+                Button { showProfiles = true } label: {
+                    StatView(value: status.profile ?? "–", label: "Profile ›")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Choose the profile on the machine")
+                .sheet(isPresented: $showProfiles) { MachineProfilesSheet() }
+            } else {
+                StatView(value: status.profile ?? "–", label: "Profile")
+            }
         }
         Picker("Mode", selection: Binding(get: { MachineMode(rawValue: status.mode ?? 0) ?? .standby },
                                           set: { machine.setMode($0) })) {

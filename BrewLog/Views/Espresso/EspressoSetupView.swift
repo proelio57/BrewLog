@@ -5,6 +5,7 @@ import SwiftUI
 struct EspressoSetupView: View {
     @Environment(BrewSetup.self) private var setup
     @Environment(MachineManager.self) private var machine
+    @State private var showProfiles = false
 
     /// The machine's target temperature when it is connected and plausible.
     static func machineTemperature(_ machine: MachineManager) -> Double? {
@@ -36,7 +37,19 @@ struct EspressoSetupView: View {
                                    symbol: "thermometer.medium")
                         machineRow("Pressure", pressure.map { String(format: "%.1f bar", $0) } ?? "–",
                                    symbol: "gauge.with.dots.needle.67percent")
-                        machineRow("Profile", machine.status.profile ?? "–", symbol: "slider.horizontal.3")
+                        if machine.canChooseProfile {
+                            Button { showProfiles = true } label: {
+                                HStack(spacing: 4) {
+                                    machineRow("Profile", machine.status.profile ?? "–", symbol: "slider.horizontal.3")
+                                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Choose the profile on the machine")
+                            .sheet(isPresented: $showProfiles) { MachineProfilesSheet() }
+                        } else {
+                            machineRow("Profile", machine.status.profile ?? "–", symbol: "slider.horizontal.3")
+                        }
                         Text("from GaggiMate")
                             .font(.caption)
                             .foregroundStyle(.secondary)
