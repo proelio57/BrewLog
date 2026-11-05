@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.73",
+          "buildVersion": "73",
+          "date": "2026-11-05T22:42:55Z",
+          "localizedDescription": "• Espresso machines get their own gear section and are connected in the setup assistant",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.73/BrewLog.ipa",
+          "size": 3486119,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.67",
           "buildVersion": "67",
           "date": "2026-11-05T18:36:48Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.35/BrewLog.ipa",
           "size": 2916132,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.32",
-          "buildVersion": "32",
-          "date": "2026-11-02T00:04:36Z",
-          "localizedDescription": "Merge pull request #8 from proelio57/feature/rinse-step\n\nRinsing the paper is its own step in the brew flow",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.32/BrewLog.ipa",
-          "size": 2794721,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.67",
-      "versionDate": "2026-11-05T18:36:48Z",
-      "versionDescription": "• La Marzocco request signing\n• Read La Marzocco's machine dashboard\n• La Marzocco machines through your La Marzocco account\n• La Marzocco connection stays open, never revives after sign-out and follows the chosen machine",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.67/BrewLog.ipa",
-      "size": 3430777
+      "version": "0.1.73",
+      "versionDate": "2026-11-05T22:42:55Z",
+      "versionDescription": "• Espresso machines get their own gear section and are connected in the setup assistant",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.73/BrewLog.ipa",
+      "size": 3486119
     }
   ],
   "news": []
