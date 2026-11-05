@@ -52,6 +52,11 @@ final class MachineManager {
 
     var isConnected: Bool { state == .connected }
 
+    /// The machine measures the pressure itself (GaggiMate with its pressure sensor, the demo machine), so BrewLog
+    /// reads it from there and a separate pressure sensor isn't needed. That one is only for machines BrewLog
+    /// can't connect to, or a GaggiMate without a pressure sensor.
+    var readsPressure: Bool { kind != .none && status.hasPressure != false }
+
     var displayName: String {
         switch kind {
         case .none: return "No machine"

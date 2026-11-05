@@ -90,8 +90,8 @@ struct MachineReadout: View {
 
     var body: some View {
         let status = machine.isConnected ? machine.status : GaggiMateStatus()
-        // The pressure sensor at the group head wins over the machine's own reading.
-        let pressure = monitor.isReady ? monitor.pressure : status.pressure
+        // The machine's own reading; the pressure sensor only for machines BrewLog can't connect to.
+        let pressure = machine.readsPressure || !monitor.isReady ? status.pressure : monitor.pressure
         HStack(spacing: 12) {
             Image(systemName: "gauge.with.dots.needle.67percent").foregroundStyle(Color.accentColor)
             reading(pressure, "%.1f bar")
@@ -100,7 +100,7 @@ struct MachineReadout: View {
                 reading(status.flow, "%.1f ml/s")
             }
             Spacer(minLength: 0)
-            Text(machine.isConnected ? machine.displayName : monitor.displayName).font(.caption2).foregroundStyle(.secondary)
+            Text(machine.isConnected || machine.readsPressure ? machine.displayName : monitor.displayName).font(.caption2).foregroundStyle(.secondary)
         }
         .font(.subheadline.weight(.semibold))
         .monospacedDigit()

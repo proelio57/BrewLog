@@ -17,8 +17,10 @@ struct MachineCard: View {
                     Spacer()
                     stateBadge
                 }
-                PressureMonitorRow()
-                    .font(.subheadline)
+                if !machine.readsPressure {
+                    PressureMonitorRow()
+                        .font(.subheadline)
+                }
                 if machine.kind == .none {
                     Text("Connect a GaggiMate to record pressure and temperature, start shots from here and send recipes as profiles. Without one, BrewLog times the shot with your scale.")
                         .font(.subheadline)
