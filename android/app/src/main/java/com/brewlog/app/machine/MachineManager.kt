@@ -115,8 +115,10 @@ class MachineManager(private val prefs: SharedPreferences) {
     private var nextRequest = 0
     private val demo = DemoMachine { status, telemetry -> apply(status, telemetry) }
 
+    val kind: MachineKind get() = _state.value.kind
     val isConnected: Boolean get() = _state.value.isConnected
     val canControl: Boolean get() = _state.value.canControl
+    val canChooseProfile: Boolean get() = isConnected && MachineCapability.PROFILES in kind.capabilities
     val readsPressure: Boolean get() = _state.value.readsPressure
     val status: MachineStatus get() = _state.value.status
     val displayName: String

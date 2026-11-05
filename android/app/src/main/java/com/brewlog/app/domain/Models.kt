@@ -315,4 +315,7 @@ data class AppSettings(
     val chartShowsFlow: Boolean = true,
     val onlineRecipes: Boolean = true,
     val espressoPressureEnabled: Boolean = false,
+    val autoStopShot: Boolean = true,
+    val shotStopLag: Double = 1.0,
+    val rinsePaper: Boolean = true,
 )

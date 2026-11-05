@@ -71,6 +71,7 @@ import com.brewlog.app.brewing.BeanDosing
 import com.brewlog.app.brewing.BrewPhase
 import com.brewlog.app.brewing.BrewSession
 import com.brewlog.app.brewing.BrewSnapshot
+import com.brewlog.app.machine.MachineConnection
 import com.brewlog.app.domain.Brew
 import com.brewlog.app.domain.RecipeStep
 import com.brewlog.app.domain.ValveState
@@ -199,7 +200,15 @@ fun LiveBrewScreen(nav: NavHostController) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Header(config, session.recipe, snapshot.weighedDose ?: config.dose, snapshot.usesScale && scaleReady, pressureLive = pressureReady) { if (snapshot.phase == BrewPhase.BREWING) confirmDiscard = true else close() }
-        Readouts(snapshot, config, session.recipe, pressureReady = pressureReady, pressureBar = currentPressure)
+        if (session.isEspresso) {
+            ShotReadouts(snapshot, session.recipe, container.machine, container.pressure)
+            if (snapshot.stopRequested) {
+                Spacer(Modifier.height(8.dp))
+                StopNowBanner()
+            }
+        } else {
+            Readouts(snapshot, config, session.recipe, pressureReady = pressureReady, pressureBar = currentPressure)
+        }
         when (snapshot.phase) {
             BrewPhase.DOSING -> DoseCard(snapshot.weight, session.plannedDose, snapshot.doseStatus)
             BrewPhase.PREPARING -> PreparingCard(snapshot.usesScale, session)
@@ -305,6 +314,132 @@ private fun Readouts(
                 Text(snapshot.activeTarget?.let { "→${it.toInt()}" } ?: "–", fontSize = fontSize, fontWeight = FontWeight.SemiBold, style = tabular)
                 Text("no scale", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
+    }
+}
+
+@Composable
+private fun ShotReadouts(
+    snapshot: BrewSnapshot,
+    recipe: com.brewlog.app.domain.Recipe,
+    machine: com.brewlog.app.machine.MachineManager,
+    monitor: com.brewlog.app.scale.PressureManager,
+    modifier: Modifier = Modifier,
+) {
+    val monitorReady by monitor.ready.collectAsStateWithLifecycle()
+    val monitorPressure by monitor.pressure.collectAsStateWithLifecycle()
+    val machineState by machine.state.collectAsStateWithLifecycle()
+    val isMachineConnected = machineState.connection == MachineConnection.CONNECTED
+
+    val livePressure: Double? = when {
+        snapshot.phase == BrewPhase.BREWING && snapshot.currentPressure != null -> snapshot.currentPressure
+        machine.readsPressure -> if (isMachineConnected) machineState.status.pressure else null
+        else -> if (monitorReady) monitorPressure else null
+    }
+
+    val liveTemperature: Double? = snapshot.currentTemperature
+        ?: (if (isMachineConnected) machineState.status.temperature else null)
+
+    val late = snapshot.phase == BrewPhase.BREWING && snapshot.elapsed >= recipe.targetTime
+
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                Text("TIME", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(snapshot.elapsed.mmss(), fontSize = 54.sp, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
+                Text("target ${recipe.targetTime.mmss()}", style = MaterialTheme.typography.bodySmall,
+                    color = if (late) WarnOrange else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                Text("WEIGHT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (snapshot.usesScale) {
+                    val shown = maxOf(snapshot.weight, 0.0)
+                    Text(shown.scaleReadout(), fontSize = 54.sp, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
+                    Text("of ${recipe.water.grams()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Text("–", fontSize = 54.sp, fontWeight = FontWeight.SemiBold, style = tabular)
+                    Text("no scale", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ReadoutTile(
+                title = "Ratio",
+                value = snapshot.liveRatio?.let { "1:${fmt1(it)}" } ?: "–",
+                modifier = Modifier.weight(1f),
+            )
+            if (snapshot.usesScale) {
+                ReadoutTile(
+                    title = "Flow",
+                    value = "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s",
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            if (monitorReady || (isMachineConnected && machineState.status.hasPressure != false)) {
+                ReadoutTile(
+                    title = "Pressure",
+                    value = livePressure?.let { String.format(java.util.Locale.US, "%.1f bar", it) } ?: "–",
+                    detail = if (snapshot.peakPressure > 0) "peak ${String.format(java.util.Locale.US, "%.1f", snapshot.peakPressure)}" else null,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            if (isMachineConnected) {
+                ReadoutTile(
+                    title = "Temp",
+                    value = liveTemperature?.let { "${it.toInt()} °C" } ?: "–",
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            ReadoutTile(
+                title = "First drops",
+                value = snapshot.firstDropsTime?.let { "${it.toInt()} s" } ?: "–",
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReadoutTile(
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    detail: String? = null,
+) {
+    androidx.compose.material3.Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+            Text(title, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            Text(value, style = MaterialTheme.typography.titleMedium.merge(tabular), fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(detail ?: " ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun StopNowBanner(modifier: Modifier = Modifier) {
+    androidx.compose.material3.Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xFFFF9800),
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(Icons.Filled.Warning, contentDescription = null, tint = Color.White)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Stop now — target yield reached",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+            )
         }
     }
 }
