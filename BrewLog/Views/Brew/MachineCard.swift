@@ -23,7 +23,7 @@ struct MachineCard: View {
                         .font(.subheadline)
                 }
                 if machine.kind == .none {
-                    Text("Connect a GaggiMate to record pressure and temperature, start shots from here and send recipes as profiles. Without one, BrewLog times the shot with your scale.")
+                    Text("Connect a GaggiMate (Wi-Fi) or a Decent DE1 (Bluetooth) to record pressure, temperature and flow and start shots from here. Without one, BrewLog times the shot with your scale.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Button("Set up machine", action: onOpenSettings)

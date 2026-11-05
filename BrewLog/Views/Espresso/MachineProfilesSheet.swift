@@ -76,16 +76,24 @@ struct MachineProfilesSheet: View {
         }
     }
 
-    /// The recipe to brew with: BrewLog's own recipe for a profile it sent, otherwise the profile imported as a recipe.
+    /// The recipe to brew with. A profile BrewLog sent brings back its BrewLog recipe. Any other profile is imported
+    /// once; after that the recipe in BrewLog is used as it is, so changes you made to it aren't overwritten
+    /// (Settings → "Import profiles as recipes" updates them from the machine on purpose).
     @MainActor
     private func recipe(for profile: MachineProfileSummary) -> Recipe? {
-        if profile.isBrewLogs, let id = machine.recipeID(forProfile: profile.id) {
-            if let preset = RecipeLibrary.preset(id: id) { return preset }
-            let saved = try? context.fetch(FetchDescriptor<SavedRecipe>()).first { $0.id == id }?.recipe
-            if let saved { return saved }
+        let saved = (try? context.fetch(FetchDescriptor<SavedRecipe>())) ?? []
+        func savedRecipe(_ id: String) -> Recipe? { saved.first { $0.id == id }?.recipe }
+        if profile.isBrewLogs {
+            if let id = machine.recipeID(forProfile: profile.id) {
+                if let preset = RecipeLibrary.preset(id: id) { return preset }
+                if let recipe = savedRecipe(id) { return recipe }
+            }
+            // Its BrewLog recipe is gone (or it came from another phone): brew with it, but don't add a copy.
+            return profile.recipe
         }
         guard let recipe = profile.recipe else { return nil }
         if machine.kind == .demo { return recipe }
+        if let existing = savedRecipe(recipe.id) { return existing }
         _ = try? DataImporter.importRecipes([recipe], into: context)
         return recipe
     }

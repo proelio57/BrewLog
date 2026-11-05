@@ -34,9 +34,9 @@ final class DecentConnection: NSObject {
     private static let sampleUUID = CBUUID(string: DecentProtocol.shotSample)
     private static let stateUUID = CBUUID(string: DecentProtocol.stateInfo)
 
-    private var savedID: UUID? {
-        get { UserDefaults.standard.string(forKey: SettingsKey.machineDecentID).flatMap(UUID.init(uuidString:)) }
-        set { UserDefaults.standard.set(newValue?.uuidString, forKey: SettingsKey.machineDecentID) }
+    /// The paired DE1. Stored (not read from UserDefaults each time) so the Settings row updates when it changes.
+    private var savedID: UUID? = UserDefaults.standard.string(forKey: SettingsKey.machineDecentID).flatMap(UUID.init(uuidString:)) {
+        didSet { UserDefaults.standard.set(savedID?.uuidString, forKey: SettingsKey.machineDecentID) }
     }
 
     var hasSavedMachine: Bool { savedID != nil }
@@ -66,7 +66,8 @@ final class DecentConnection: NSObject {
             return
         }
         discovered.removeAll()
-        if state != .connected { state = .scanning }
+        // A reconnect in progress keeps showing "Connecting"; scanning only lists machines next to it.
+        if state != .connected && state != .connecting { state = .scanning }
         // Unfiltered: not every DE1 firmware advertises its service, so the name ("DE1…") counts too.
         central.scanForPeripherals(withServices: nil, options: nil)
     }
@@ -176,6 +177,13 @@ extension DecentConnection: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
         state = .idle
         onDisconnect?()
+        // Try again in a few seconds (like GaggiMate), as long as this is still the machine to use.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            guard let self, self.active, self.peripheral?.identifier == peripheral.identifier,
+                  self.state != .connected, self.state != .connecting else { return }
+            self.state = .connecting
+            central.connect(peripheral, options: nil)
+        }
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {

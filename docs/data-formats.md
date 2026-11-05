@@ -189,7 +189,9 @@ WebSocket `ws://<host>/ws` (default host `gaggimate.local`), JSON messages with 
 - Profile picker (iOS, espresso screen → "Profile"): `req:profiles:list` lists them (selected first, then favorites;
   utility profiles hidden); tapping one sends `req:profiles:select {rid, id}` → `res:profiles:select {rid, error?}` and
   brews with it: a profile BrewLog sent selects its BrewLog recipe again (found through the remembered profile id),
-  any other is imported as a recipe (as above) and selected. `evt:status.p` carries the selected profile's label only.
+  any other is imported as a recipe once (as above) and selected; picking it again uses the recipe in BrewLog as it
+  is, so your changes stay (Settings → "Import profiles as recipes" updates from the machine on purpose). A BrewLog
+  profile whose recipe is gone is brewed with but not added as a copy. Yields keep 0.1 g, they aren't rounded. `evt:status.p` carries the selected profile's label only.
   Pump `pressure`/`flow` `-1` means "hold the current value" and is not read as a pressure; a `ratio` target sets the
   yield to dose × ratio when there is no `volumetric` target.
 

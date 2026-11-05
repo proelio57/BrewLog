@@ -61,6 +61,8 @@ final class MachineManager {
     /// The profiles stored on the machine, for the profile picker (see `refreshProfiles()`).
     private(set) var profiles: [MachineProfileSummary] = []
     private(set) var profilesLoading = false
+    /// A refresh was asked for while one was loading (e.g. right after selecting): run it once that one is done.
+    @ObservationIgnored private var refreshAgain = false
 
     var kind: MachineKind = MachineKind(rawValue: UserDefaults.standard.string(forKey: SettingsKey.machineKind) ?? "") ?? .none {
         didSet {
@@ -243,11 +245,22 @@ final class MachineManager {
             profiles = demo.profiles
             return
         }
-        guard kind == .gaggimate, isConnected, !profilesLoading else { return }
+        guard kind == .gaggimate, isConnected else { return }
+        guard !profilesLoading else {
+            refreshAgain = true
+            return
+        }
         profilesLoading = true
+        refreshAgain = false
         requestProfiles { [weak self] summaries in
-            guard let self else { return }
+            // Switched to another machine meanwhile: this answer is stale.
+            guard let self, self.kind == .gaggimate else { return }
             self.profilesLoading = false
+            if self.refreshAgain {
+                self.refreshAgain = false
+                self.refreshProfiles()
+                return
+            }
             if let summaries {
                 self.profiles = summaries
             } else {
@@ -335,6 +348,9 @@ final class MachineManager {
 
     private func restart() {
         disconnect()
+        // After disconnect(): it fails pending requests, whose notices belong to the old machine.
+        notice = nil
+        refreshAgain = false
         demo.stop()
         if kind != .decent { decent.disconnect(forget: false) }
         status = MachineStatus()

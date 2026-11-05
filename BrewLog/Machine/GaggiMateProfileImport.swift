@@ -71,7 +71,7 @@ extension GaggiMateProfile {
         let dose = number(profile["dose"]).map { $0.clamped(5, 40) } ?? 18
         // A weight target wins; otherwise a ratio target (yield = dose × ratio); otherwise 1:2.
         let yield = (phases.compactMap(\.volumetricTarget).last ?? phases.compactMap(\.ratioTarget).last.map { $0 * dose })
-            .map { $0.clamped(5, 200).rounded() } ?? (dose * 2).rounded()
+            .map { ($0.clamped(5, 200) * 10).rounded() / 10 } ?? (dose * 20).rounded() / 10   // to 0.1 g, not whole grams
         let preinfusion = phases.filter(\.isPreinfusion).reduce(0) { $0 + $1.duration }
         let total = phases.reduce(0) { $0 + $1.duration }
         // With a target weight the durations are only safety caps, so the shot usually ends well before their sum.
@@ -126,8 +126,8 @@ extension GaggiMateProfile {
         var flow: Double?
         /// Pump power in percent (simple profiles without pressure control).
         var power: Double?
-        /// The phase keeps the pressure (or flow) the previous one reached (GaggiMate's `-1`).
-        var holds = false
+        /// The phase keeps the pressure or flow the previous one reached (GaggiMate's `-1`): "pressure" or "flow".
+        var holds: String?
         var volumetricTarget: Double?
         var ratioTarget: Double?
 
@@ -142,7 +142,7 @@ extension GaggiMateProfile {
                 // -1 means "hold the current value": not a reading, so it doesn't count as 0.
                 let pressure = rawPressure.flatMap { $0 < 0 ? nil : $0.clamped(0, 15) }
                 let flow = rawFlow.flatMap { $0 < 0 ? nil : $0.clamped(0, 15) }
-                holds = ((target == "flow" ? rawFlow : rawPressure) ?? 0) < 0
+                if ((target == "flow" ? rawFlow : rawPressure) ?? 0) < 0 { holds = target == "flow" ? "flow" : "pressure" }
                 if target == "flow" {
                     self.flow = flow
                     // In a flow phase the pressure is a limit (0 means none).
@@ -167,8 +167,8 @@ extension GaggiMateProfile {
         var summary: String {
             var parts = [name.isEmpty ? (isPreinfusion ? "Pre-infusion" : "Brew") : name]
             if duration > 0 { parts.append("\(Self.format(duration)) s") }
-            if holds {
-                parts.append("hold pressure")
+            if let holds {
+                parts.append("hold \(holds)")
             } else if let flow {
                 parts.append("\(Self.format(flow)) ml/s" + (pressure.map { ", max \(Self.format($0)) bar" } ?? ""))
             } else if let pressure {

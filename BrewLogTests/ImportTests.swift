@@ -118,6 +118,32 @@ final class ImportTests: XCTestCase {
         XCTAssertEqual(recipe.targetTime, 25, "a ratio target ends the shot, so the 40 s duration is only a cap")
     }
 
+    func testYieldIsNotRounded() throws {
+        let profile = try listResponse("""
+        { "label": "Exact", "dose": 18.3, "phases": [
+          { "name": "Brew", "phase": "brew", "valve": 1, "duration": 30, "pump": 100,
+            "targets": [ { "type": "volumetric", "value": 36.5 } ] } ] }
+        """)
+        XCTAssertEqual(try XCTUnwrap(GaggiMateProfile.recipe(from: profile)).water, 36.5)
+        let ratio = try listResponse("""
+        { "label": "Ratio", "dose": 18.3, "phases": [
+          { "name": "Brew", "phase": "brew", "valve": 1, "duration": 30, "pump": 100,
+            "targets": [ { "type": "ratio", "value": 2 } ] } ] }
+        """)
+        XCTAssertEqual(try XCTUnwrap(GaggiMateProfile.recipe(from: ratio)).water, 36.6, accuracy: 0.001)
+    }
+
+    func testFlowHoldIsLabelledFlow() throws {
+        let profile = try listResponse("""
+        { "label": "Flow", "phases": [
+          { "name": "Steady", "phase": "brew", "valve": 1, "duration": 20,
+            "pump": { "target": "flow", "pressure": 9, "flow": -1 } } ] }
+        """)
+        let tip = try XCTUnwrap(GaggiMateProfile.recipe(from: profile)?.tips.first)
+        XCTAssertTrue(tip.contains("hold flow"), tip)
+        XCTAssertFalse(tip.contains("hold pressure"), tip)
+    }
+
     func testHoldPressureIsIgnored() throws {
         let profile = try listResponse("""
         { "label": "Hold", "phases": [
