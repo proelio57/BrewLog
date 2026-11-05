@@ -456,6 +456,7 @@ fun SettingsScreen(nav: NavHostController) {
                     if (!settings.countdownTicks) {
                         SwitchRow("3-2-1 ticks before opening or closing the valve", settings.valveCountdown) { v -> update { it.copy(valveCountdown = v) } }
                     }
+                    SwitchRow("Rinse the paper", settings.rinsePaper) { v -> update { it.copy(rinsePaper = v) } }
                     SwitchRow("Weigh the beans first", settings.weighBeansFirst) { v -> update { it.copy(weighBeansFirst = v) } }
                     SwitchRow("Chime at target brew time", settings.finishPing) { v -> update { it.copy(finishPing = v) } }
                     SwitchRow("Keep screen on while brewing", settings.keepAwake) { v -> update { it.copy(keepAwake = v) } }

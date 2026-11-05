@@ -33,6 +33,8 @@ enum class BrewCue {
 }
 
 enum class BrewPhase {
+    /** Optional paper rinse step before weighing / preparing (pour-over only). */
+    RINSING,
     /** Weighing the beans on the tared scale (optional, before the brewer goes on). */
     DOSING,
     PREPARING, ARMED, BREWING, FINISHED,
@@ -175,12 +177,27 @@ class BrewSession(
     /** Weighing the beans needs a scale. */
     val canWeighBeans: Boolean get() = scale.isReady && (phase == BrewPhase.PREPARING || phase == BrewPhase.DOSING)
 
-    /** Called once when the live screen opens: starts by weighing the beans if that's switched on. */
+    /** Called once when the live screen opens: starts by rinsing paper / weighing beans if switched on. */
     fun prepare() {
         // Only once per brew, so recreating the screen (e.g. rotating) doesn't ask again.
         if (prepared) return
         prepared = true
-        if (settings().weighBeansFirst) weighBeans()
+        if (settings().rinsePaper && !isEspresso) {
+            phase = BrewPhase.RINSING
+            publish()
+        } else if (settings().weighBeansFirst) {
+            weighBeans()
+        }
+    }
+
+    /** Paper rinsed (or skipped): on to weighing the beans if that's switched on. */
+    fun rinseDone() {
+        if (phase != BrewPhase.RINSING) return
+        phase = BrewPhase.PREPARING
+        publish()
+        if (settings().weighBeansFirst) {
+            weighBeans()
+        }
     }
 
     /** Tare the scale and weigh the beans against the planned dose. */
@@ -262,7 +279,7 @@ class BrewSession(
     private fun machineShot(started: Boolean, atMs: Long) {
         if (started) {
             when (phase) {
-                BrewPhase.DOSING, BrewPhase.PREPARING -> { ready(); begin(atMs) }
+                BrewPhase.RINSING, BrewPhase.DOSING, BrewPhase.PREPARING -> { ready(); begin(atMs) }
                 BrewPhase.ARMED -> begin(atMs)
                 else -> Unit
             }

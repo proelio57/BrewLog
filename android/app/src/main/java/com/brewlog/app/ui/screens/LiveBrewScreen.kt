@@ -210,6 +210,7 @@ fun LiveBrewScreen(nav: NavHostController) {
             Readouts(snapshot, config, session.recipe, pressureReady = pressureReady, pressureBar = currentPressure)
         }
         when (snapshot.phase) {
+            BrewPhase.RINSING -> RinseCard()
             BrewPhase.DOSING -> DoseCard(snapshot.weight, session.plannedDose, snapshot.doseStatus)
             BrewPhase.PREPARING -> PreparingCard(snapshot.usesScale, session)
             BrewPhase.ARMED -> ArmedCard(snapshot, session.recipe.steps.firstOrNull(), session)
@@ -230,6 +231,10 @@ fun LiveBrewScreen(nav: NavHostController) {
         Spacer(Modifier.weight(1f))
         Controls(
             snapshot,
+            onRinseDone = {
+                session.rinseDone()
+                container.haptics.tap()
+            },
             canWeighBeans = session.canWeighBeans && snapshot.weighedDose == null,
             onWeighBeans = { session.weighBeans(); container.haptics.tap() },
             onTareDose = { session.tareDose(); container.haptics.tap() },
@@ -307,7 +312,7 @@ private fun Readouts(
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
             Text("WEIGHT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (snapshot.usesScale) {
-                val shown = if (snapshot.phase == BrewPhase.PREPARING || snapshot.phase == BrewPhase.DOSING) snapshot.weight else maxOf(snapshot.weight, 0.0)
+                val shown = if (snapshot.phase == BrewPhase.PREPARING || snapshot.phase == BrewPhase.DOSING || snapshot.phase == BrewPhase.RINSING) snapshot.weight else maxOf(snapshot.weight, 0.0)
                 Text(shown.scaleReadout(), fontSize = fontSize, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
                 Text("${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
@@ -650,7 +655,6 @@ private fun PreparationList(config: BrewConfig, recipe: com.brewlog.app.domain.R
             "Flush the group head, lock in the portafilter",
             "Brew at ${config.waterTemp.toInt()} °C, stop at ${recipe.water.grams()}",
         ) else listOf(
-            "Rinse the paper with hot water and discard it",
             "Add ${dose.grams1()} of coffee$grind",
             "Shake or swirl to level the bed",
             "Water at ${config.waterTemp.toInt()} °C",
@@ -701,8 +705,28 @@ private fun StepsStrip(config: BrewConfig, recipe: com.brewlog.app.domain.Recipe
 }
 
 @Composable
+private fun RinseCard() {
+    BrewCard {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.WaterDrop, null, Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text("Rinse the paper", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Pour hot water through the paper in the brewer to rinse out the paper taste and preheat it, then discard the water.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun Controls(
     snapshot: BrewSnapshot,
+    onRinseDone: () -> Unit,
     canWeighBeans: Boolean,
     onWeighBeans: () -> Unit,
     onTareDose: () -> Unit,
@@ -713,6 +737,12 @@ private fun Controls(
     onFinish: () -> Unit,
 ) {
     when (snapshot.phase) {
+        BrewPhase.RINSING -> {
+            TextButton(onClick = onRinseDone, modifier = Modifier.fillMaxWidth()) {
+                Text("Skip rinsing", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            PrimaryButton("Rinsed", Icons.Filled.CheckCircle, onClick = onRinseDone)
+        }
         BrewPhase.DOSING -> {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 TextButton(onClick = onTareDose) { Text("Tare", fontWeight = FontWeight.SemiBold) }

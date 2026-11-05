@@ -69,7 +69,7 @@ class DosingAndAdviceTest {
         val scale = FakeScale()
         val cues = mutableListOf<BrewCue>()
         var now = 0L
-        val session = BrewSession(recipe, scale, { AppSettings() }, { cues += it }, clock = { now })
+        val session = BrewSession(recipe, scale, { AppSettings(rinsePaper = false) }, { cues += it }, clock = { now })
         session.prepare()
         session.prepare()
         assertEquals(BrewPhase.DOSING, session.phase)
@@ -96,7 +96,7 @@ class DosingAndAdviceTest {
         val recipe = preset("everyday-3-pour")
         val scale = FakeScale()
         var now = 0L
-        val session = BrewSession(recipe, scale, { AppSettings() }, {}, clock = { now })
+        val session = BrewSession(recipe, scale, { AppSettings(rinsePaper = false) }, {}, clock = { now })
         session.prepare()
         session.tareDose()
         assertEquals(listOf("dose", "tare"), scale.commands)
@@ -117,11 +117,31 @@ class DosingAndAdviceTest {
         assertNull(BeanDosing.stableWeight(steady.take(3), 200))
     }
 
+    @Test fun startsWithRinsingWhenSwitchedOnThenWeighs() {
+        val scale = FakeScale()
+        val session = BrewSession(preset("everyday-3-pour"), scale, { AppSettings() }, {})
+        session.prepare()
+        assertEquals(BrewPhase.RINSING, session.phase)
+        assertEquals(emptyList<String>(), scale.commands)
+        session.rinseDone()
+        assertEquals(BrewPhase.DOSING, session.phase)
+        assertEquals(listOf("dose"), scale.commands)
+        // Espresso has no paper to rinse.
+        val shot = BrewSession(preset("espresso-classic"), FakeScale(), { AppSettings() }, {})
+        shot.prepare()
+        assertEquals(BrewPhase.DOSING, shot.phase)
+        // Rinsing without weighing goes straight to Ready.
+        val plain = BrewSession(preset("everyday-3-pour"), FakeScale(), { AppSettings(weighBeansFirst = false) }, {})
+        plain.prepare()
+        plain.rinseDone()
+        assertEquals(BrewPhase.PREPARING, plain.phase)
+    }
+
     @Test fun skipsWeighingWhenSwitchedOffOrWithoutScale() {
-        val off = BrewSession(preset("everyday-3-pour"), FakeScale(), { AppSettings(weighBeansFirst = false) }, {})
+        val off = BrewSession(preset("everyday-3-pour"), FakeScale(), { AppSettings(rinsePaper = false, weighBeansFirst = false) }, {})
         off.prepare()
         assertEquals(BrewPhase.PREPARING, off.phase)
-        val noScale = BrewSession(preset("everyday-3-pour"), FakeScale(isReady = false), { AppSettings() }, {})
+        val noScale = BrewSession(preset("everyday-3-pour"), FakeScale(isReady = false), { AppSettings(rinsePaper = false) }, {})
         noScale.prepare()
         assertEquals(BrewPhase.PREPARING, noScale.phase)
         assertEquals(preset("everyday-3-pour").dose, noScale.dose, 0.0)
