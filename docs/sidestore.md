@@ -12,41 +12,15 @@ list in a few seconds and the app picks it up within a few hours (or right away 
 push to main ──► .github/workflows/ios.yml ──► GitHub release v1.0.<run>  (BrewLog.ipa)
                                           └─► branch "sidestore": source.json, recipes.json, icon.png
                 .github/workflows/recipes.yml ─► branch "sidestore": recipes.json
-SideStore ◄── https://raw.githubusercontent.com/<RELEASE_REPO>/sidestore/source.json
-BrewLog app ◄── https://raw.githubusercontent.com/<RELEASE_REPO>/sidestore/recipes.json
+SideStore ◄── https://raw.githubusercontent.com/proelio57/BrewLog/sidestore/source.json
+BrewLog app ◄── https://raw.githubusercontent.com/proelio57/BrewLog/sidestore/recipes.json
 ```
 
 ## Setup
 
-SideStore and the app download without logging in, so the files have to be in a **public** GitHub repository.
-Pick one of these:
-
-### A: the code repository itself is public (simplest)
-
-1. Push this repository to GitHub, e.g. `you/brewlog` (public).
-2. Settings → Actions → General → Workflow permissions: **Read and write permissions**.
-3. Push to `main`. Done. macOS minutes are free for public repositories.
-
-### B: code stays private, releases go to a second, public repository
-
-1. Create an **empty public** repository, e.g. `you/brewlog-releases`.
-2. Create a fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens):
-   repository access only `you/brewlog-releases`, permission **Contents: Read and write**.
-3. In the private code repository (Settings → Secrets and variables → Actions):
-   - secret `RELEASE_TOKEN` = the token
-   - variable `RELEASE_REPO` = `you/brewlog-releases`
-4. Push to `main`.
-
-Private repositories get 2,000 free Actions minutes per month, and macOS minutes count 10×. A build with tests
-takes roughly 8–12 minutes, so that's about 15–25 builds a month. To save minutes, set the variable
-`SKIP_TESTS` = `true` (the build itself still has to compile), or only push to `main` when you want a release.
-
-### Code on GitLab?
-
-GitLab's hosted macOS runners are only available on paid plans. Keep GitLab as the main repository and mirror
-it to GitHub: GitLab → Settings → Repository → **Mirroring repositories** → Git repository URL
-`https://github.com/you/brewlog.git`, direction **Push**, password = a GitHub token with *Contents: Read and
-write* on that repository. Every push to GitLab then reaches GitHub within minutes and starts the build.
+The workflows publish to this repository, `proelio57/BrewLog` (public on GitHub). They need
+Settings → Actions → General → Workflow permissions: **Read and write permissions**. Then every push to `main`
+builds and publishes.
 
 ## In SideStore
 
@@ -54,7 +28,7 @@ SideStore needs **[LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755
 ([GitHub](https://github.com/jkcoxson/LocalDevVPN)): open it, tap **Connect** and allow the VPN profile (the iPhone
 needs a passcode). Keep it connected when installing or refreshing apps, otherwise the 7-day re-signing fails.
 
-1. **Sources → +** and enter `https://raw.githubusercontent.com/<RELEASE_REPO>/sidestore/source.json`.
+1. **Sources → +** and enter `https://raw.githubusercontent.com/proelio57/BrewLog/sidestore/source.json`.
 2. Install BrewLog from the source once. If you sideloaded BrewLog before, back up your data first
    (e.g. export your recipes), in case SideStore installs it as a separate app.
 3. New builds then show up under **My Apps → Update**. `raw.githubusercontent.com` caches for about 5 minutes.

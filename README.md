@@ -90,25 +90,14 @@ You don't need a Mac or a paid developer account. GitHub Actions ([.github/workf
 - Install **[LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044)** from the App Store ([source on GitHub](https://github.com/jkcoxson/LocalDevVPN)). It is the small on-device VPN SideStore needs: open it, tap **Connect** and allow the VPN profile when iOS asks (the iPhone needs a passcode for that). This loopback tunnel is what lets SideStore install and re-sign apps on the phone itself, with no computer — keep it connected when installing or refreshing, or the 7-day refresh fails.
 - Open SideStore and sign in with your Apple ID (a free one is enough).
 
-**2. Publish the BrewLog source (once)**
-
-The files must live in a **public** GitHub repo, because SideStore downloads without logging in. Simplest path:
-
-1. This repo is `proelio57/BrewLog` on GitHub — make it **public** (or use a public release repo, Variant B).
-2. **Settings → Actions → General → Workflow permissions → Read and write permissions.**
-3. Push to `main`. Actions builds the `.ipa`, creates a release and writes `source.json` to the `sidestore` branch. (macOS minutes are free for public repos.)
-
-To keep the code private, or to mirror from GitLab, use Variant B in [docs/sidestore.md](docs/sidestore.md).
-
-**3. Add it in SideStore**
+**2. Add BrewLog in SideStore**
 
 1. **Sources → +** and enter
    `https://raw.githubusercontent.com/proelio57/BrewLog/sidestore/source.json`
-   (if you use a separate public release repo, replace `proelio57/BrewLog` with it)
 2. Install **BrewLog** from the source once.
 3. New builds then appear under **My Apps → Update** (`raw.githubusercontent.com` caches for about 5 minutes).
 
-With a free Apple ID, SideStore re-signs the app every 7 days automatically (keep LocalDevVPN connected so this works without a computer), at most 3 sideloaded apps are active at once, and BrewLog uses two app IDs because of its Live Activity extension. More detail — widgets, app groups, version numbers, GitLab — is in [docs/sidestore.md](docs/sidestore.md). If you sideloaded BrewLog before, export your recipes first in case it installs as a separate app.
+With a free Apple ID, SideStore re-signs the app every 7 days automatically (keep LocalDevVPN connected so this works without a computer), at most 3 sideloaded apps are active at once, and BrewLog uses two app IDs because of its Live Activity extension. More detail — widgets, app groups, version numbers — is in [docs/sidestore.md](docs/sidestore.md). If you sideloaded BrewLog before, export your recipes first in case it installs as a separate app.
 
 ## Getting started
 
