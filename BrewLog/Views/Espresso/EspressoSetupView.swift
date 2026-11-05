@@ -50,7 +50,7 @@ struct EspressoSetupView: View {
                         } else {
                             machineRow("Profile", machine.status.profile ?? "–", symbol: "slider.horizontal.3")
                         }
-                        Text("from GaggiMate")
+                        Text("from \(machine.displayName)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .trailing)

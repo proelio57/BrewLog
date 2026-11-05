@@ -65,22 +65,26 @@ struct MachineCard: View {
             ForEach(MachineMode.allCases) { Text($0.title).tag($0) }
         }
         .pickerStyle(.segmented)
-        HStack {
-            Label("Temperature", systemImage: "thermometer.medium").foregroundStyle(.secondary)
-            Spacer()
-            Button { machine.nudgeTemperature(up: false) } label: { Image(systemName: "minus.circle.fill") }
-                .accessibilityLabel("1 °C cooler")
-            Button { machine.nudgeTemperature(up: true) } label: { Image(systemName: "plus.circle.fill") }
-                .accessibilityLabel("1 °C hotter")
+        if machine.kind.capabilities.contains(.temperatureNudge) {
+            HStack {
+                Label("Temperature", systemImage: "thermometer.medium").foregroundStyle(.secondary)
+                Spacer()
+                Button { machine.nudgeTemperature(up: false) } label: { Image(systemName: "minus.circle.fill") }
+                    .accessibilityLabel("1 °C cooler")
+                Button { machine.nudgeTemperature(up: true) } label: { Image(systemName: "plus.circle.fill") }
+                    .accessibilityLabel("1 °C hotter")
+            }
+            .font(.subheadline)
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.accentColor)
         }
-        .font(.subheadline)
-        .buttonStyle(.plain)
-        .foregroundStyle(Color.accentColor)
-        Button {
-            machine.sendProfile(recipe: recipe, dose: dose, temperature: temperature)
-        } label: {
-            Label("Send recipe to machine", systemImage: "square.and.arrow.up.on.square")
-                .font(.subheadline.weight(.semibold))
+        if machine.kind.capabilities.contains(.profiles) {
+            Button {
+                machine.sendProfile(recipe: recipe, dose: dose, temperature: temperature)
+            } label: {
+                Label("Send recipe to machine", systemImage: "square.and.arrow.up.on.square")
+                    .font(.subheadline.weight(.semibold))
+            }
         }
         if let notice = machine.notice {
             Text(notice).font(.caption).foregroundStyle(.secondary)

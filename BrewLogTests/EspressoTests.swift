@@ -118,45 +118,45 @@ final class EspressoTests: XCTestCase {
     // MARK: GaggiMate
 
     func testStatusFramesTrackTheShot() throws {
-        var status = GaggiMateStatus()
-        let state = try XCTUnwrap(GaggiMateStatus.statusFrame(#"{"tp":"evt:status","m":1,"p":"9 Bar","cp":true,"bc":true,"sys":{"s":"ready","m":"","c":0}}"#))
+        var status = MachineStatus()
+        let state = try XCTUnwrap(MachineStatus.statusFrame(#"{"tp":"evt:status","m":1,"p":"9 Bar","cp":true,"bc":true,"sys":{"s":"ready","m":"","c":0}}"#))
         status.merge(state)
-        XCTAssertFalse(GaggiMateStatus.isTelemetry(state))
+        XCTAssertFalse(MachineStatus.isTelemetry(state))
         XCTAssertEqual(status.mode, 1)
         XCTAssertEqual(status.profile, "9 Bar")
         XCTAssertEqual(status.systemState, "ready")
         XCTAssertTrue(status.scaleConnected)
 
-        let brewing = try XCTUnwrap(GaggiMateStatus.statusFrame(
+        let brewing = try XCTUnwrap(MachineStatus.statusFrame(
             #"{"tp":"evt:status","ct":92.6,"tt":93,"pr":8.94,"fl":2.1,"cw":12.4,"process":{"a":1,"s":"brew","l":"Extraction","e":9000}}"#))
         status.merge(brewing)
-        XCTAssertTrue(GaggiMateStatus.isTelemetry(brewing))
+        XCTAssertTrue(MachineStatus.isTelemetry(brewing))
         XCTAssertTrue(status.isBrewing)
         XCTAssertEqual(status.pressure, 8.94)
         XCTAssertEqual(status.weight, 12.4)
         XCTAssertTrue(status.hasWeight)
         XCTAssertEqual(status.profile, "9 Bar", "missing keys keep their value")
 
-        status.merge(try XCTUnwrap(GaggiMateStatus.statusFrame(#"{"tp":"evt:status","pr":0.2,"process":{"a":0,"s":"brew","l":"Finished"}}"#)))
+        status.merge(try XCTUnwrap(MachineStatus.statusFrame(#"{"tp":"evt:status","pr":0.2,"process":{"a":0,"s":"brew","l":"Finished"}}"#)))
         XCTAssertFalse(status.isBrewing)
-        status.merge(try XCTUnwrap(GaggiMateStatus.statusFrame(#"{"tp":"evt:status","pr":null,"process":null}"#)))
+        status.merge(try XCTUnwrap(MachineStatus.statusFrame(#"{"tp":"evt:status","pr":null,"process":null}"#)))
         XCTAssertNil(status.pressure, "null clears")
         XCTAssertNil(status.processKind)
     }
 
     func testFlushAndGrindAreNotShots() throws {
-        var status = GaggiMateStatus()
-        status.merge(try XCTUnwrap(GaggiMateStatus.statusFrame(#"{"tp":"evt:status","pr":9,"process":{"a":1,"s":"brew","u":1}}"#)))
+        var status = MachineStatus()
+        status.merge(try XCTUnwrap(MachineStatus.statusFrame(#"{"tp":"evt:status","pr":9,"process":{"a":1,"s":"brew","u":1}}"#)))
         XCTAssertFalse(status.isBrewing)
-        status.merge(try XCTUnwrap(GaggiMateStatus.statusFrame(#"{"tp":"evt:status","pr":0,"process":{"a":1,"s":"grind"}}"#)))
+        status.merge(try XCTUnwrap(MachineStatus.statusFrame(#"{"tp":"evt:status","pr":0,"process":{"a":1,"s":"grind"}}"#)))
         XCTAssertFalse(status.isBrewing)
     }
 
     func testIgnoresOtherMessagesAndClamps() throws {
-        XCTAssertNil(GaggiMateStatus.statusFrame(#"{"tp":"res:profiles:list","profiles":[]}"#))
-        XCTAssertNil(GaggiMateStatus.statusFrame("not json"))
-        var status = GaggiMateStatus()
-        status.merge(try XCTUnwrap(GaggiMateStatus.statusFrame(#"{"tp":"evt:status","pr":250,"ct":-5}"#)))
+        XCTAssertNil(MachineStatus.statusFrame(#"{"tp":"res:profiles:list","profiles":[]}"#))
+        XCTAssertNil(MachineStatus.statusFrame("not json"))
+        var status = MachineStatus()
+        status.merge(try XCTUnwrap(MachineStatus.statusFrame(#"{"tp":"evt:status","pr":250,"ct":-5}"#)))
         XCTAssertEqual(status.pressure, 20)
         XCTAssertEqual(status.temperature, 0)
     }

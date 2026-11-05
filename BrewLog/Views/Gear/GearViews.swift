@@ -501,7 +501,7 @@ struct SettingsView: View {
             if machine.kind != .none {
                 LabeledContent("Status", value: machineStateText)
             }
-            if machine.kind == .gaggimate {
+            if machine.kind.capabilities.contains(.profiles) && machine.kind != .demo {
                 MachineProfileImportRow()
             }
             // GaggiMate measures the pressure itself; the sensor is for machines BrewLog can't connect to.

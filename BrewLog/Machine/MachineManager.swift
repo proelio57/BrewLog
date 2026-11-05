@@ -14,6 +14,28 @@ enum MachineKind: String, CaseIterable, Identifiable {
     }
 }
 
+/// What BrewLog can do with a kind of machine beyond reading its state.
+struct MachineCapabilities: OptionSet {
+    let rawValue: Int
+    /// Profiles stored on the machine: send a recipe as one, list and select them.
+    static let profiles = MachineCapabilities(rawValue: 1 << 0)
+    /// Raise or lower the brew temperature by 1 °C.
+    static let temperatureNudge = MachineCapabilities(rawValue: 1 << 1)
+    /// A scale connected to the machine (weight read and tared through it).
+    static let machineScale = MachineCapabilities(rawValue: 1 << 2)
+    /// Start and stop shots, switch modes.
+    static let startStop = MachineCapabilities(rawValue: 1 << 3)
+}
+
+extension MachineKind {
+    var capabilities: MachineCapabilities {
+        switch self {
+        case .none: return []
+        case .gaggimate, .demo: return [.profiles, .temperatureNudge, .machineScale, .startStop]
+        }
+    }
+}
+
 /// Connection to the espresso machine: live pressure, temperature and flow, and shot start/stop.
 ///
 /// GaggiMate is reached over its local WebSocket (`ws://gaggimate.local/ws`): BrewLog reads the telemetry, and on request
@@ -28,7 +50,7 @@ final class MachineManager {
     }
 
     private(set) var state: ConnectionState = .off
-    private(set) var status = GaggiMateStatus()
+    private(set) var status = MachineStatus()
     /// Short feedback for the last command, e.g. "Profile sent" or an error from the machine.
     private(set) var notice: String?
     /// The machine refused to start because of a warning (e.g. low water) and waits for a decision.
@@ -69,7 +91,7 @@ final class MachineManager {
     }
 
     /// Every telemetry frame (about twice a second). Used by the brew engine to record the shot.
-    @ObservationIgnored var onReading: ((GaggiMateStatus, Date) -> Void)?
+    @ObservationIgnored var onReading: ((MachineStatus, Date) -> Void)?
     /// The machine started (true) or stopped (false) a shot.
     @ObservationIgnored var onShot: ((Bool, Date) -> Void)?
 
@@ -109,7 +131,7 @@ final class MachineManager {
     var canControl: Bool { kind != .none && isConnected }
 
     /// The machine keeps profiles that can be listed and selected from BrewLog.
-    var canChooseProfile: Bool { (kind == .gaggimate || kind == .demo) && isConnected }
+    var canChooseProfile: Bool { kind.capabilities.contains(.profiles) && isConnected }
 
     func setMode(_ mode: MachineMode) {
         if kind == .demo { demo.setMode(mode); return }
@@ -286,7 +308,7 @@ final class MachineManager {
     private func restart() {
         disconnect()
         demo.stop()
-        status = GaggiMateStatus()
+        status = MachineStatus()
         profiles = []
         profilesLoading = false
         switch kind {
@@ -341,10 +363,10 @@ final class MachineManager {
                 switch result {
                 case .success(let message):
                     if case .string(let text) = message {
-                        if let frame = GaggiMateStatus.statusFrame(text) {
+                        if let frame = MachineStatus.statusFrame(text) {
                             var status = self.status
                             status.merge(frame)
-                            self.apply(status: status, telemetry: GaggiMateStatus.isTelemetry(frame))
+                            self.apply(status: status, telemetry: MachineStatus.isTelemetry(frame))
                         } else if text.utf8.count <= 256 * 1024,
                                   let other = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] {
                             self.lastMessage = Date()
@@ -376,7 +398,7 @@ final class MachineManager {
         profilesLoading = false
         state = .unreachable
         if wasBrewing { onShot?(false, Date()) }
-        status = GaggiMateStatus()
+        status = MachineStatus()
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.kind == .gaggimate else { return }
             self.connect()
@@ -385,7 +407,7 @@ final class MachineManager {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: work)
     }
 
-    private func apply(status newStatus: GaggiMateStatus, telemetry: Bool) {
+    private func apply(status newStatus: MachineStatus, telemetry: Bool) {
         let wasBrewing = status.isBrewing
         lastMessage = Date()
         state = .connected
@@ -397,17 +419,17 @@ final class MachineManager {
 
 /// Simulated machine: idles at brew temperature and runs a realistic pressure profile when a shot is simulated.
 private final class DemoMachine {
-    var onStatus: ((GaggiMateStatus, Bool) -> Void)?
+    var onStatus: ((MachineStatus, Bool) -> Void)?
 
     private var timer: Timer?
-    private var status = GaggiMateStatus()
+    private var status = MachineStatus()
     private var shotStart: Date?
     private var preinfusion: Double = 7
     private var peak: Double = 9
     private var duration: Double = 28
 
     func start() {
-        status = GaggiMateStatus()
+        status = MachineStatus()
         status.mode = 1
         status.profile = "Demo"
         status.hasPressure = true
