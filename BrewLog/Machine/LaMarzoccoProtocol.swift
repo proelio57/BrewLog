@@ -41,21 +41,30 @@ enum LaMarzoccoProtocol {
         return (access, refresh)
     }
 
+    /// The id of a command just sent (`POST …/command/…` answers `[{"id", "status"}]`); its result comes later
+    /// in the dashboard's `commands`.
+    static func commandID(_ json: Data) -> String? {
+        guard json.count <= 100_000,
+              let list = (try? JSONSerialization.jsonObject(with: json)) as? [[String: Any]] else { return nil }
+        return list.first?["id"] as? String
+    }
+
     static func needsRefresh(expiresAt: Date, now: Date = Date()) -> Bool {
         expiresAt.timeIntervalSince(now) < refreshMargin
     }
 
     // MARK: Dashboard
 
-    /// Applies a dashboard (REST or WebSocket message) to the status. Returns whether the machine is online and the
-    /// results of commands it mentions (command id → "Success", "Error", "Failed" or "Timeout").
+    /// Applies a dashboard (REST or WebSocket message) to the status. Returns whether the machine is online (nil when
+    /// the message doesn't say) and the results of commands it mentions (command id → "Success", "Error", "Failed" or
+    /// "Timeout"). Returns nil, changing nothing, for a message that isn't a dashboard (garbled or split frame).
     @discardableResult
-    static func apply(dashboard json: Data, to status: inout MachineStatus) -> (connected: Bool, commandResults: [String: String]) {
+    static func apply(dashboard json: Data, to status: inout MachineStatus) -> (connected: Bool?, commandResults: [String: String])? {
         guard json.count <= 1_000_000,
               let object = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any] else {
-            return (true, [:])
+            return nil
         }
-        let connected = object["connected"] as? Bool ?? true
+        let connected = object["connected"] as? Bool
         var results: [String: String] = [:]
         for command in (object["commands"] as? [[String: Any]] ?? []).prefix(50) {
             if let id = command["id"] as? String, let result = command["status"] as? String { results[id] = result }
@@ -69,14 +78,14 @@ enum LaMarzoccoProtocol {
             guard let output = widget["output"] as? [String: Any] else { continue }
             switch widget["code"] as? String ?? "" {
             case "CMMachineStatus":
-                applyMachineStatus(output, connected: connected, to: &status)
+                applyMachineStatus(output, connected: connected != false, to: &status)
             case "CMCoffeeBoiler":
                 applyBoiler(output, to: &status)
             default:
                 break  // unknown or not needed
             }
         }
-        if !connected { setBrewing(false, on: &status) }
+        if connected == false { setBrewing(false, on: &status) }
         return (connected, results)
     }
 

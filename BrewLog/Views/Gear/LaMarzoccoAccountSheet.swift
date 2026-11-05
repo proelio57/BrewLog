@@ -63,9 +63,16 @@ struct LaMarzoccoAccountSheet: View {
                                 }
                             }
                         }
-                        if cloud.machines.isEmpty && cloud.machine == nil {
-                            Text("Sign in again to list your machines.").foregroundStyle(.secondary)
+                        Button {
+                            reload()
+                        } label: {
+                            HStack {
+                                Label(cloud.machines.isEmpty ? "Show my machines" : "Reload machines",
+                                      systemImage: "arrow.clockwise")
+                                if working { Spacer(); ProgressView() }
+                            }
                         }
+                        .disabled(working)
                     }
                 } else {
                     Section {
@@ -101,6 +108,21 @@ struct LaMarzoccoAccountSheet: View {
                     }
                 }
             }
+        }
+    }
+
+    private func reload() {
+        working = true
+        error = nil
+        let cloud = machine.laMarzocco
+        Task {
+            do {
+                let machines = try await cloud.reloadMachines()
+                if machines.isEmpty { error = "No coffee machine in this La Marzocco account." }
+            } catch {
+                self.error = error.localizedDescription
+            }
+            working = false
         }
     }
 

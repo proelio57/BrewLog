@@ -585,8 +585,9 @@ final class BrewSession {
             }
             fire(.target)
         case .finish:
-            // With a machine, the pump stopping ends the shot (see `machineShot`).
-            if !followsMachine { onAutoFinish?() }
+            // With a machine that reports its pump live, the pump stopping ends the shot (see `machineShot`).
+            // La Marzocco's cloud can miss or delay that, so there the settled cup ends it too.
+            if !machineStartsShot { onAutoFinish?() }
         case .none:
             break
         }

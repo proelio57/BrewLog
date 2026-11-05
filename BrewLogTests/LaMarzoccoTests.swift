@@ -74,8 +74,8 @@ final class LaMarzoccoTests: XCTestCase {
     func testDashboardBrewing() {
         var status = MachineStatus()
         let result = LaMarzoccoProtocol.apply(dashboard: dashboard(status: "Brewing", mode: "BrewingMode"), to: &status)
-        XCTAssertTrue(result.connected)
-        XCTAssertEqual(result.commandResults["c-1"], "Success")
+        XCTAssertEqual(result?.connected, true)
+        XCTAssertEqual(result?.commandResults["c-1"], "Success")
         XCTAssertTrue(status.isBrewing)
         XCTAssertEqual(status.mode, MachineMode.brew.rawValue)
         XCTAssertEqual(status.targetTemperature ?? 0, 94.0, accuracy: 0.001)
@@ -97,12 +97,13 @@ final class LaMarzoccoTests: XCTestCase {
         let extra = #", { "code": "CMSomethingNew", "index": 1, "output": { "x": [1, 2] } }, { "code": "CMNoWater" }"#
         let result = LaMarzoccoProtocol.apply(dashboard: dashboard(status: "PoweredOn", mode: "BrewingMode", extra: extra),
                                               to: &status)
-        XCTAssertTrue(result.connected)
+        XCTAssertEqual(result?.connected, true)
         XCTAssertFalse(status.isBrewing)
         XCTAssertEqual(status.mode, MachineMode.brew.rawValue)
-        // Not JSON at all: nothing changes, no crash.
+        // Not JSON at all (garbled or split frame): ignored, nothing changes, and it doesn't count as "online".
         let before = status
-        _ = LaMarzoccoProtocol.apply(dashboard: Data("not json".utf8), to: &status)
+        XCTAssertNil(LaMarzoccoProtocol.apply(dashboard: Data("not json".utf8), to: &status))
+        XCTAssertNil(LaMarzoccoProtocol.apply(dashboard: Data(#"{"widgets": [ {"#.utf8), to: &status))
         XCTAssertEqual(status, before)
     }
 
@@ -110,8 +111,21 @@ final class LaMarzoccoTests: XCTestCase {
         var status = MachineStatus()
         let result = LaMarzoccoProtocol.apply(dashboard: dashboard(status: "Brewing", mode: "BrewingMode", connected: false),
                                               to: &status)
-        XCTAssertFalse(result.connected)
+        XCTAssertEqual(result?.connected, false)
         XCTAssertFalse(status.isBrewing, "an offline machine never starts a shot")
+    }
+
+    func testMissingConnectedIsNoChange() {
+        var status = MachineStatus()
+        let result = LaMarzoccoProtocol.apply(dashboard: Data(#"{"widgets": [], "commands": []}"#.utf8), to: &status)
+        XCTAssertNotNil(result)
+        XCTAssertNil(result?.connected, "no 'connected' key: neither online nor offline")
+    }
+
+    func testCommandID() {
+        XCTAssertEqual(LaMarzoccoProtocol.commandID(Data(#"[{"id":"abc","status":"Pending"}]"#.utf8)), "abc")
+        XCTAssertNil(LaMarzoccoProtocol.commandID(Data("[]".utf8)))
+        XCTAssertNil(LaMarzoccoProtocol.commandID(Data("{}".utf8)))
     }
 
     func testBoilerNoWater() {

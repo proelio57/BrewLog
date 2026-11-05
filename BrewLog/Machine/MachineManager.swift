@@ -120,6 +120,8 @@ final class MachineManager {
     @ObservationIgnored private let demo = DemoMachine()
     @ObservationIgnored private var pending: [String: ([String: Any]?) -> Void] = [:]
     @ObservationIgnored private var nextRequest = 0
+    /// La Marzocco: the temperature last sent and when, so quick taps add up.
+    @ObservationIgnored private var pendingTarget: (value: Double, at: Date)?
 
     init() {
         demo.onStatus = { [weak self] status, frameIsTelemetry in
@@ -143,7 +145,7 @@ final class MachineManager {
             self.machineLost()
         }
         laMarzocco.onNotice = { [weak self] message in
-            guard let self, self.kind == .laMarzocco else { return }
+            guard let self, self.kind == .laMarzocco, self.notice != message else { return }
             self.notice = message
         }
     }
@@ -230,10 +232,17 @@ final class MachineManager {
     func nudgeTemperature(up: Bool) {
         if kind == .demo { demo.nudgeTemperature(up: up); return }
         if kind == .laMarzocco {
-            let current = status.targetTemperature ?? 93
+            // Quick taps add up: start from the last value sent, not from the (not yet updated) machine value.
+            let recent = pendingTarget.flatMap { Date().timeIntervalSince($0.at) < 10 ? $0.value : nil }
+            guard let current = recent ?? status.targetTemperature else {
+                notice = "Waiting for the machine's temperature."
+                return
+            }
+            let next = min(max(current + (up ? 1 : -1), 80), 100)
+            pendingTarget = (next, Date())
             Task { [weak self] in
                 guard let self else { return }
-                let done = await self.laMarzocco.setTargetTemperature(current + (up ? 1 : -1))
+                let done = await self.laMarzocco.setTargetTemperature(next)
                 await MainActor.run { if done { self.notice = nil } }
             }
             return
@@ -432,6 +441,9 @@ final class MachineManager {
     /// La Marzocco: a machine was chosen (or the account signed out) in Settings.
     func laMarzoccoChanged() {
         guard kind == .laMarzocco else { return }
+        // Another machine (or signed out): drop the old dashboard subscription before following the new one.
+        laMarzocco.disconnect()
+        pendingTarget = nil
         restart()
     }
 

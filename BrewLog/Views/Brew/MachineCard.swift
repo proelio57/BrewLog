@@ -47,6 +47,11 @@ struct MachineCard: View {
     private var connectedControls: some View {
         let status = machine.status
         HStack(spacing: 16) {
+            if machine.kind == .laMarzocco {
+                // The cloud has no live temperature or profiles: the boiler's state and target instead.
+                StatView(value: boilerText(status.systemState), label: "Boiler", symbol: "thermometer.medium")
+                StatView(value: status.targetTemperature.map { String(format: "%.1f°", $0) } ?? "–", label: "Target")
+            } else {
             StatView(value: status.temperature.map { String(format: "%.1f°", $0) } ?? "–", label: "Boiler",
                      symbol: "thermometer.medium")
             StatView(value: status.targetTemperature.map { String(format: "%.0f°", $0) } ?? "–", label: "Target")
@@ -59,6 +64,7 @@ struct MachineCard: View {
             } else {
                 StatView(value: status.profile ?? "–", label: "Profile")
             }
+            }
         }
         if machine.kind.capabilities.contains(.startStop) {
             Picker("Mode", selection: Binding(get: { MachineMode(rawValue: status.mode ?? 0) ?? .standby },
@@ -67,7 +73,7 @@ struct MachineCard: View {
             }
             .pickerStyle(.segmented)
         } else if machine.kind.capabilities.contains(.power) {
-            Toggle(isOn: Binding(get: { status.mode != MachineMode.standby.rawValue },
+            Toggle(isOn: Binding(get: { status.mode == MachineMode.brew.rawValue },
                                  set: { machine.setPower($0) })) {
                 Label("Machine on", systemImage: "power")
             }
@@ -101,6 +107,16 @@ struct MachineCard: View {
             Label(message, systemImage: "exclamationmark.triangle.fill")
                 .font(.caption)
                 .foregroundStyle(.orange)
+        }
+    }
+
+    private func boilerText(_ state: String?) -> String {
+        switch state {
+        case "ready": return "Ready"
+        case "heating": return "Heating"
+        case "standby": return "Off"
+        case "error": return "Check"
+        default: return "–"
         }
     }
 
