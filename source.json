@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.67",
+          "buildVersion": "67",
+          "date": "2026-11-05T18:36:48Z",
+          "localizedDescription": "• La Marzocco request signing\n• Read La Marzocco's machine dashboard\n• La Marzocco machines through your La Marzocco account\n• La Marzocco connection stays open, never revives after sign-out and follows the chosen machine",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.67/BrewLog.ipa",
+          "size": 3430777,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.64",
           "buildVersion": "64",
           "date": "2026-11-05T17:30:52Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.32/BrewLog.ipa",
           "size": 2794721,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.29",
-          "buildVersion": "29",
-          "date": "2026-10-31T22:47:25Z",
-          "localizedDescription": "Merge pull request #7 from proelio57/feature/optional-rinse\n\nRinsing the paper is an optional, remembered step",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.29/BrewLog.ipa",
-          "size": 2787400,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.64",
-      "versionDate": "2026-11-05T17:30:52Z",
-      "versionDescription": "• Read GaggiMate's profile list with the selected profile\n• Choose the GaggiMate profile from the espresso screen and brew with it\n• Decode the Decent DE1's shot samples and states\n• Decent DE1 over Bluetooth with live shot data, following and controlling shots\n• DE1 disconnects always end the shot, profile sheet survives a dropped machine\n• Imported yields keep their decimals, your recipe edits survive picking a profile again",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.64/BrewLog.ipa",
-      "size": 3306669
+      "version": "0.1.67",
+      "versionDate": "2026-11-05T18:36:48Z",
+      "versionDescription": "• La Marzocco request signing\n• Read La Marzocco's machine dashboard\n• La Marzocco machines through your La Marzocco account\n• La Marzocco connection stays open, never revives after sign-out and follows the chosen machine",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.67/BrewLog.ipa",
+      "size": 3430777
     }
   ],
   "news": []
