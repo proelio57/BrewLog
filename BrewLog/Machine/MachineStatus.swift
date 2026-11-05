@@ -12,12 +12,12 @@ struct MachineSample: Codable, Hashable {
     var f: Double?
 }
 
-/// Live state of a GaggiMate controller, built from its WebSocket `evt:status` frames
-/// (see GaggiMate's `docs/websocket-api.yaml`).
+/// Live state of the espresso machine. GaggiMate fills it from its WebSocket `evt:status` frames
+/// (see GaggiMate's `docs/websocket-api.yaml`), the Decent DE1 from its Bluetooth state and shot samples.
 ///
 /// Frames are partial: fast telemetry (temperature, pressure, flow, process) every 500 ms and the slow state
 /// (mode, profile) when it changes. A key that is missing keeps its value, a key sent as null clears it.
-struct GaggiMateStatus: Equatable {
+struct MachineStatus: Equatable {
     var temperature: Double?
     var targetTemperature: Double?
     var pressure: Double?

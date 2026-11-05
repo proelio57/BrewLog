@@ -79,6 +79,9 @@ jobs:
           keyPassword=${{ secrets.KEY_PASSWORD }}
           EOF
 
+      - name: Release notes test
+        run: bash scripts/test-release-notes.sh
+
       - name: Build APK
         env:
           VERSION_CODE: ${{ steps.version.outputs.build }}

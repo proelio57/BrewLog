@@ -498,10 +498,13 @@ struct SettingsView: View {
                         .foregroundStyle(.red)
                 }
             }
+            if machine.kind == .decent {
+                DecentMachineRow()
+            }
             if machine.kind != .none {
                 LabeledContent("Status", value: machineStateText)
             }
-            if machine.kind == .gaggimate {
+            if machine.kind.capabilities.contains(.profiles) && machine.kind != .demo {
                 MachineProfileImportRow()
             }
             // GaggiMate measures the pressure itself; the sensor is for machines BrewLog can't connect to.
@@ -511,7 +514,7 @@ struct SettingsView: View {
         } header: {
             Text("Espresso machine")
         } footer: {
-            Text("GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes, send recipes as profiles and import the machine's profiles as recipes. Use the address from GaggiMate's web interface. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there. GaggiMate measures the pressure itself. For a machine BrewLog can't connect to, use a pressure sensor: BOOKOO Espresso Monitor over Bluetooth.")
+            Text("GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes, send recipes as profiles and import the machine's profiles as recipes. Use the address from GaggiMate's web interface. Decent DE1: BrewLog connects over Bluetooth, records pressure, temperature and flow, follows the shot and can start it (on a DE1 without a group head controller) and switch modes. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there. GaggiMate measures the pressure itself. For a machine BrewLog can't connect to, use a pressure sensor: BOOKOO Espresso Monitor over Bluetooth.")
         }
         .onDisappear { if machine.host != machineHost, gaggiMateURL(host: machineHost) != nil { machine.host = machineHost } }
     }

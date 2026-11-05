@@ -27,6 +27,8 @@ enum SettingsKey {
     static let aiWebSearch = "ai.webSearch"
     static let machineKind = "machine.kind"
     static let machineHost = "machine.host"
+    /// The paired Decent DE1 (CoreBluetooth peripheral identifier).
+    static let machineDecentID = "machine.decentID"
     static let pressureEnabled = "pressure.enabled"
     static let pressureDemo = "pressure.demo"
     static let autoStopShot = "autoStopShot"

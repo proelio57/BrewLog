@@ -8,6 +8,7 @@ struct MachineCard: View {
     var onOpenSettings: () -> Void
 
     @Environment(MachineManager.self) private var machine
+    @State private var showProfiles = false
 
     var body: some View {
         Card {
@@ -22,7 +23,7 @@ struct MachineCard: View {
                         .font(.subheadline)
                 }
                 if machine.kind == .none {
-                    Text("Connect a GaggiMate to record pressure and temperature, start shots from here and send recipes as profiles. Without one, BrewLog times the shot with your scale.")
+                    Text("Connect a GaggiMate (Wi-Fi) or a Decent DE1 (Bluetooth) to record pressure, temperature and flow and start shots from here. Without one, BrewLog times the shot with your scale.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Button("Set up machine", action: onOpenSettings)
@@ -30,8 +31,7 @@ struct MachineCard: View {
                 } else if machine.isConnected {
                     connectedControls
                 } else {
-                    Text(machine.state == .connecting ? "Connecting to \(machine.host)…"
-                         : "Can't reach \(machine.host). Is the machine on and in the same Wi-Fi?")
+                    Text(unreachableText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Button("Machine settings", action: onOpenSettings)
@@ -39,6 +39,8 @@ struct MachineCard: View {
                 }
             }
         }
+        // On the card, not on the profile button: the sheet stays open (and shows the error) if the machine drops.
+        .sheet(isPresented: $showProfiles) { MachineProfilesSheet() }
     }
 
     @ViewBuilder
@@ -48,29 +50,41 @@ struct MachineCard: View {
             StatView(value: status.temperature.map { String(format: "%.1f°", $0) } ?? "–", label: "Boiler",
                      symbol: "thermometer.medium")
             StatView(value: status.targetTemperature.map { String(format: "%.0f°", $0) } ?? "–", label: "Target")
-            StatView(value: status.profile ?? "–", label: "Profile")
+            if machine.canChooseProfile {
+                Button { showProfiles = true } label: {
+                    StatView(value: status.profile ?? "–", label: "Profile ›")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Choose the profile on the machine")
+            } else {
+                StatView(value: status.profile ?? "–", label: "Profile")
+            }
         }
         Picker("Mode", selection: Binding(get: { MachineMode(rawValue: status.mode ?? 0) ?? .standby },
                                           set: { machine.setMode($0) })) {
             ForEach(MachineMode.allCases) { Text($0.title).tag($0) }
         }
         .pickerStyle(.segmented)
-        HStack {
-            Label("Temperature", systemImage: "thermometer.medium").foregroundStyle(.secondary)
-            Spacer()
-            Button { machine.nudgeTemperature(up: false) } label: { Image(systemName: "minus.circle.fill") }
-                .accessibilityLabel("1 °C cooler")
-            Button { machine.nudgeTemperature(up: true) } label: { Image(systemName: "plus.circle.fill") }
-                .accessibilityLabel("1 °C hotter")
+        if machine.kind.capabilities.contains(.temperatureNudge) {
+            HStack {
+                Label("Temperature", systemImage: "thermometer.medium").foregroundStyle(.secondary)
+                Spacer()
+                Button { machine.nudgeTemperature(up: false) } label: { Image(systemName: "minus.circle.fill") }
+                    .accessibilityLabel("1 °C cooler")
+                Button { machine.nudgeTemperature(up: true) } label: { Image(systemName: "plus.circle.fill") }
+                    .accessibilityLabel("1 °C hotter")
+            }
+            .font(.subheadline)
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.accentColor)
         }
-        .font(.subheadline)
-        .buttonStyle(.plain)
-        .foregroundStyle(Color.accentColor)
-        Button {
-            machine.sendProfile(recipe: recipe, dose: dose, temperature: temperature)
-        } label: {
-            Label("Send recipe to machine", systemImage: "square.and.arrow.up.on.square")
-                .font(.subheadline.weight(.semibold))
+        if machine.kind.capabilities.contains(.profiles) {
+            Button {
+                machine.sendProfile(recipe: recipe, dose: dose, temperature: temperature)
+            } label: {
+                Label("Send recipe to machine", systemImage: "square.and.arrow.up.on.square")
+                    .font(.subheadline.weight(.semibold))
+            }
         }
         if let notice = machine.notice {
             Text(notice).font(.caption).foregroundStyle(.secondary)
@@ -80,6 +94,16 @@ struct MachineCard: View {
                 .font(.caption)
                 .foregroundStyle(.orange)
         }
+    }
+
+    private var unreachableText: String {
+        if machine.kind == .decent {
+            if !machine.decent.hasSavedMachine { return "Pair your DE1 in the machine settings." }
+            return machine.state == .connecting ? "Connecting to the DE1 over Bluetooth…"
+                : "Can't reach the DE1. Is it on and nearby?"
+        }
+        return machine.state == .connecting ? "Connecting to \(machine.host)…"
+            : "Can't reach \(machine.host). Is the machine on and in the same Wi-Fi?"
     }
 
     private var stateBadge: some View {

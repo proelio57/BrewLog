@@ -38,6 +38,26 @@ extension GaggiMateProfile {
         return list.prefix(200).compactMap { ($0 as? [String: Any]).flatMap(recipe(from:)) }
     }
 
+    /// The machine's `res:profiles:list` answer for the profile picker: selected first, then favorites, then the rest,
+    /// each in the machine's order. Utility profiles and entries without an id (they can't be selected) are left out.
+    static func summaries(fromListResponse response: [String: Any]) -> [MachineProfileSummary] {
+        let all = (response["profiles"] as? [Any] ?? []).prefix(200).compactMap { item -> MachineProfileSummary? in
+            guard let profile = item as? [String: Any], (profile["utility"] as? Bool) != true,
+                  let id = profile["id"] as? String, !id.isEmpty,
+                  var label = (profile["label"] as? String)?.sanitized(maxLength: InputLimits.maxNameLength),
+                  !label.isEmpty else { return nil }
+            let isBrewLogs = label.hasPrefix(labelPrefix)
+            if isBrewLogs { label.removeFirst(labelPrefix.count) }
+            return MachineProfileSummary(id: id, label: label,
+                                         isSelected: (profile["selected"] as? Bool) == true,
+                                         isFavorite: (profile["favorite"] as? Bool) == true,
+                                         isBrewLogs: isBrewLogs, recipe: recipe(from: profile))
+        }
+        return all.filter(\.isSelected)
+            + all.filter { !$0.isSelected && $0.isFavorite }
+            + all.filter { !$0.isSelected && !$0.isFavorite }
+    }
+
     /// One profile as an espresso recipe, or nil if it has no phases or is a utility profile.
     static func recipe(from profile: [String: Any]) -> Recipe? {
         guard (profile["utility"] as? Bool) != true,
@@ -49,11 +69,13 @@ extension GaggiMateProfile {
         guard !phases.isEmpty else { return nil }
 
         let dose = number(profile["dose"]).map { $0.clamped(5, 40) } ?? 18
-        let yield = phases.compactMap(\.volumetricTarget).last.map { $0.clamped(5, 200) } ?? (dose * 2).rounded()
+        // A weight target wins; otherwise a ratio target (yield = dose × ratio); otherwise 1:2.
+        let yield = (phases.compactMap(\.volumetricTarget).last ?? phases.compactMap(\.ratioTarget).last.map { $0 * dose })
+            .map { ($0.clamped(5, 200) * 10).rounded() / 10 } ?? (dose * 20).rounded() / 10   // to 0.1 g, not whole grams
         let preinfusion = phases.filter(\.isPreinfusion).reduce(0) { $0 + $1.duration }
         let total = phases.reduce(0) { $0 + $1.duration }
         // With a target weight the durations are only safety caps, so the shot usually ends well before their sum.
-        let hasWeightTarget = phases.contains { $0.volumetricTarget != nil }
+        let hasWeightTarget = phases.contains { $0.volumetricTarget != nil || $0.ratioTarget != nil }
         let time = (hasWeightTarget ? min(total, preinfusion + 25) : total).clamped(15, 120).rounded()
         let pressure = phases.filter { !$0.isPreinfusion }.compactMap(\.pressure).max()
             ?? phases.compactMap(\.pressure).max() ?? 9
@@ -104,7 +126,10 @@ extension GaggiMateProfile {
         var flow: Double?
         /// Pump power in percent (simple profiles without pressure control).
         var power: Double?
+        /// The phase keeps the pressure or flow the previous one reached (GaggiMate's `-1`): "pressure" or "flow".
+        var holds: String?
         var volumetricTarget: Double?
+        var ratioTarget: Double?
 
         init(_ raw: [String: Any]) {
             name = ((raw["name"] as? String) ?? "").sanitized(maxLength: 40)
@@ -112,8 +137,12 @@ extension GaggiMateProfile {
             duration = (GaggiMateProfile.number(raw["duration"]) ?? 0).clamped(0, 300)
             if let pump = raw["pump"] as? [String: Any] {
                 let target = pump["target"] as? String
-                let pressure = GaggiMateProfile.number(pump["pressure"]).map { $0.clamped(0, 15) }
-                let flow = GaggiMateProfile.number(pump["flow"]).map { $0.clamped(0, 15) }
+                let rawPressure = GaggiMateProfile.number(pump["pressure"])
+                let rawFlow = GaggiMateProfile.number(pump["flow"])
+                // -1 means "hold the current value": not a reading, so it doesn't count as 0.
+                let pressure = rawPressure.flatMap { $0 < 0 ? nil : $0.clamped(0, 15) }
+                let flow = rawFlow.flatMap { $0 < 0 ? nil : $0.clamped(0, 15) }
+                if ((target == "flow" ? rawFlow : rawPressure) ?? 0) < 0 { holds = target == "flow" ? "flow" : "pressure" }
                 if target == "flow" {
                     self.flow = flow
                     // In a flow phase the pressure is a limit (0 means none).
@@ -125,23 +154,33 @@ extension GaggiMateProfile {
                 self.power = power.clamped(0, 100)
             }
             let targets = raw["targets"] as? [[String: Any]] ?? []
-            volumetricTarget = targets.first { ($0["type"] as? String) == "volumetric" }
-                .flatMap { GaggiMateProfile.number($0["value"]) }
-                .flatMap { $0 > 0 ? $0 : nil }
+            func targetValue(_ type: String) -> Double? {
+                targets.first { ($0["type"] as? String) == type }
+                    .flatMap { GaggiMateProfile.number($0["value"]) }
+                    .flatMap { $0 > 0 ? $0 : nil }
+            }
+            volumetricTarget = targetValue("volumetric")
+            ratioTarget = targetValue("ratio")
         }
 
         /// E.g. "Bloom · 8 s · 3 bar" or "Extraction · 30 s · 2 ml/s, max 9 bar · to 36 g".
         var summary: String {
             var parts = [name.isEmpty ? (isPreinfusion ? "Pre-infusion" : "Brew") : name]
             if duration > 0 { parts.append("\(Self.format(duration)) s") }
-            if let flow {
+            if let holds {
+                parts.append("hold \(holds)")
+            } else if let flow {
                 parts.append("\(Self.format(flow)) ml/s" + (pressure.map { ", max \(Self.format($0)) bar" } ?? ""))
             } else if let pressure {
                 parts.append("\(Self.format(pressure)) bar")
             } else if let power {
                 parts.append("pump \(Self.format(power)) %")
             }
-            if let volumetricTarget { parts.append("to \(Self.format(volumetricTarget)) g") }
+            if let volumetricTarget {
+                parts.append("to \(Self.format(volumetricTarget)) g")
+            } else if let ratioTarget {
+                parts.append("to 1:\(Self.format(ratioTarget))")
+            }
             return parts.joined(separator: " · ")
         }
 
@@ -162,4 +201,18 @@ extension GaggiMateProfile {
             .split(separator: "-").joined(separator: "-")
         return slug.isEmpty ? UUID().uuidString : String(slug.prefix(60))
     }
+}
+
+/// A profile stored on the GaggiMate, as the profile picker shows it.
+struct MachineProfileSummary: Identifiable, Equatable {
+    /// GaggiMate's profile id, used to select it.
+    let id: String
+    /// Without BrewLog's "BrewLog · " prefix.
+    let label: String
+    let isSelected: Bool
+    let isFavorite: Bool
+    /// A profile BrewLog sent (its recipe is already in BrewLog).
+    let isBrewLogs: Bool
+    /// The profile as an espresso recipe; nil if it can't be read as one.
+    let recipe: Recipe?
 }

@@ -186,6 +186,31 @@ WebSocket `ws://<host>/ws` (default host `gaggimate.local`), JSON messages with 
   `preinfusion` phases → pre-infusion step, the highest brew-phase pressure → pressure (default 9 bar). Every phase is
   kept as a tip, e.g. `Phase 2: Extraction · 30 s · 2 ml/s, max 9 bar · to 36 g`. Utility profiles and, from the
   machine, BrewLog's own `BrewLog · …` profiles are skipped.
+- Profile picker (iOS, espresso screen → "Profile"): `req:profiles:list` lists them (selected first, then favorites;
+  utility profiles hidden); tapping one sends `req:profiles:select {rid, id}` → `res:profiles:select {rid, error?}` and
+  brews with it: a profile BrewLog sent selects its BrewLog recipe again (found through the remembered profile id),
+  any other is imported as a recipe once (as above) and selected; picking it again uses the recipe in BrewLog as it
+  is, so your changes stay (Settings → "Import profiles as recipes" updates from the machine on purpose). A BrewLog
+  profile whose recipe is gone is brewed with but not added as a copy. Yields keep 0.1 g, they aren't rounded. `evt:status.p` carries the selected profile's label only.
+  Pump `pressure`/`flow` `-1` means "hold the current value" and is not read as a pressure; a `ratio` target sets the
+  yield to dose × ratio when there is no `volumetric` target.
+
+### Decent DE1
+
+Bluetooth LE, service `0000A000-0000-1000-8000-00805F9B34FB`, characteristics `0000A00x-…`: `A002` RequestedState
+(write 1 byte), `A00D` ShotSample (notify), `A00E` StateInfo (read + notify). Big-endian. Source: decentespresso/de1app
+(`de1plus/binary.tcl`), cross-checked with nicpottier/decent.
+
+- ShotSample, 19 bytes: SampleTime U16 (half-cycles), GroupPressure U16 /4096 bar, GroupFlow U16 /4096 ml/s, MixTemp
+  U16 /256 °C, HeadTemp U24 /65536 °C, SetMixTemp U16 /256, SetHeadTemp U16 /256, SetGroupPressure U8 /16,
+  SetGroupFlow U8 /16, FrameNumber U8, SteamTemp U8. BrewLog uses head temperature as "temperature".
+- StateInfo: state, substate. States 0 sleep, 2 idle, 4 espresso, 5 steam, 6 hot water, 11 fatal error, 15 hot water
+  rinse (flush), 16 steam rinse, 18 clean, 10 descale … Substates 4 pre-infuse, 5 pour, 6 flush, 7 steaming, ≥ 200
+  errors (204 temperature sensor, 205 pressure sensor, 206 water level).
+- A shot runs while state 4 with substate 4 or 5. Flush, hot water, steam, clean and descale are never shots.
+- Commands (RequestedState): 0 sleep (standby), 2 idle (brew mode / stop a shot), 4 espresso (start), 5 steam,
+  6 hot water. A DE1 with a group head controller ignores app-started shots; BrewLog then says "Start the shot on the
+  machine." No profile upload yet.
 
 ## Online recipe list
 

@@ -89,7 +89,7 @@ struct MachineReadout: View {
     @Environment(PressureMonitor.self) private var monitor
 
     var body: some View {
-        let status = machine.isConnected ? machine.status : GaggiMateStatus()
+        let status = machine.isConnected ? machine.status : MachineStatus()
         // The machine's own reading; the pressure sensor only for machines BrewLog can't connect to.
         let pressure = machine.readsPressure || !monitor.isReady ? status.pressure : monitor.pressure
         HStack(spacing: 12) {

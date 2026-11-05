@@ -17,6 +17,8 @@ on:
       - "scripts/build-ipa.sh"
       - "scripts/ci-annotate.sh"
       - "scripts/sidestore*"
+      - "scripts/release-notes.sh"
+      - "scripts/test-release-notes.sh"
       - ".github/workflows/ios.yml"
   pull_request:
     paths:
@@ -30,6 +32,8 @@ on:
       - "scripts/build-ipa.sh"
       - "scripts/ci-annotate.sh"
       - "scripts/sidestore*"
+      - "scripts/release-notes.sh"
+      - "scripts/test-release-notes.sh"
       - ".github/workflows/ios.yml"
   workflow_dispatch:
 
@@ -86,6 +90,9 @@ jobs:
           tail -n 50 test.log
           if [ "$status" -ne 0 ]; then scripts/ci-annotate.sh test.log; fi
           exit $status
+
+      - name: Release notes test
+        run: bash scripts/test-release-notes.sh
 
       - name: Build unsigned IPA
         run: |

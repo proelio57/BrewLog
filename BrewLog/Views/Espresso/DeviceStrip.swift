@@ -15,7 +15,7 @@ struct DeviceStrip: View {
         HStack(spacing: 8) {
             device("Scale", symbol: "scalemass.fill", live: scale.isReady,
                    value: scale.isReady ? scale.weight.grams1 : "Connect") { showScale = true }
-            device("GaggiMate", symbol: "cup.and.saucer.fill", live: machine.isConnected,
+            device(machine.kind == .none ? "Machine" : machine.displayName, symbol: "cup.and.saucer.fill", live: machine.isConnected,
                    value: machineValue, action: onOpenSettings)
             if machine.readsPressure {
                 // GaggiMate measures the pressure itself: show its reading, no separate sensor.

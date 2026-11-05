@@ -256,7 +256,7 @@ final class BrewSession {
         }
     }
 
-    private func machineReading(_ status: GaggiMateStatus, at date: Date) {
+    private func machineReading(_ status: MachineStatus, at date: Date) {
         if let temperature = status.temperature, temperature.isFinite { currentTemperature = temperature }
         if weighsViaMachine, let grams = status.weight { ingest(grams, at: date) }
         // A machine without its own pressure reading leaves the curve to the pressure sensor.

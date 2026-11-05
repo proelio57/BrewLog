@@ -2,14 +2,39 @@ import Foundation
 import Observation
 
 enum MachineKind: String, CaseIterable, Identifiable {
-    case none, gaggimate, demo
+    case none, gaggimate, decent, demo
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
         case .none: return "None"
         case .gaggimate: return "GaggiMate"
+        case .decent: return "Decent DE1"
         case .demo: return "Demo machine"
+        }
+    }
+}
+
+/// What BrewLog can do with a kind of machine beyond reading its state.
+struct MachineCapabilities: OptionSet {
+    let rawValue: Int
+    /// Profiles stored on the machine: send a recipe as one, list and select them.
+    static let profiles = MachineCapabilities(rawValue: 1 << 0)
+    /// Raise or lower the brew temperature by 1 °C.
+    static let temperatureNudge = MachineCapabilities(rawValue: 1 << 1)
+    /// A scale connected to the machine (weight read and tared through it).
+    static let machineScale = MachineCapabilities(rawValue: 1 << 2)
+    /// Start and stop shots, switch modes.
+    static let startStop = MachineCapabilities(rawValue: 1 << 3)
+}
+
+extension MachineKind {
+    var capabilities: MachineCapabilities {
+        switch self {
+        case .none: return []
+        case .gaggimate, .demo: return [.profiles, .temperatureNudge, .machineScale, .startStop]
+        // Profile upload to the DE1 isn't built yet; it has no scale of its own.
+        case .decent: return [.startStop]
         }
     }
 }
@@ -28,11 +53,16 @@ final class MachineManager {
     }
 
     private(set) var state: ConnectionState = .off
-    private(set) var status = GaggiMateStatus()
+    private(set) var status = MachineStatus()
     /// Short feedback for the last command, e.g. "Profile sent" or an error from the machine.
     private(set) var notice: String?
     /// The machine refused to start because of a warning (e.g. low water) and waits for a decision.
     private(set) var startBlockedBy: [String] = []
+    /// The profiles stored on the machine, for the profile picker (see `refreshProfiles()`).
+    private(set) var profiles: [MachineProfileSummary] = []
+    private(set) var profilesLoading = false
+    /// A refresh was asked for while one was loading (e.g. right after selecting): run it once that one is done.
+    @ObservationIgnored private var refreshAgain = false
 
     var kind: MachineKind = MachineKind(rawValue: UserDefaults.standard.string(forKey: SettingsKey.machineKind) ?? "") ?? .none {
         didSet {
@@ -61,12 +91,16 @@ final class MachineManager {
         switch kind {
         case .none: return "No machine"
         case .gaggimate: return "GaggiMate"
+        case .decent: return decent.connectedName ?? "Decent DE1"
         case .demo: return "Demo machine"
         }
     }
 
+    /// Bluetooth connection to a Decent DE1 (used when `kind == .decent`; Settings pairs it).
+    let decent = DecentConnection()
+
     /// Every telemetry frame (about twice a second). Used by the brew engine to record the shot.
-    @ObservationIgnored var onReading: ((GaggiMateStatus, Date) -> Void)?
+    @ObservationIgnored var onReading: ((MachineStatus, Date) -> Void)?
     /// The machine started (true) or stopped (false) a shot.
     @ObservationIgnored var onShot: ((Bool, Date) -> Void)?
 
@@ -82,6 +116,14 @@ final class MachineManager {
     init() {
         demo.onStatus = { [weak self] status, frameIsTelemetry in
             self?.apply(status: status, telemetry: frameIsTelemetry)
+        }
+        decent.onStatus = { [weak self] status, telemetry in
+            guard let self, self.kind == .decent else { return }
+            self.apply(status: status, telemetry: telemetry)
+        }
+        decent.onDisconnect = { [weak self] in
+            guard let self, self.kind == .decent else { return }
+            self.decentLost()
         }
     }
 
@@ -105,8 +147,12 @@ final class MachineManager {
 
     var canControl: Bool { kind != .none && isConnected }
 
+    /// The machine keeps profiles that can be listed and selected from BrewLog.
+    var canChooseProfile: Bool { kind.capabilities.contains(.profiles) && isConnected }
+
     func setMode(_ mode: MachineMode) {
         if kind == .demo { demo.setMode(mode); return }
+        if kind == .decent { writeToDecent(DecentProtocol.command(for: mode)); return }
         send(["tp": "req:change-mode", "mode": mode.rawValue])
     }
 
@@ -114,18 +160,29 @@ final class MachineManager {
     func startShot(ignoreWarnings: Bool = false) {
         startBlockedBy = []
         if kind == .demo { demo.startShotNow(); return }
+        if kind == .decent {
+            guard writeToDecent(DecentProtocol.startShot) else { return }
+            // A DE1 with a group head controller only starts shots from the machine.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                // Accepted: the DE1 is in its espresso state (it may still be heating before the pump runs).
+                guard let self, self.kind == .decent, self.isConnected, !self.decent.isInEspressoState else { return }
+                self.notice = "Start the shot on the machine."
+            }
+            return
+        }
         if status.mode != MachineMode.brew.rawValue { send(["tp": "req:change-mode", "mode": MachineMode.brew.rawValue]) }
         send(["tp": "req:process:activate", "ignoreWarnings": ignoreWarnings])
     }
 
     func stopShot() {
         if kind == .demo { demo.stopShot(); return }
+        if kind == .decent { writeToDecent(DecentProtocol.stopShot); return }
         send(["tp": "req:process:deactivate"])
     }
 
     /// Tares the scale connected to the machine.
     func tareScale() {
-        if kind == .demo { return }
+        guard kind.capabilities.contains(.machineScale), kind != .demo else { return }
         send(["tp": "req:scale:tare"])
     }
 
@@ -137,6 +194,7 @@ final class MachineManager {
     /// Changes the brew temperature by 1 °C.
     func nudgeTemperature(up: Bool) {
         if kind == .demo { demo.nudgeTemperature(up: up); return }
+        guard kind.capabilities.contains(.temperatureNudge) else { return }
         send(["tp": up ? "req:raise-temp" : "req:lower-temp"])
     }
 
@@ -176,15 +234,77 @@ final class MachineManager {
     /// they already are recipes here. `completion` gets nil if the machine didn't answer.
     func fetchProfiles(completion: @escaping ([Recipe]?) -> Void) {
         guard kind == .gaggimate else { completion(nil); return }
+        requestProfiles { summaries in
+            completion(summaries.map { $0.filter { !$0.isBrewLogs }.compactMap(\.recipe) })
+        }
+    }
+
+    /// Loads the machine's profile list into `profiles` (selected first, then favorites).
+    func refreshProfiles() {
+        if kind == .demo {
+            profiles = demo.profiles
+            return
+        }
+        guard kind == .gaggimate, isConnected else { return }
+        guard !profilesLoading else {
+            refreshAgain = true
+            return
+        }
+        profilesLoading = true
+        refreshAgain = false
+        requestProfiles { [weak self] summaries in
+            // Switched to another machine meanwhile: this answer is stale.
+            guard let self, self.kind == .gaggimate else { return }
+            self.profilesLoading = false
+            if self.refreshAgain {
+                self.refreshAgain = false
+                self.refreshProfiles()
+                return
+            }
+            if let summaries {
+                self.profiles = summaries
+            } else {
+                self.notice = "Couldn't read the profiles from the machine."
+            }
+        }
+    }
+
+    /// Selects a profile on the machine; `completion` gets whether the machine accepted it.
+    func selectProfile(_ id: String, completion: @escaping (Bool) -> Void) {
+        if kind == .demo {
+            demo.selectProfile(id)
+            profiles = demo.profiles
+            completion(true)
+            return
+        }
+        send(["tp": "req:profiles:select", "id": id]) { [weak self] response in
+            guard let self else { return }
+            let accepted = response != nil && response?["error"] == nil
+            if accepted {
+                self.notice = nil
+                self.refreshProfiles()
+            } else {
+                self.notice = "The machine didn't select the profile" + ((response?["error"] as? String).map { ": \($0)" } ?? ".")
+            }
+            completion(accepted)
+        }
+    }
+
+    /// The BrewLog recipe a profile was sent from (`sendProfile` remembers the profile id per recipe).
+    func recipeID(forProfile id: String) -> String? {
+        let prefix = "machine.profile."
+        return UserDefaults.standard.dictionaryRepresentation()
+            .first { $0.key.hasPrefix(prefix) && ($0.value as? String) == id }
+            .map { String($0.key.dropFirst(prefix.count)) }
+    }
+
+    private func requestProfiles(completion: @escaping ([MachineProfileSummary]?) -> Void) {
         send(["tp": "req:profiles:list"]) { response in
-            guard let response, response["error"] == nil, let profiles = response["profiles"] as? [Any] else {
+            guard let response, response["error"] == nil, response["profiles"] is [Any] else {
                 completion(nil)
                 return
             }
-            let own = profiles.filter {
-                (($0 as? [String: Any])?["label"] as? String)?.hasPrefix(GaggiMateProfile.labelPrefix) != true
-            }
-            completion(GaggiMateProfile.recipes(from: own))
+            completion(GaggiMateProfile.summaries(fromListResponse: response))
         }
     }
 
@@ -228,8 +348,14 @@ final class MachineManager {
 
     private func restart() {
         disconnect()
+        // After disconnect(): it fails pending requests, whose notices belong to the old machine.
+        notice = nil
+        refreshAgain = false
         demo.stop()
-        status = GaggiMateStatus()
+        if kind != .decent { decent.disconnect(forget: false) }
+        status = MachineStatus()
+        profiles = []
+        profilesLoading = false
         switch kind {
         case .none:
             state = .off
@@ -238,7 +364,43 @@ final class MachineManager {
             demo.start()
         case .gaggimate:
             connect()
+        case .decent:
+            notice = nil
+            state = decent.hasSavedMachine ? .connecting : .unreachable
+            decent.reconnectRemembered()
         }
+    }
+
+    /// "Disconnect & forget" in Settings: unpairs the DE1 and shows it as gone right away.
+    func forgetDecent() {
+        decent.disconnect(forget: true)
+        guard kind == .decent else { return }
+        decentLost()
+        notice = nil
+    }
+
+    /// Pairs the DE1 chosen in Settings and starts using it.
+    func connectDecent(_ id: UUID) {
+        decent.connect(id)
+        if kind == .decent { state = .connecting }
+    }
+
+    @discardableResult
+    private func writeToDecent(_ command: Data) -> Bool {
+        guard decent.write(command) else {
+            notice = "The machine isn't connected."
+            return false
+        }
+        notice = nil
+        return true
+    }
+
+    /// The DE1 went away: end a running shot once; the connection keeps trying in the background.
+    private func decentLost() {
+        let wasBrewing = status.isBrewing
+        state = .unreachable
+        status = MachineStatus()
+        if wasBrewing { onShot?(false, Date()) }
     }
 
     private func connect() {
@@ -282,10 +444,10 @@ final class MachineManager {
                 switch result {
                 case .success(let message):
                     if case .string(let text) = message {
-                        if let frame = GaggiMateStatus.statusFrame(text) {
+                        if let frame = MachineStatus.statusFrame(text) {
                             var status = self.status
                             status.merge(frame)
-                            self.apply(status: status, telemetry: GaggiMateStatus.isTelemetry(frame))
+                            self.apply(status: status, telemetry: MachineStatus.isTelemetry(frame))
                         } else if text.utf8.count <= 256 * 1024,
                                   let other = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] {
                             self.lastMessage = Date()
@@ -314,9 +476,10 @@ final class MachineManager {
     private func connectionLost() {
         let wasBrewing = status.isBrewing
         disconnect()
+        profilesLoading = false
         state = .unreachable
         if wasBrewing { onShot?(false, Date()) }
-        status = GaggiMateStatus()
+        status = MachineStatus()
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.kind == .gaggimate else { return }
             self.connect()
@@ -325,7 +488,7 @@ final class MachineManager {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: work)
     }
 
-    private func apply(status newStatus: GaggiMateStatus, telemetry: Bool) {
+    private func apply(status newStatus: MachineStatus, telemetry: Bool) {
         let wasBrewing = status.isBrewing
         lastMessage = Date()
         state = .connected
@@ -337,17 +500,17 @@ final class MachineManager {
 
 /// Simulated machine: idles at brew temperature and runs a realistic pressure profile when a shot is simulated.
 private final class DemoMachine {
-    var onStatus: ((GaggiMateStatus, Bool) -> Void)?
+    var onStatus: ((MachineStatus, Bool) -> Void)?
 
     private var timer: Timer?
-    private var status = GaggiMateStatus()
+    private var status = MachineStatus()
     private var shotStart: Date?
     private var preinfusion: Double = 7
     private var peak: Double = 9
     private var duration: Double = 28
 
     func start() {
-        status = GaggiMateStatus()
+        status = MachineStatus()
         status.mode = 1
         status.profile = "Demo"
         status.hasPressure = true
@@ -391,6 +554,25 @@ private final class DemoMachine {
 
     func setMode(_ mode: MachineMode) {
         status.mode = mode.rawValue
+        onStatus?(status, false)
+    }
+
+    /// Two espresso presets stand in for the profiles on a real machine.
+    private var selectedProfile: String?
+
+    var profiles: [MachineProfileSummary] {
+        let recipes = RecipeLibrary.presets.filter(\.method.isEspresso).prefix(2)
+        let selected = selectedProfile ?? recipes.first?.id
+        return recipes.map {
+            MachineProfileSummary(id: $0.id, label: $0.name, isSelected: $0.id == selected, isFavorite: false,
+                                  isBrewLogs: false, recipe: $0)
+        }
+        .sorted { $0.isSelected && !$1.isSelected }
+    }
+
+    func selectProfile(_ id: String) {
+        selectedProfile = id
+        status.profile = profiles.first { $0.id == id }?.label
         onStatus?(status, false)
     }
 
