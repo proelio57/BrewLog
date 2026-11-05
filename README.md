@@ -12,7 +12,7 @@ A pour-over brewing companion for iPhone, with matching [Android](android/README
 
 ## Features
 
-- **Setup assistant on first launch**: one simple question per screen with big tappable tiles: brewer → filter papers (the ones that fit your brewer come first) → grinder + your usual setting → beans → scale. Every step can be skipped. **"Skip, just use the scale"** goes straight to Quick weigh. Run it again any time from **Gear → Setup assistant**. If you skipped it, the Brew tab shows a small reminder card.
+- **Setup assistant on first launch**: one simple question per screen with big tappable tiles: brewer (pour-over or espresso machine) → connect the espresso machine (GaggiMate, Decent DE1 or La Marzocco; only if you picked one) → filter papers (the ones that fit your brewer come first; skipped for espresso only) → grinder + your usual setting → beans → scale. The Gear tab lists espresso machines apart from pour-over brewers. Every step can be skipped. **"Skip, just use the scale"** goes straight to Quick weigh. Run it again any time from **Gear → Setup assistant**. If you skipped it, the Brew tab shows a small reminder card.
 - **Quick weigh**: just a scale and timer, with no recipe and nothing saved. Big weight readout, flow, tare, and a timer that starts by itself when you pour (it waits for a real zero after taring). Open it from the **Weigh** button on the Brew tab.
 - **BOOKOO Themis Mini over Bluetooth**: live weight, flow and battery, auto-reconnect, tare and timer control. A **demo scale** simulates realistic pours, so you can try everything without hardware or in the Simulator.
 - **Brew assistant**

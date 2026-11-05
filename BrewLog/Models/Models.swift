@@ -235,6 +235,9 @@ final class Equipment {
         set { typeRaw = newValue.rawValue }
     }
 
+    /// An espresso machine (a brewer for the espresso method); listed apart from pour-over brewers.
+    var isEspressoMachine: Bool { type == .brewer && method == .espresso }
+
     var method: BrewMethod? {
         get { methodRaw.flatMap(BrewMethod.init(rawValue:)) }
         set { methodRaw = newValue?.rawValue }
