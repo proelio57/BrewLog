@@ -1,5 +1,7 @@
 # La Marzocco Support — Decision & Spike Plan
 
+> **Decision 2026-11-05:** option 1, opt-in cloud with the user's own La Marzocco account. Spike done: `docs/la-marzocco-protocol.md` (pylamarzocco v2.5.6). Implementation: `2026-11-05-la-marzocco-implementation.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Decide how (and whether) BrewLog talks to La Marzocco home machines (Linea Micra, Linea Mini, GS3), verify the current API, and write the implementation plan from the verified facts.
