@@ -167,6 +167,22 @@ final class MachineManager {
         }
     }
 
+    /// Reads the profiles saved on the machine as espresso recipes. Profiles BrewLog sent itself are left out,
+    /// they already are recipes here. `completion` gets nil if the machine didn't answer.
+    func fetchProfiles(completion: @escaping ([Recipe]?) -> Void) {
+        guard kind == .gaggimate else { completion(nil); return }
+        send(["tp": "req:profiles:list"]) { response in
+            guard let response, response["error"] == nil, let profiles = response["profiles"] as? [Any] else {
+                completion(nil)
+                return
+            }
+            let own = profiles.filter {
+                (($0 as? [String: Any])?["label"] as? String)?.hasPrefix(GaggiMateProfile.labelPrefix) != true
+            }
+            completion(GaggiMateProfile.recipes(from: own))
+        }
+    }
+
     /// Sends a request; `completion` gets the matching `res:` message, or nil after a timeout.
     private func send(_ payload: [String: Any], completion: (([String: Any]?) -> Void)? = nil) {
         guard let socket, state == .connected else {

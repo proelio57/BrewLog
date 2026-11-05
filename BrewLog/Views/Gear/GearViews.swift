@@ -501,11 +501,14 @@ struct SettingsView: View {
             if machine.kind != .none {
                 LabeledContent("Status", value: machineStateText)
             }
+            if machine.kind == .gaggimate {
+                MachineProfileImportRow()
+            }
             PressureMonitorRow()
         } header: {
             Text("Espresso machine")
         } footer: {
-            Text("Pressure sensor: BOOKOO Espresso Monitor over Bluetooth, works with any machine. GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes and send recipes as profiles. Use the address from GaggiMate's web interface. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there.")
+            Text("Pressure sensor: BOOKOO Espresso Monitor over Bluetooth, works with any machine. GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes, send recipes as profiles and import the machine's profiles as recipes. Use the address from GaggiMate's web interface. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there.")
         }
         .onDisappear { if machine.host != machineHost, gaggiMateURL(host: machineHost) != nil { machine.host = machineHost } }
     }
@@ -528,5 +531,51 @@ struct SettingsView: View {
         }
         .buttonStyle(.bordered)
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// Settings: imports the profiles saved on the GaggiMate as espresso recipes.
+private struct MachineProfileImportRow: View {
+    @Environment(MachineManager.self) private var machine
+    @Environment(\.modelContext) private var context
+    @State private var loading = false
+    @State private var message: String?
+
+    var body: some View {
+        Button(action: importProfiles) {
+            HStack {
+                Label("Import profiles as recipes", systemImage: "square.and.arrow.down.on.square")
+                Spacer()
+                if loading { ProgressView() }
+            }
+        }
+        .disabled(!machine.isConnected || loading)
+        .accessibilityIdentifier("machine.importProfiles")
+        if let message {
+            Text(message).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @MainActor
+    private func importProfiles() {
+        loading = true
+        message = nil
+        machine.fetchProfiles { recipes in
+            loading = false
+            guard let recipes else {
+                message = "The machine didn't send its profiles. Check the connection and try again."
+                return
+            }
+            guard !recipes.isEmpty else {
+                message = "No brew profiles on the machine besides the ones BrewLog sent."
+                return
+            }
+            do {
+                let summary = try DataImporter.importRecipes(recipes, into: context)
+                message = summary.message + " They're with the espresso recipes."
+            } catch {
+                message = "Import failed: \(error.localizedDescription)"
+            }
+        }
     }
 }

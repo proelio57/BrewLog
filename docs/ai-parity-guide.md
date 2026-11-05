@@ -47,7 +47,7 @@ Use this reference table to find the corresponding implementation files across p
 | **Pressure Sensor (BOOKOO Espresso Monitor)** | `Scale/PressureMonitor.swift`, `Scale/BookooMonitorProtocol.swift` | `scale/PressureManager.kt`, `scale/BookooPressureProtocol.kt` | `scale/pressure.ts` |
 | **Brew Statistics** | `Analysis/BrewStats.swift`, `Analysis/BrewStats+Brew.swift`, `Views/Stats/StatsView.swift`, `Views/Stats/StatsCharts.swift` | – | – |
 | **Espresso Tab** | `Brewing/ShotMonitor.swift`, `Views/Espresso/EspressoSetupView.swift`, `Views/Espresso/DeviceStrip.swift`, `Views/Espresso/ShotReadouts.swift`, `Views/Brew/BrewSetupView.swift` | – | – |
-| **Espresso Machine (GaggiMate)** | `Machine/MachineManager.swift`, `Machine/MachineStatus.swift` | `machine/MachineManager.kt`, `machine/GaggiMate.kt`, `ui/screens/MachineViews.kt` | `machine/machineManager.ts`, `machine/gaggimate.ts` |
+| **Espresso Machine (GaggiMate)** | `Machine/MachineManager.swift`, `Machine/MachineStatus.swift`, `Machine/GaggiMateProfileImport.swift` (profiles → recipes) | `machine/MachineManager.kt`, `machine/GaggiMate.kt`, `ui/screens/MachineViews.kt` | `machine/machineManager.ts`, `machine/gaggimate.ts` |
 | **Audio & Haptics** | `Audio/SoundPlayer.swift` | `audio/SoundPlayer.kt` | `audio/sound.ts` |
 | **Voice Prompts** | `Audio/StepAnnouncement.swift` (texts), `Audio/VoicePrompter.swift` (AVSpeechSynthesizer) | `domain/StepAnnouncement.kt`, `audio/VoicePrompter.kt` (TextToSpeech) | – |
 | **Extraction (TDS / EY)** | `Tools/Extraction.swift`, `Views/Tools/ToolViews.swift` (`ExtractionCalculatorView`, `BrewExtractionCard`, `ExtractionChart`) | `domain/Extraction.kt`, `ui/screens/ToolsScreens.kt` (`ExtractionCalculatorScreen`, `BrewExtractionCard`, `ExtractionChart`) | – |

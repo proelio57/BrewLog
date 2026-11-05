@@ -179,6 +179,13 @@ WebSocket `ws://<host>/ws` (default host `gaggimate.local`), JSON messages with 
   `req:profiles:select {rid, id}`. BrewLog's profiles are named `BrewLog · <recipe>`: a pre-infusion phase at 3 bar
   (needs a pressure sensor), then the recipe's pressure with a 2 s linear ramp, stopped by a volumetric target at the
   yield when GaggiMate has a scale, otherwise by time. The profile id per recipe is remembered to update it next time.
+- Profile import (iOS): `req:profiles:list {rid}` → `res:profiles:list {rid, profiles}`, or a profile `.json` exported
+  from GaggiMate's web interface through Import (one profile, a list, or `{profiles: [...]}`). Each profile becomes an
+  espresso recipe with id `gaggimate-<profile id>` (so importing again updates it): `label` → name, `description` →
+  summary, `temperature`, `dose` (default 18 g), the last `volumetric` target → yield (default 1:2), the summed
+  `preinfusion` phases → pre-infusion step, the highest brew-phase pressure → pressure (default 9 bar). Every phase is
+  kept as a tip, e.g. `Phase 2: Extraction · 30 s · 2 ml/s, max 9 bar · to 36 g`. Utility profiles and, from the
+  machine, BrewLog's own `BrewLog · …` profiles are skipped.
 
 ## Online recipe list
 
