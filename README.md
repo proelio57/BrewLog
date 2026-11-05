@@ -80,6 +80,36 @@ Grind advice is concrete. A typical result: *"Grind finer: go from 24 clicks to 
 - Xcode 16 or newer (developed with Xcode 27), iOS 17+ (iPhone)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) to generate the Xcode project: `brew install xcodegen`
 
+## Install on your iPhone (SideStore, no Mac)
+
+You don't need a Mac or a paid developer account. GitHub Actions ([.github/workflows/ios.yml](.github/workflows/ios.yml)) builds an unsigned `BrewLog.ipa` on every push to `main` and publishes it as a **SideStore source**; SideStore signs it on the phone with your own Apple ID and keeps it up to date.
+
+**1. Put SideStore on the iPhone (once)**
+
+- Install [SideStore](https://sidestore.io) following its "Get Started" guide (on Windows this uses AltServer to copy SideStore and a pairing file to the phone once).
+- Install **[LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044)** from the App Store ([source on GitHub](https://github.com/jkcoxson/LocalDevVPN)). It is the small on-device VPN SideStore needs: open it, tap **Connect** and allow the VPN profile when iOS asks (the iPhone needs a passcode for that). This loopback tunnel is what lets SideStore install and re-sign apps on the phone itself, with no computer — keep it connected when installing or refreshing, or the 7-day refresh fails.
+- Open SideStore and sign in with your Apple ID (a free one is enough).
+
+**2. Publish the BrewLog source (once)**
+
+The files must live in a **public** GitHub repo, because SideStore downloads without logging in. Simplest path:
+
+1. This repo is `proelio57/BrewLog` on GitHub — make it **public** (or use a public release repo, Variant B).
+2. **Settings → Actions → General → Workflow permissions → Read and write permissions.**
+3. Push to `main`. Actions builds the `.ipa`, creates a release and writes `source.json` to the `sidestore` branch. (macOS minutes are free for public repos.)
+
+To keep the code private, or to mirror from GitLab, use Variant B in [docs/sidestore.md](docs/sidestore.md).
+
+**3. Add it in SideStore**
+
+1. **Sources → +** and enter
+   `https://raw.githubusercontent.com/proelio57/BrewLog/sidestore/source.json`
+   (if you use a separate public release repo, replace `proelio57/BrewLog` with it)
+2. Install **BrewLog** from the source once.
+3. New builds then appear under **My Apps → Update** (`raw.githubusercontent.com` caches for about 5 minutes).
+
+With a free Apple ID, SideStore re-signs the app every 7 days automatically (keep LocalDevVPN connected so this works without a computer), at most 3 sideloaded apps are active at once, and BrewLog uses two app IDs because of its Live Activity extension. More detail — widgets, app groups, version numbers, GitLab — is in [docs/sidestore.md](docs/sidestore.md). If you sideloaded BrewLog before, export your recipes first in case it installs as a separate app.
+
 ## Getting started
 
 ```bash
@@ -91,13 +121,7 @@ open BrewLog.xcodeproj
 - **Simulator**: run the `BrewLog` scheme. The setup assistant opens on first launch. On its last step (or later on the Brew tab's scale card) turn on **Demo scale**.
 - **Your iPhone + BOOKOO**: `cp Config/Local.xcconfig.example Config/Local.xcconfig`, enter your Team ID and a unique bundle id, then run `xcodegen generate` again and run on the device. Switch the scale on, tap the scale card and select it. BrewLog reconnects automatically from then on.
 
-### Without a Mac (sideloading with automatic updates)
-
-GitHub Actions ([.github/workflows/ios.yml](.github/workflows/ios.yml)) builds an unsigned `BrewLog.ipa` on a macOS runner on every push to `main`, runs the unit tests and publishes it as a **SideStore source**. Add the source once in [SideStore](https://sidestore.io) and every push shows up there as an update. SideStore signs the app with your own Apple ID. Setup, including keeping the code private or on GitLab: [docs/sidestore.md](docs/sidestore.md).
-
-On a Mac, `scripts/build-ipa.sh` builds the same `.ipa` locally.
-
-With a free Apple ID the app must be re-signed every 7 days (SideStore does this automatically), and at most 3 sideloaded apps can be active at a time.
+On a Mac, `scripts/build-ipa.sh` also builds the unsigned `.ipa` that the SideStore source publishes (see below).
 
 ## Tests
 

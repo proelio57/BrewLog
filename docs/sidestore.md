@@ -50,6 +50,10 @@ write* on that repository. Every push to GitLab then reaches GitHub within minut
 
 ## In SideStore
 
+SideStore needs **[LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044)** from the App Store
+([GitHub](https://github.com/jkcoxson/LocalDevVPN)): open it, tap **Connect** and allow the VPN profile (the iPhone
+needs a passcode). Keep it connected when installing or refreshing apps, otherwise the 7-day re-signing fails.
+
 1. **Sources → +** and enter `https://raw.githubusercontent.com/<RELEASE_REPO>/sidestore/source.json`.
 2. Install BrewLog from the source once. If you sideloaded BrewLog before, back up your data first
    (e.g. export your recipes), in case SideStore installs it as a separate app.
