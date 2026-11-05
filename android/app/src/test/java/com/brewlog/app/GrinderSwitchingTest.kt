@@ -230,4 +230,42 @@ class GrinderSwitchingTest {
         assertEquals("ode2", setup2.grinderId)
         assertEquals(5.3, setup2.grindValue!!, 0.01)
     }
+
+    @Test
+    fun testTwoIndependentSetupsAndMoveEspressoRecipe() {
+        val prefs = FakeSharedPreferences()
+        val espressoRecipe = presets.first { it.method == com.brewlog.app.domain.BrewMethod.ESPRESSO }
+
+        val pourOver = BrewSetupState(prefs, presets, com.brewlog.app.data.SetupScope.POUR_OVER)
+        val espresso = BrewSetupState(prefs, presets, com.brewlog.app.data.SetupScope.ESPRESSO)
+
+        // Put espresso recipe in pour-over setup (simulating legacy state before tab split)
+        pourOver.select(espressoRecipe)
+        pourOver.dose = 18.5
+        pourOver.grinderId = "g1"
+        pourOver.pinGrind(3.2)
+        pourOver.beanId = "b1"
+
+        assertTrue(pourOver.recipe.method == com.brewlog.app.domain.BrewMethod.ESPRESSO)
+
+        // Move to espresso setup
+        val moved = BrewSetupState.moveEspressoRecipe(pourOver, espresso, presets)
+        assertTrue(moved)
+
+        // Espresso setup got the espresso recipe and parameters
+        assertEquals(espressoRecipe.id, espresso.recipe.id)
+        assertEquals(18.5, espresso.dose, 0.01)
+        assertEquals("g1", espresso.grinderId)
+        assertEquals(3.2, espresso.grindValue!!, 0.01)
+        assertEquals("b1", espresso.beanId)
+
+        // Pour-over setup now has a pour-over recipe
+        assertTrue(pourOver.recipe.method != com.brewlog.app.domain.BrewMethod.ESPRESSO)
+
+        // Independent keys saved to prefs
+        assertEquals(espressoRecipe.id, prefs.getString("espresso.recipeID", null))
+        assertEquals("g1", prefs.getString("espresso.grinderID", null))
+        assertEquals("b1", prefs.getString("espresso.beanID", null))
+        assertEquals(pourOver.recipe.id, prefs.getString("setup.recipeID", null))
+    }
 }

@@ -12,10 +12,26 @@ import com.brewlog.app.domain.EquipmentType
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.RecipeLibrary
 
+/** Which brew setup: pour-over keeps the `setup.*` keys, espresso has its own `espresso.*` keys. */
+enum class SetupScope(val keyPrefix: String) {
+    POUR_OVER("setup."),
+    ESPRESSO("espresso.");
+
+    fun key(name: String): String = keyPrefix + name
+}
+
 /** The brew being configured on the Brew tab. Remembers your last choices. Port of BrewSetup (BrewLogApp.swift). */
-class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>) {
+class BrewSetupState(
+    private val prefs: SharedPreferences,
+    presets: List<Recipe>,
+    val scope: SetupScope = SetupScope.POUR_OVER,
+) {
+    private val isEspresso = scope == SetupScope.ESPRESSO
     var recipe: Recipe by mutableStateOf(
-        presets.firstOrNull { it.id == prefs.getString(KEY_RECIPE, null) } ?: presets.firstOrNull() ?: RecipeLibrary.blankRecipe(),
+        presets.firstOrNull { it.id == prefs.getString(scope.key("recipeID"), null) }
+            ?: presets.firstOrNull { it.method.isEspresso == isEspresso }
+            ?: presets.firstOrNull()
+            ?: RecipeLibrary.blankRecipe(),
     )
         private set
     var dose: Double by mutableDoubleStateOf(recipe.dose)
@@ -23,37 +39,37 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
 
     private val lastGrindByGrinder = mutableMapOf<String, Double>()
 
-    private val initialGrinderId = prefs.getString(KEY_GRINDER, null)
+    private val initialGrinderId = prefs.getString(scope.key("grinderID"), null)
     var grindValue: Double? by mutableStateOf(
         initialGrinderId?.let { gid ->
-            val key = KEY_GRIND_PREFIX + gid
+            val key = scope.key("lastGrind.") + gid
             if (prefs.contains(key)) prefs.getFloat(key, 0f).toDouble() else null
         }
     )
     var grindText: String by mutableStateOf("")
 
-    private val beanState = mutableStateOf(prefs.getString(KEY_BEAN, null))
-    private val brewerState = mutableStateOf(prefs.getString(KEY_BREWER, null))
+    private val beanState = mutableStateOf(prefs.getString(scope.key("beanID"), null))
+    private val brewerState = mutableStateOf(prefs.getString(scope.key("brewerID"), null))
     private val grinderState = mutableStateOf(initialGrinderId)
-    private val filterState = mutableStateOf(prefs.getString(KEY_FILTER, null))
-    private val waterState = mutableStateOf(prefs.getString(KEY_WATER, null))
+    private val filterState = mutableStateOf(prefs.getString(scope.key("filterID"), null))
+    private val waterState = mutableStateOf(prefs.getString(scope.key("waterID"), null))
 
     var beanId: String?
         get() = beanState.value
-        set(value) { beanState.value = value; save(KEY_BEAN, value) }
+        set(value) { beanState.value = value; save(scope.key("beanID"), value) }
     var brewerId: String?
         get() = brewerState.value
-        set(value) { brewerState.value = value; save(KEY_BREWER, value) }
+        set(value) { brewerState.value = value; save(scope.key("brewerID"), value) }
     var grinderId: String?
         get() = grinderState.value
-        set(value) { grinderState.value = value; save(KEY_GRINDER, value) }
+        set(value) { grinderState.value = value; save(scope.key("grinderID"), value) }
     var filterId: String?
         get() = filterState.value
-        set(value) { filterState.value = value; save(KEY_FILTER, value) }
+        set(value) { filterState.value = value; save(scope.key("filterID"), value) }
     /** Water profile (gear of type water), optional. */
     var waterId: String?
         get() = waterState.value
-        set(value) { waterState.value = value; save(KEY_WATER, value) }
+        set(value) { waterState.value = value; save(scope.key("waterID"), value) }
 
     /** Bean + grinder for which the grind was set explicitly (setup assistant, "Brew again"). */
     private var pinnedGrindContext: String? = null
@@ -67,7 +83,7 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
         val gid = grinderId
         if (gid != null && value != null) {
             lastGrindByGrinder[gid] = value
-            prefs.edit().putFloat(KEY_GRIND_PREFIX + gid, value.toFloat()).apply()
+            prefs.edit().putFloat(scope.key("lastGrind.") + gid, value.toFloat()).apply()
         }
     }
 
@@ -79,7 +95,7 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
     /** Returns the last grind explicitly set on [id], or null if none was set yet. */
     fun lastGrindFor(id: String): Double? {
         lastGrindByGrinder[id]?.let { return it }
-        val key = KEY_GRIND_PREFIX + id
+        val key = scope.key("lastGrind.") + id
         if (prefs.contains(key)) {
             val v = prefs.getFloat(key, 0f).toDouble()
             lastGrindByGrinder[id] = v
@@ -177,12 +193,12 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
         this.recipe = recipe
         dose = recipe.dose
         waterTemp = recipe.temperature
-        prefs.edit().putString(KEY_RECIPE, recipe.id).apply()
+        prefs.edit().putString(scope.key("recipeID"), recipe.id).apply()
     }
 
     /** Restores a custom recipe chosen last time (custom recipes live in the repository, not the presets). */
     fun restoreCustom(custom: List<Recipe>) {
-        val id = prefs.getString(KEY_RECIPE, null) ?: return
+        val id = prefs.getString(scope.key("recipeID"), null) ?: return
         if (recipe.id == id) return
         custom.firstOrNull { it.id == id }?.let { select(it) }
     }
@@ -192,12 +208,21 @@ class BrewSetupState(private val prefs: SharedPreferences, presets: List<Recipe>
     }
 
     companion object {
-        private const val KEY_RECIPE = "setup.recipeID"
-        private const val KEY_BEAN = "setup.beanID"
-        private const val KEY_BREWER = "setup.brewerID"
-        private const val KEY_GRINDER = "setup.grinderID"
-        private const val KEY_FILTER = "setup.filterID"
-        private const val KEY_WATER = "setup.waterID"
-        private const val KEY_GRIND_PREFIX = "setup.lastGrind."
+        /**
+         * Before the Filter | Espresso switch an espresso recipe could sit in the pour-over setup: hand it (with its
+         * gear and bean, where espresso has none yet) to the espresso setup and give pour-over a pour-over recipe.
+         * Returns whether something moved, so the Brew tab can open on Espresso.
+         */
+        fun moveEspressoRecipe(from: BrewSetupState, to: BrewSetupState, presets: List<Recipe>): Boolean {
+            if (!from.recipe.method.isEspresso) return false
+            to.select(from.recipe)
+            to.dose = from.dose
+            if (to.grinderId == null) to.grinderId = from.grinderId
+            if (to.beanId == null) to.beanId = from.beanId
+            if (to.grindValue == null) to.grindValue = from.grindValue
+            val fallback = presets.firstOrNull { !it.method.isEspresso } ?: RecipeLibrary.blankRecipe()
+            from.select(fallback)
+            return true
+        }
     }
 }

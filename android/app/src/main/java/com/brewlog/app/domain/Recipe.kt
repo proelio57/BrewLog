@@ -15,7 +15,9 @@ enum class BrewMethod(val displayName: String) {
     @SerialName("kalita") KALITA("Flat bottom"),
     @SerialName("universal") UNIVERSAL("Any pour-over"),
     // Espresso recipes come with the shared recipes.json / online list (iOS has the full espresso mode).
-    @SerialName("espresso") ESPRESSO("Espresso"),
+    @SerialName("espresso") ESPRESSO("Espresso");
+
+    val isEspresso: Boolean get() = this == ESPRESSO
 }
 
 @Serializable

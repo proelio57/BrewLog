@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,6 +31,7 @@ import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
@@ -43,6 +43,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -55,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -68,36 +71,55 @@ import com.brewlog.app.LocalContainer
 import com.brewlog.app.analysis.GrindRecommendation
 import com.brewlog.app.analysis.GrindRecommender
 import com.brewlog.app.brewing.BrewSession
+import com.brewlog.app.brewing.ShotMonitor
+import com.brewlog.app.data.BrewSetupState
+import com.brewlog.app.domain.BrewMethod
 import com.brewlog.app.domain.Equipment
 import com.brewlog.app.domain.EquipmentType
 import com.brewlog.app.domain.GrinderSpec
+import com.brewlog.app.domain.GrindConverter
 import com.brewlog.app.domain.grams
 import com.brewlog.app.domain.grams1
 import com.brewlog.app.domain.roundHalfAway
+import com.brewlog.app.machine.MachineConnection
+import com.brewlog.app.machine.MachineKind
+import com.brewlog.app.machine.MachineManager
 import com.brewlog.app.ui.Routes
 import com.brewlog.app.ui.components.BrewCard
+import com.brewlog.app.ui.components.CapsuleOption
+import com.brewlog.app.ui.components.CapsuleSwitch
 import com.brewlog.app.ui.components.FilterIcon
 import com.brewlog.app.ui.components.MenuPickerRow
 import com.brewlog.app.ui.components.MethodBadge
 import com.brewlog.app.ui.components.PickerOption
+import com.brewlog.app.ui.components.ScaleIcon
 import com.brewlog.app.ui.components.SectionHeader
 import com.brewlog.app.ui.components.StatView
 import com.brewlog.app.ui.components.TasteProfileBars
+import com.brewlog.app.ui.theme.GoodGreen
+import com.brewlog.app.ui.theme.WarnOrange
 import kotlin.math.max
-import com.brewlog.app.domain.GrindConverter
+
+private val tabular = TextStyle(fontFeatureSettings = "tnum")
 
 @Composable
 fun BrewSetupScreen(nav: NavHostController) {
     val container = LocalContainer.current
-    val setup = container.setup
+    val mode = container.brewMode
+    val isEspresso = mode == "espresso"
+    val setup = if (isEspresso) container.espressoSetup else container.setup
     val data by container.repository.data.collectAsStateWithLifecycle()
     val settings by container.settings.settings.collectAsStateWithLifecycle()
     val ready by container.scale.ready.collectAsStateWithLifecycle()
+    val scaleWeight by container.scale.weight.collectAsStateWithLifecycle()
+    val pressureReady by container.pressure.ready.collectAsStateWithLifecycle()
+    val pressureBar by container.pressure.pressure.collectAsStateWithLifecycle()
+    val pressureState by container.pressure.state.collectAsStateWithLifecycle()
     var showScale by rememberSaveable { mutableStateOf(false) }
     var showPressure by rememberSaveable { mutableStateOf(false) }
 
     val beans = data.beans.filter { !it.isArchived }.sortedByDescending { it.createdAt }
-    val brewers = data.equipment.filter { it.type == EquipmentType.BREWER }.sortedBy { it.name }
+    val brewers = data.equipment.filter { it.type == EquipmentType.BREWER && (it.method == BrewMethod.ESPRESSO) == isEspresso }.sortedBy { it.name }
     val grinders = data.equipment.filter { it.type == EquipmentType.GRINDER }.sortedBy { it.name }
     val filters = data.equipment.filter { it.type == EquipmentType.FILTER }.sortedBy { it.name }
     val selectedGrinder = grinders.firstOrNull { it.id == setup.grinderId }
@@ -107,7 +129,9 @@ fun BrewSetupScreen(nav: NavHostController) {
 
     LaunchedEffect(brewers.map { it.id }) { setup.reconcileGear(EquipmentType.BREWER, brewers.map { it.id }) }
     LaunchedEffect(grinders.map { it.id }) { setup.reconcileGear(EquipmentType.GRINDER, grinders.map { it.id }, grinders, data.brews) }
-    LaunchedEffect(filters.map { it.id }) { setup.reconcileGear(EquipmentType.FILTER, filters.map { it.id }) }
+    if (!isEspresso) {
+        LaunchedEffect(filters.map { it.id }) { setup.reconcileGear(EquipmentType.FILTER, filters.map { it.id }) }
+    }
 
     // Apply the history-based grind when bean, grinder or recipe change (unless the grind was set explicitly).
     val recommendationKey = "${setup.beanId}|${setup.grinderId}|${setup.recipe.id}"
@@ -125,7 +149,16 @@ fun BrewSetupScreen(nav: NavHostController) {
     }
 
     BrewScreen(
-        title = "Brew",
+        titleContent = {
+            CapsuleSwitch(
+                options = listOf(
+                    CapsuleOption("filter", "Filter", Icons.Filled.WaterDrop),
+                    CapsuleOption("espresso", "Espresso", Icons.Filled.Coffee),
+                ),
+                selection = mode,
+                onSelectionChanged = { container.brewMode = it },
+            )
+        },
         actions = {
             IconButton(onClick = { nav.navigate(Routes.WEIGH) }) { Icon(Icons.Filled.Scale, contentDescription = "Quick weigh") }
             IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Icon(Icons.Filled.Settings, contentDescription = "Settings") }
@@ -140,7 +173,7 @@ fun BrewSetupScreen(nav: NavHostController) {
                         beanId = selectedBean?.id,
                         brewer = brewers.firstOrNull { it.id == setup.brewerId },
                         grinder = selectedGrinder,
-                        filter = if (setup.recipe.isEspresso) null else filters.firstOrNull { it.id == setup.filterId },
+                        filter = if (isEspresso) null else filters.firstOrNull { it.id == setup.filterId },
                         grindValue = if (selectedGrinder == null) null else setup.grindValue,
                         grindText = setup.grindText,
                         water = waters.firstOrNull { it.id == setup.waterId },
@@ -161,14 +194,31 @@ fun BrewSetupScreen(nav: NavHostController) {
             if (data.equipment.isEmpty() && !settings.setupBannerDismissed) {
                 item { SetupBanner(onStart = { nav.navigate(Routes.ONBOARDING) }, onDismiss = { container.settings.update { it.copy(setupBannerDismissed = true) } }) }
             }
-            item { ScaleStatusCard { showScale = true } }
-            if (settings.espressoPressureEnabled) {
-                item { PressureStatusCard { showPressure = true } }
-            }
-            item { RecipeCard(onClick = { nav.navigate(Routes.RECIPE_PICKER) }) }
-            item { DoseCard() }
-            if (setup.recipe.isEspresso) {
+            if (isEspresso) {
+                item {
+                    DeviceStrip(
+                        scaleReady = ready,
+                        scaleWeight = scaleWeight,
+                        machine = container.machine,
+                        pressureReady = pressureReady,
+                        pressureBar = pressureBar,
+                        pressureEnabled = settings.espressoPressureEnabled,
+                        pressureLabel = pressureState.label,
+                        onOpenScale = { showScale = true },
+                        onOpenSettings = { nav.navigate(Routes.SETTINGS) },
+                        onOpenPressure = { showPressure = true },
+                    )
+                }
+                item { RecipeCard(setup = setup, onClick = { nav.navigate(Routes.RECIPE_PICKER) }) }
+                item { EspressoSetupCard(setup = setup, machine = container.machine, onOpenProfiles = { nav.navigate(Routes.SETTINGS) }) }
                 item { MachineCard(setup.scaledRecipe, setup.dose, setup.waterTemp) { nav.navigate(Routes.SETTINGS) } }
+            } else {
+                item { ScaleStatusCard { showScale = true } }
+                if (settings.espressoPressureEnabled) {
+                    item { PressureStatusCard { showPressure = true } }
+                }
+                item { RecipeCard(setup = setup, onClick = { nav.navigate(Routes.RECIPE_PICKER) }) }
+                item { DoseCard(setup = setup) }
             }
             item {
                 SectionHeader("Coffee")
@@ -200,10 +250,9 @@ fun BrewSetupScreen(nav: NavHostController) {
                 SectionHeader("Gear & grind")
                 Spacer(Modifier.height(8.dp))
                 BrewCard {
-                    val espresso = setup.recipe.isEspresso
-                    GearRow(if (espresso) "Machine" else "Brewer", Icons.Filled.Coffee, brewers, setup.brewerId, { setup.brewerId = it }) { nav.navigate(Routes.PRESETS) }
+                    GearRow(if (isEspresso) "Machine" else "Brewer", Icons.Filled.Coffee, brewers, setup.brewerId, { setup.brewerId = it }) { nav.navigate(Routes.PRESETS) }
                     HorizontalDivider(Modifier.padding(vertical = 10.dp))
-                    if (!espresso) {
+                    if (!isEspresso) {
                         GearRow("Filter", FilterIcon, filters, setup.filterId, { setup.filterId = it }) { nav.navigate(Routes.PRESETS) }
                         filters.firstOrNull { it.id == setup.filterId }?.subtitle?.takeIf { it.isNotEmpty() }?.let {
                             Text(it, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall,
@@ -217,7 +266,6 @@ fun BrewSetupScreen(nav: NavHostController) {
                     }, onAdd = { nav.navigate(Routes.PRESETS) })
                     Spacer(Modifier.height(10.dp))
                     GrindInput(selectedGrinder?.grinder, setup.grindValue, { setup.setGrind(it) }, setup.grindText, { setup.grindText = it }, recommendation)
-                    // The recipe's grind size as a setting on this grinder (calibrated grinders only).
                     selectedGrinder?.let { g -> GrindConverter.hint(setup.recipe.grind, GrindConverter.calibrated(g.grinder, g.name)) }?.let { hint ->
                         Text("Recipe: $hint on your ${selectedGrinder.name}", Modifier.fillMaxWidth().padding(top = 6.dp),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
@@ -228,10 +276,239 @@ fun BrewSetupScreen(nav: NavHostController) {
                     }
                 }
             }
+            item {
+                SectionHeader("Before you brew")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                container.settings.update { it.copy(weighBeansFirst = !settings.weighBeansFirst) }
+                            }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Weigh the beans", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                if (ready) "On the scale, before the brewer goes on" else "With a scale connected",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = settings.weighBeansFirst,
+                            onCheckedChange = { v -> container.settings.update { it.copy(weighBeansFirst = v) } },
+                        )
+                    }
+                    if (!isEspresso) {
+                        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    container.settings.update { it.copy(rinsePaper = !settings.rinsePaper) }
+                                }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Rinse the paper", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text("With hot water, then discard it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(
+                                checked = settings.rinsePaper,
+                                onCheckedChange = { v -> container.settings.update { it.copy(rinsePaper = v) } },
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
     if (showScale) ScaleSheet { showScale = false }
     if (showPressure) PressureMonitorSheet { showPressure = false }
+}
+
+@Composable
+fun DeviceStrip(
+    scaleReady: Boolean,
+    scaleWeight: Double,
+    machine: MachineManager,
+    pressureReady: Boolean,
+    pressureBar: Double,
+    pressureEnabled: Boolean,
+    pressureLabel: String,
+    onOpenScale: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenPressure: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Scale tile
+        DeviceTile(
+            name = "Scale",
+            icon = ScaleIcon,
+            live = scaleReady,
+            value = if (scaleReady) scaleWeight.grams1() else "Connect",
+            onClick = onOpenScale,
+            modifier = Modifier.weight(1f),
+        )
+
+        // Machine tile
+        val machineState by machine.state.collectAsStateWithLifecycle()
+        val isMachineConnected = machineState.connection == MachineConnection.CONNECTED
+        val machineValue = when (machineState.connection) {
+            MachineConnection.OFF -> if (machine.kind == MachineKind.NONE) "Set up" else "Off"
+            MachineConnection.CONNECTING -> "Connecting"
+            MachineConnection.UNREACHABLE -> "Offline"
+            MachineConnection.CONNECTED -> machineState.status.temperature?.let { "${it.toInt()} °C" } ?: "Connected"
+        }
+        DeviceTile(
+            name = if (machine.kind == MachineKind.NONE) "Machine" else machine.displayName,
+            icon = Icons.Filled.Coffee,
+            live = isMachineConnected,
+            value = machineValue,
+            onClick = onOpenSettings,
+            modifier = Modifier.weight(1f),
+        )
+
+        // Pressure tile
+        if (machine.readsPressure) {
+            val p = if (isMachineConnected) machineState.status.pressure else null
+            DeviceTile(
+                name = "Pressure",
+                icon = Icons.Filled.Speed,
+                live = p != null,
+                value = p?.let { String.format(java.util.Locale.US, "%.1f bar", it) } ?: "–",
+                onClick = onOpenSettings,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            DeviceTile(
+                name = "Pressure",
+                icon = Icons.Filled.Speed,
+                live = pressureReady,
+                value = if (pressureReady) String.format(java.util.Locale.US, "%.1f bar", pressureBar)
+                        else if (pressureEnabled) pressureLabel else "Off",
+                onClick = onOpenPressure,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeviceTile(
+    name: String,
+    icon: ImageVector,
+    live: Boolean,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = if (live) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.width(4.dp))
+                Box(
+                    Modifier.size(6.dp).clip(CircleShape).background(
+                        if (live) GoodGreen else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    ),
+                )
+            }
+            Text(name, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            Text(value, style = MaterialTheme.typography.bodyMedium.merge(tabular), fontWeight = FontWeight.SemiBold, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+fun EspressoSetupCard(
+    setup: BrewSetupState,
+    machine: MachineManager,
+    onOpenProfiles: () -> Unit = {},
+) {
+    val recipe = setup.scaledRecipe
+    val machineTemp = if (machine.isConnected) {
+        val t = machine.status.targetTemperature
+        if (t != null && t in 70.0..105.0) t else null
+    } else null
+    val targetPressure = ShotMonitor.targetPressure(
+        recipe = recipe.pressure,
+        machineTarget = if (machine.isConnected) machine.status.targetPressure else null,
+    )
+    val displayTemp = (machineTemp ?: setup.waterTemp).toInt()
+
+    BrewCard {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            StatView(setup.dose.grams1(), "Dose", Icons.Filled.Scale)
+            StatView(recipe.water.grams(), "Yield", Icons.Filled.WaterDrop)
+            StatView(recipe.ratioText, "Ratio")
+            StatView("$displayTemp°", "Temp", Icons.Filled.Thermostat)
+        }
+        HorizontalDivider(Modifier.padding(vertical = 12.dp))
+        StepperRow("Dose", setup.dose.grams1(), Icons.Filled.Scale,
+            onMinus = { setup.dose = maxOf(5.0, setup.dose - 0.5) },
+            onPlus = { setup.dose = minOf(30.0, setup.dose + 0.5) },
+        )
+        if (machine.isConnected) {
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Thermostat, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Temperature", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.weight(1f))
+                Text(machineTemp?.let { "${it.toInt()} °C" } ?: "–", fontWeight = FontWeight.SemiBold)
+            }
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Speed, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Pressure", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.weight(1f))
+                Text(targetPressure?.let { String.format(java.util.Locale.US, "%.1f bar", it) } ?: "–", fontWeight = FontWeight.SemiBold)
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp).let {
+                    if (machine.canChooseProfile) it.clickable(onClick = onOpenProfiles) else it
+                },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Filled.Tune, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Profile", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.weight(1f))
+                Text(machine.status.profile ?: "–", fontWeight = FontWeight.SemiBold)
+                if (machine.canChooseProfile) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                }
+            }
+            Text("from ${machine.displayName}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
+        } else {
+            StepperRow("Brew temperature", "${setup.waterTemp.toInt()} °C", Icons.Filled.Thermostat,
+                onMinus = { setup.waterTemp = maxOf(70.0, setup.waterTemp - 1.0) },
+                onPlus = { setup.waterTemp = minOf(100.0, setup.waterTemp + 1.0) },
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Tune, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Grind", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.weight(1f))
+            Text(setup.recipe.grind, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
+        }
+    }
 }
 
 @Composable
@@ -253,8 +530,8 @@ private fun SetupBanner(onStart: () -> Unit, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun RecipeCard(onClick: () -> Unit) {
-    val recipe = LocalContainer.current.setup.recipe
+private fun RecipeCard(setup: BrewSetupState, onClick: () -> Unit) {
+    val recipe = setup.recipe
     BrewCard(onClick = onClick) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
@@ -276,8 +553,7 @@ private fun RecipeCard(onClick: () -> Unit) {
 }
 
 @Composable
-private fun DoseCard() {
-    val setup = LocalContainer.current.setup
+private fun DoseCard(setup: BrewSetupState) {
     val recipe = setup.scaledRecipe
     BrewCard {
         Row {
@@ -376,6 +652,20 @@ private fun step(base: Double, spec: GrinderSpec, coarser: Boolean): Double {
 
 @Composable
 private fun GrindStepButton(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Column(
+        Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, contentDescription = label) }
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+fun QuickAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
     Column(
         Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

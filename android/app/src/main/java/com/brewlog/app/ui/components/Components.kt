@@ -1,17 +1,27 @@
 package com.brewlog.app.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -57,18 +67,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.brewlog.app.analysis.FindingLevel
@@ -80,6 +96,10 @@ import com.brewlog.app.ui.theme.GoodGreen
 import com.brewlog.app.ui.theme.InfoBlue
 import com.brewlog.app.ui.theme.StarOrange
 import com.brewlog.app.ui.theme.WarnOrange
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun BrewCard(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
@@ -317,3 +337,166 @@ fun suggestionIcon(key: String): ImageVector = when {
 
 val ScaleIcon: ImageVector get() = Icons.Filled.Scale
 val FilterIcon: ImageVector get() = Icons.Filled.Description
+
+data class CapsuleOption<T>(
+    val value: T,
+    val title: String,
+    val icon: ImageVector,
+)
+
+/**
+ * Two-option capsule switch with an animated sliding thumb.
+ * Equal width segments, tap or drag (> 6 dp threshold).
+ * Commits selection after ~0.26 s delay; subsequent taps cancel pending changes.
+ * Port of Views/Components/Components.swift (CapsuleSwitch).
+ */
+@Composable
+fun <T : Any> CapsuleSwitch(
+    options: List<CapsuleOption<T>>,
+    selection: T,
+    onSelectionChanged: (T) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var shown by remember { mutableStateOf(selection) }
+    var dragX by remember { mutableStateOf<Float?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+    var commitJob by remember { mutableStateOf<Job?>(null) }
+
+    LaunchedEffect(selection) {
+        if (commitJob == null) {
+            shown = selection
+        }
+    }
+
+    val current = shown
+    val currentIndex = options.indexOfFirst { it.value == current }.coerceAtLeast(0)
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { 6.dp.toPx() }
+
+    fun pick(value: T) {
+        if (value == current) return
+        commitJob?.cancel()
+        shown = value
+        if (value == selection) {
+            commitJob = null
+            return
+        }
+        commitJob = coroutineScope.launch {
+            delay(260L)
+            commitJob = null
+            onSelectionChanged(value)
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(3.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        val totalWidthPx = constraints.maxWidth.toFloat()
+        val count = kotlin.math.max(options.size, 1)
+        val segmentWidthPx = totalWidthPx / count
+        val segmentWidthDp = with(density) { segmentWidthPx.toDp() }
+
+        val targetThumbX = dragX ?: (currentIndex * segmentWidthPx)
+        val animatedThumbX by animateFloatAsState(
+            targetValue = targetThumbX,
+            animationSpec = if (dragX != null) {
+                spring(stiffness = Spring.StiffnessMedium)
+            } else {
+                spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow)
+            },
+            label = "capsule_thumb",
+        )
+
+        // Thumb background
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(animatedThumbX.roundToInt(), 0) }
+                .width(segmentWidthDp)
+                .fillMaxHeight()
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary),
+        )
+
+        // Content row
+        var accumulatedDrag by remember { mutableFloatStateOf(0f) }
+        Row(
+            modifier = Modifier
+                .pointerInput(options, segmentWidthPx) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { accumulatedDrag = 0f },
+                        onDragEnd = {
+                            val finalX = dragX
+                            dragX = null
+                            accumulatedDrag = 0f
+                            if (finalX != null && segmentWidthPx > 0) {
+                                val idx = ((finalX + segmentWidthPx / 2) / segmentWidthPx)
+                                    .toInt()
+                                    .coerceIn(0, options.lastIndex)
+                                pick(options[idx].value)
+                            }
+                        },
+                        onDragCancel = {
+                            dragX = null
+                            accumulatedDrag = 0f
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            accumulatedDrag += dragAmount
+                            if (dragX != null || kotlin.math.abs(accumulatedDrag) > thresholdPx) {
+                                change.consume()
+                                val total = segmentWidthPx * options.size
+                                val cur = dragX ?: (currentIndex * segmentWidthPx)
+                                dragX = (cur + dragAmount).coerceIn(0f, total - segmentWidthPx)
+                            }
+                        },
+                    )
+                },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            options.forEach { option ->
+                val selected = option.value == current
+                val contentColor by animateColorAsState(
+                    targetValue = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                    animationSpec = tween(durationMillis = 180),
+                    label = "capsule_text_color",
+                )
+                Box(
+                    modifier = Modifier
+                        .width(segmentWidthDp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) {
+                            pick(option.value)
+                        }
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(
+                            imageVector = option.icon,
+                            contentDescription = null,
+                            tint = contentColor,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = option.title,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = contentColor,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

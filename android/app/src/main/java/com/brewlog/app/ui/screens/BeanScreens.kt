@@ -164,7 +164,7 @@ fun BeanEditorScreen(nav: NavHostController, beanId: String) {
         container.repository.upsertBean(bean)
         if (photoChanged) container.repository.setBeanPhoto(bean.id, photo)
         container.updateWidgets()
-        if (isNew) container.setup.beanId = bean.id
+        if (isNew) container.activeSetup.beanId = bean.id
         nav.popBackStack()
     }
 

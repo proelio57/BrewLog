@@ -153,7 +153,9 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
 }
 
 private fun brewAgain(container: com.brewlog.app.AppContainer, brew: Brew) {
-    val setup = container.setup
+    val isEspresso = brew.recipe?.method?.isEspresso == true
+    container.brewMode = if (isEspresso) "espresso" else "filter"
+    val setup = if (isEspresso) container.espressoSetup else container.setup
     val equipment = container.repository.data.value.equipment
     val recipe = brew.recipe
     if (recipe != null) {
