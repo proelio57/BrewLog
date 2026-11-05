@@ -39,6 +39,8 @@ The switch was rebuilt on every change."
 git commit -q --allow-empty -m "docs: statistics"
 git commit -q --allow-empty -m "chore(ci): bump"
 git commit -q --allow-empty -m "fix(ios): crash on start, see https://example.com/x (session_01AbC)"
+git commit -q --allow-empty -m "fix: thing (see https://x.y/z) for real"
+git commit -q --allow-empty -m "feat: add thing Claude-Session: https://claude.ai/code/session_x"
 git checkout -q main
 git merge -q --no-ff feature -m "Merge pull request #1 from someone/feature
 
@@ -46,7 +48,9 @@ Claude-Session: https://claude.ai/code/session_456"
 
 check merged "• Import GaggiMate profiles as espresso recipes
 • The mode switch no longer hitches
-• Crash on start"
+• Crash on start
+• Thing for real
+• Add thing"
 
 # Only internal commits.
 git checkout -q -b docs-only

@@ -162,7 +162,8 @@ final class MachineManager {
             guard writeToDecent(DecentProtocol.startShot) else { return }
             // A DE1 with a group head controller only starts shots from the machine.
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-                guard let self, self.kind == .decent, self.isConnected, !self.status.isBrewing else { return }
+                // Accepted: the DE1 is in its espresso state (it may still be heating before the pump runs).
+                guard let self, self.kind == .decent, self.isConnected, !self.decent.isInEspressoState else { return }
                 self.notice = "Start the shot on the machine."
             }
             return
@@ -352,6 +353,14 @@ final class MachineManager {
             state = decent.hasSavedMachine ? .connecting : .unreachable
             decent.reconnectRemembered()
         }
+    }
+
+    /// "Disconnect & forget" in Settings: unpairs the DE1 and shows it as gone right away.
+    func forgetDecent() {
+        decent.disconnect(forget: true)
+        guard kind == .decent else { return }
+        decentLost()
+        notice = nil
     }
 
     /// Pairs the DE1 chosen in Settings and starts using it.

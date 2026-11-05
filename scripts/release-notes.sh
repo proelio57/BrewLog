@@ -24,11 +24,17 @@ for subject in sys.stdin.read().split("\x1e"):
     if not match or match.group(1) not in ("feat", "fix", "perf"):
         continue
     subject = subject[match.end():]
-    # No links or session ids in the notes, and no "see" / brackets they leave behind.
-    cleaned = re.sub(r"https?://\S+|\bsession_[A-Za-z0-9]+", "", subject)
+    # No links, session ids or trailer names in the notes, and no "see" / brackets they leave behind.
+    cleaned = re.sub(r"(?i)\b(co-authored-by|signed-off-by|claude-session)\b\s*:?", "", subject)
+    cleaned = re.sub(r"https?://\S+|\bsession_[A-Za-z0-9]+", "", cleaned)
     if cleaned != subject:
-        cleaned = re.sub(r"\(\s*\)", "", cleaned)
+        cleaned = re.sub(r"\(\s*(see\b)?\s*\)", "", cleaned)
+        cleaned = re.sub(r"\(\s*see\b\s*", "", cleaned)
+        if cleaned.count("(") > cleaned.count(")"):
+            i = cleaned.rfind("(")
+            cleaned = cleaned[:i] + cleaned[i + 1:]
         cleaned = re.sub(r"[\s,;:]*(\bsee\b)?[\s,;:]*$", "", cleaned)
+        cleaned = re.sub(r"\s{2,}", " ", cleaned)
     subject = cleaned.strip()
     if not subject:
         continue

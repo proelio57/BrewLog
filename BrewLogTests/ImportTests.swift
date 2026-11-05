@@ -115,6 +115,7 @@ final class ImportTests: XCTestCase {
         """)
         let recipe = try XCTUnwrap(GaggiMateProfile.recipe(from: profile))
         XCTAssertEqual(recipe.water, 45)
+        XCTAssertEqual(recipe.targetTime, 25, "a ratio target ends the shot, so the 40 s duration is only a cap")
     }
 
     func testHoldPressureIsIgnored() throws {

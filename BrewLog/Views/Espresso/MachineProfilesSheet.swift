@@ -14,7 +14,10 @@ struct MachineProfilesSheet: View {
         NavigationStack {
             List {
                 Section {
-                    if machine.profiles.isEmpty {
+                    if !machine.isConnected {
+                        Label("The machine isn't connected.", systemImage: "wifi.exclamationmark")
+                            .foregroundStyle(.orange)
+                    } else if machine.profiles.isEmpty {
                         if machine.profilesLoading {
                             HStack { Spacer(); ProgressView(); Spacer() }
                         } else {
@@ -23,7 +26,7 @@ struct MachineProfilesSheet: View {
                     }
                     ForEach(machine.profiles) { profile in
                         Button { choose(profile) } label: { row(profile) }
-                            .disabled(selecting != nil)
+                            .disabled(selecting != nil || !machine.isConnected)
                     }
                 } footer: {
                     VStack(alignment: .leading, spacing: 6) {

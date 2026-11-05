@@ -22,6 +22,11 @@ final class DecentConnection: NSObject {
     @ObservationIgnored private var status = MachineStatus()
     @ObservationIgnored private var userInitiatedDisconnect = false
     @ObservationIgnored private var active = false
+    /// The DE1's last top-level state (`DecentProtocol.State` raw value).
+    @ObservationIgnored private var machineState: UInt8?
+
+    /// The DE1 is in its espresso state (heating up for, or pulling, a shot): it accepted a start.
+    var isInEspressoState: Bool { machineState == DecentProtocol.State.espresso.rawValue }
 
     private static let maxDiscovered = 20
     private static let serviceUUID = CBUUID(string: DecentProtocol.service)
@@ -62,7 +67,8 @@ final class DecentConnection: NSObject {
         }
         discovered.removeAll()
         if state != .connected { state = .scanning }
-        central.scanForPeripherals(withServices: [Self.serviceUUID], options: nil)
+        // Unfiltered: not every DE1 firmware advertises its service, so the name ("DE1…") counts too.
+        central.scanForPeripherals(withServices: nil, options: nil)
     }
 
     func stopScan() {
@@ -87,12 +93,17 @@ final class DecentConnection: NSObject {
     /// Stops using the machine (another machine kind was chosen, or "Disconnect & forget").
     func disconnect(forget: Bool) {
         active = false
-        userInitiatedDisconnect = true
         central?.stopScan()
-        if let peripheral { central?.cancelPeripheralConnection(peripheral) }
+        // Only a real cancellation is followed by didDisconnect, which clears the flag again.
+        if let peripheral {
+            userInitiatedDisconnect = true
+            central?.cancelPeripheralConnection(peripheral)
+        }
         peripheral = nil
         requestCharacteristic = nil
         status = MachineStatus()
+        machineState = nil
+        connectedName = nil
         if forget { savedID = nil }
         state = .idle
     }
@@ -114,16 +125,33 @@ extension DecentConnection: CBCentralManagerDelegate {
         case .poweredOn:
             state = .idle
             if active { reconnectRemembered() }
-        case .poweredOff: state = .bluetoothOff
-        case .unauthorized: state = .unauthorized
+        case .poweredOff:
+            state = .bluetoothOff
+            dropConnection()
+        case .unauthorized:
+            state = .unauthorized
+            dropConnection()
         case .unsupported: state = .unsupported
         default: break
         }
     }
 
+    /// Bluetooth went off: iOS drops the connection without calling didDisconnect. Tell the manager (ends a
+    /// running shot) and forget the peripheral object, so it is reconnected when Bluetooth is back on.
+    private func dropConnection() {
+        guard peripheral != nil else { return }
+        peripheral = nil
+        requestCharacteristic = nil
+        status = MachineStatus()
+        machineState = nil
+        if active { onDisconnect?() }
+    }
+
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
         let name = peripheral.name ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String
+        let services = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
+        guard services.contains(Self.serviceUUID) || (name?.hasPrefix("DE1") ?? false) else { return }
         // Advertised names are untrusted input: sanitize and bound them.
         let safeName = (name ?? "DE1").sanitized(maxLength: 40)
         let entry = DiscoveredScale(id: peripheral.identifier, name: safeName.isEmpty ? "DE1" : safeName, rssi: RSSI.intValue)
@@ -151,8 +179,14 @@ extension DecentConnection: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        // A machine we already switched away from.
+        guard peripheral.identifier == self.peripheral?.identifier else {
+            userInitiatedDisconnect = false
+            return
+        }
         requestCharacteristic = nil
         status = MachineStatus()
+        machineState = nil
         if userInitiatedDisconnect || !active {
             state = .idle
             userInitiatedDisconnect = false
@@ -190,6 +224,7 @@ extension DecentConnection: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         guard error == nil, let data = characteristic.value, data.count <= 64 else { return }
         if characteristic.uuid == Self.stateUUID, let info = DecentProtocol.state(data) {
+            machineState = info.state
             DecentProtocol.apply(state: info.state, substate: info.substate, to: &status)
             state = .connected
             onStatus?(status, false)

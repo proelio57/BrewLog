@@ -39,6 +39,8 @@ struct MachineCard: View {
                 }
             }
         }
+        // On the card, not on the profile button: the sheet stays open (and shows the error) if the machine drops.
+        .sheet(isPresented: $showProfiles) { MachineProfilesSheet() }
     }
 
     @ViewBuilder
@@ -54,7 +56,6 @@ struct MachineCard: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Choose the profile on the machine")
-                .sheet(isPresented: $showProfiles) { MachineProfilesSheet() }
             } else {
                 StatView(value: status.profile ?? "–", label: "Profile")
             }

@@ -34,7 +34,7 @@ struct DecentConnectSheet: View {
                         if decent.state == .scanning || decent.state == .connecting { ProgressView() }
                     }
                     if decent.hasSavedMachine {
-                        Button("Disconnect & forget", role: .destructive) { decent.disconnect(forget: true) }
+                        Button("Disconnect & forget", role: .destructive) { machine.forgetDecent() }
                     }
                 } footer: {
                     Text("Switch the DE1 on and keep the phone nearby. Close the Decent tablet app first: the DE1 talks to one app at a time.")

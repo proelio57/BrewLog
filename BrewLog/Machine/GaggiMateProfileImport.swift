@@ -75,7 +75,7 @@ extension GaggiMateProfile {
         let preinfusion = phases.filter(\.isPreinfusion).reduce(0) { $0 + $1.duration }
         let total = phases.reduce(0) { $0 + $1.duration }
         // With a target weight the durations are only safety caps, so the shot usually ends well before their sum.
-        let hasWeightTarget = phases.contains { $0.volumetricTarget != nil }
+        let hasWeightTarget = phases.contains { $0.volumetricTarget != nil || $0.ratioTarget != nil }
         let time = (hasWeightTarget ? min(total, preinfusion + 25) : total).clamped(15, 120).rounded()
         let pressure = phases.filter { !$0.isPreinfusion }.compactMap(\.pressure).max()
             ?? phases.compactMap(\.pressure).max() ?? 9

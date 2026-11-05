@@ -46,7 +46,6 @@ struct EspressoSetupView: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityHint("Choose the profile on the machine")
-                            .sheet(isPresented: $showProfiles) { MachineProfilesSheet() }
                         } else {
                             machineRow("Profile", machine.status.profile ?? "–", symbol: "slider.horizontal.3")
                         }
@@ -68,6 +67,8 @@ struct EspressoSetupView: View {
                 .font(.subheadline)
             }
         }
+        // On the card, not on the profile row: the sheet stays open (and shows the error) if the machine drops.
+        .sheet(isPresented: $showProfiles) { MachineProfilesSheet() }
     }
 
     private func machineRow(_ title: String, _ value: String, symbol: String) -> some View {
