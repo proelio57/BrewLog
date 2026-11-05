@@ -25,9 +25,19 @@ struct BrewSetupView: View {
         let mode = BrewMode(rawValue: modeRaw) ?? .filter
         NavigationStack {
             // Below this point `BrewSetup` is the selected mode's setup (recipe picker included).
-            SetupScreen(mode: mode, modeRaw: $modeRaw)
+            SetupScreen(mode: mode)
                 .environment(mode == .espresso ? espressoSetup : pourOverSetup)
                 .id(mode)
+                // Outside the `.id(mode)` subtree: the switch stays the same view when the screen behind it is
+                // rebuilt, so its thumb doesn't reset and jump.
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        CapsuleSwitch(options: [CapsuleOption(value: BrewMode.filter.rawValue, title: "Filter", symbol: "drop.fill"),
+                                                CapsuleOption(value: BrewMode.espresso.rawValue, title: "Espresso", symbol: "cup.and.saucer.fill")],
+                                      selection: $modeRaw)
+                            .accessibilityIdentifier("brew.mode")
+                    }
+                }
         }
         .onAppear {
             if BrewSetup.moveEspressoRecipe(from: pourOverSetup, to: espressoSetup) { modeRaw = BrewMode.espresso.rawValue }
@@ -37,7 +47,6 @@ struct BrewSetupView: View {
 
 private struct SetupScreen: View {
     let mode: BrewMode
-    @Binding var modeRaw: String
 
     @Environment(BrewSetup.self) private var setup
     @Environment(ScaleManager.self) private var scale
@@ -75,13 +84,6 @@ private struct SetupScreen: View {
 
     var body: some View {
         observingSetup(presentingSheets(screen))
-    }
-
-    private var modePicker: some View {
-        CapsuleSwitch(options: [CapsuleOption(value: BrewMode.filter.rawValue, title: "Filter", symbol: "drop.fill"),
-                                CapsuleOption(value: BrewMode.espresso.rawValue, title: "Espresso", symbol: "cup.and.saucer.fill")],
-                      selection: $modeRaw)
-            .accessibilityIdentifier("brew.mode")
     }
 
     private var screen: some View {
@@ -128,7 +130,6 @@ private struct SetupScreen: View {
                 }
                 .accessibilityIdentifier("brew.quickWeigh")
             }
-            ToolbarItem(placement: .principal) { modePicker }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showSettings = true } label: { Image(systemName: "gearshape") }
                     .accessibilityLabel("Settings")

@@ -32,11 +32,12 @@ struct ShotReadouts: View {
         }
     }
 
-    /// While the shot runs the session's reading; before that the sensor's (group head first, then the machine).
+    /// While the shot runs the session's reading; before that the machine's, or the sensor's for machines
+    /// BrewLog can't connect to.
     private var livePressure: Double? {
         if session.phase == .brewing, let current = session.currentPressure { return current }
-        if monitor.isReady { return monitor.pressure }
-        return machine.isConnected ? machine.status.pressure : nil
+        if machine.readsPressure { return machine.isConnected ? machine.status.pressure : nil }
+        return monitor.isReady ? monitor.pressure : nil
     }
 
     private var liveTemperature: Double? {

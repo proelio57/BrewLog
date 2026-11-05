@@ -268,6 +268,7 @@ extension Double {
 }
 
 /// A small capsule switch with a thumb that slides (tap or drag), e.g. Filter | Espresso, Journal | Stats.
+/// All options are as wide as the widest, so the thumb keeps its size when it moves.
 /// The thumb slides first and the selection follows when it has arrived, so the content swap doesn't cut
 /// the animation short.
 struct CapsuleOption<Value: Hashable> {
@@ -279,42 +280,46 @@ struct CapsuleOption<Value: Hashable> {
 struct CapsuleSwitch<Value: Hashable>: View {
     let options: [CapsuleOption<Value>]
     @Binding var selection: Value
+    /// The option the thumb is on; ahead of `selection` while the thumb slides.
     @State private var shown: Value?
+    /// Thumb position (leading edge) while the finger drags it.
     @State private var dragX: CGFloat?
-    @State private var widths: [Value: CGFloat] = [:]
+    @State private var commit: DispatchWorkItem?
 
-    private static var slide: Animation { .spring(response: 0.32, dampingFraction: 0.82) }
+    private static var slide: Animation { .spring(response: 0.3, dampingFraction: 0.86) }
+    private static var inset: CGFloat { 3 }
     private var current: Value { shown ?? selection }
+    private var currentIndex: Int { options.firstIndex { $0.value == current } ?? 0 }
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(options, id: \.value) { option in
-                label(option)
-                    .background(GeometryReader { proxy in
-                        Color.clear.preference(key: SegmentWidths.self, value: [AnyHashable(option.value): proxy.size.width])
-                    })
+        EqualWidthRow {
+            ForEach(options, id: \.value) { option in label(option) }
+        }
+        // Sized in the same layout pass as the labels, so the thumb is right from the first frame.
+        .background {
+            GeometryReader { proxy in thumb(segment: segmentWidth(proxy.size.width)) }
+        }
+        .padding(Self.inset)
+        .background(Color(.tertiarySystemFill), in: Capsule())
+        .overlay {
+            GeometryReader { proxy in
+                Color.clear
+                    .contentShape(Capsule())
+                    .gesture(drag(segment: segmentWidth(proxy.size.width - 2 * Self.inset)))
             }
         }
-        .onPreferenceChange(SegmentWidths.self) { values in
-            widths = Dictionary(uniqueKeysWithValues: options.compactMap { option in
-                values[AnyHashable(option.value)].map { (option.value, $0) }
-            })
-        }
-        .background(alignment: .leading) { thumb }
-        .padding(3)
-        .background(Color(.tertiarySystemFill), in: Capsule())
         .fixedSize()
-        .contentShape(Capsule())
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { value in dragX = value.location.x - 3 }
-                .onEnded { value in
-                    dragX = nil
-                    pick(option(at: value.location.x - 3))
-                }
-        )
-        .onChange(of: selection) { _, new in shown = new }
+        .onChange(of: selection) { _, new in
+            // Changed from outside (not by a pending pick): follow it.
+            if commit == nil { shown = new }
+        }
+        .onDisappear {
+            commit?.cancel()
+            commit = nil
+        }
     }
+
+    private func segmentWidth(_ total: CGFloat) -> CGFloat { total / CGFloat(max(options.count, 1)) }
 
     private func label(_ option: CapsuleOption<Value>) -> some View {
         let selected = option.value == current
@@ -325,51 +330,71 @@ struct CapsuleSwitch<Value: Hashable>: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .foregroundStyle(selected ? Color.white : Color.secondary)
+            .animation(.easeOut(duration: 0.18), value: selected)
             .accessibilityAddTraits(selected ? [.isButton, .isSelected] : [.isButton])
             .accessibilityAction { pick(option.value) }
     }
 
     /// The accent capsule under the selected option; follows the finger while dragging.
-    @ViewBuilder
-    private var thumb: some View {
-        let index = options.firstIndex { $0.value == current } ?? 0
-        let width = widths[options[index].value] ?? 0
-        let offset = options.prefix(index).reduce(CGFloat(0)) { $0 + (widths[$1.value] ?? 0) }
-        let total = options.reduce(CGFloat(0)) { $0 + (widths[$1.value] ?? 0) }
-        let x = dragX.map { min(max($0 - width / 2, 0), max(total - width, 0)) } ?? offset
-        Capsule()
+    private func thumb(segment: CGFloat) -> some View {
+        let x = dragX ?? CGFloat(currentIndex) * segment
+        return Capsule()
             .fill(Color.accentColor.gradient)
-            .frame(width: width)
+            .frame(width: segment)
             .offset(x: x)
-            .animation(dragX == nil ? Self.slide : .interactiveSpring(), value: x)
-            .animation(Self.slide, value: width)
+            .animation(dragX == nil ? Self.slide : .interactiveSpring(response: 0.15), value: x)
     }
 
-    private func option(at x: CGFloat) -> Value {
-        var start: CGFloat = 0
-        for option in options {
-            let width = widths[option.value] ?? 0
-            if x < start + width { return option.value }
-            start += width
-        }
-        return options.last?.value ?? selection
+    private func drag(segment: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                // A tap shouldn't make the thumb jump to the finger first: only follow a real drag.
+                guard segment > 0, dragX != nil || abs(value.translation.width) > 6 else { return }
+                let total = segment * CGFloat(options.count)
+                dragX = min(max(value.location.x - segment / 2, 0), total - segment)
+            }
+            .onEnded { value in
+                guard segment > 0 else { return }
+                let index = min(max(Int(value.location.x / segment), 0), options.count - 1)
+                dragX = nil
+                pick(options[index].value)
+            }
     }
 
     private func pick(_ value: Value) {
-        guard value != current || value != selection else {
-            withAnimation(Self.slide) { shown = selection }
-            return
-        }
+        // Already there or on its way (a drag released on the same option just snaps back).
+        guard value != current else { return }
+        commit?.cancel()
+        commit = nil
         withAnimation(Self.slide) { shown = value }
         Haptics.tap()
-        // Let the thumb arrive before the content behind it changes.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) { selection = value }
+        // Back to the screen that is showing: nothing to swap.
+        guard value != selection else { return }
+        // Let the thumb arrive before the content behind it changes. A newer pick cancels this one,
+        // so quick taps back and forth don't swap the screen twice.
+        let work = DispatchWorkItem {
+            commit = nil
+            selection = value
+        }
+        commit = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.26, execute: work)
     }
 }
 
-private struct SegmentWidths: PreferenceKey {
-    static var defaultValue: [AnyHashable: CGFloat] = [:]
-    static func reduce(value: inout [AnyHashable: CGFloat], nextValue: () -> [AnyHashable: CGFloat]) {
-        value.merge(nextValue()) { $1 }
+/// Lays its children out side by side, each as wide as the widest.
+private struct EqualWidthRow: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let width = sizes.map(\.width).max() ?? 0
+        return CGSize(width: width * CGFloat(subviews.count), height: sizes.map(\.height).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard !subviews.isEmpty else { return }
+        let width = bounds.width / CGFloat(subviews.count)
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + width * (CGFloat(index) + 0.5), y: bounds.midY),
+                          anchor: .center, proposal: ProposedViewSize(width: width, height: bounds.height))
+        }
     }
 }

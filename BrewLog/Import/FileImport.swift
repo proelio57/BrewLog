@@ -92,7 +92,7 @@ struct BackupSection: View {
         } header: {
             Text("Backup & import")
         } footer: {
-            Text("Your data lives only on this device. Save a backup now and then. The backup works in the Android and web app too, so you can move your journal between devices. Importing adds what's new and never deletes anything. Import also reads recipe files and Beanconqueror backups (.zip or .json).")
+            Text("Your data lives only on this device. Save a backup now and then. The backup works in the Android and web app too, so you can move your journal between devices. Importing adds what's new and never deletes anything. Import also reads recipe files, GaggiMate profiles (exported from its web interface) and Beanconqueror backups (.zip or .json).")
         }
     }
 

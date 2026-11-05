@@ -4,6 +4,73 @@ import XCTest
 /// Recipe files, Beanconqueror backups and the ZIP reader. No SwiftData, so these also run on Linux.
 final class ImportTests: XCTestCase {
 
+    // MARK: GaggiMate profiles
+
+    private let gaggiMateProfile = """
+    { "id": "abc123", "label": "Blooming Shot", "type": "pro", "description": "Slow bloom, then 9 bar.",
+      "temperature": 94, "dose": 18.5,
+      "phases": [
+        { "name": "Fill", "phase": "preinfusion", "valve": 1, "duration": 4,
+          "pump": { "target": "flow", "pressure": 3, "flow": 4 } },
+        { "name": "Bloom", "phase": "preinfusion", "valve": 0, "duration": 6, "pump": 0 },
+        { "name": "Extraction", "phase": "brew", "valve": 1, "duration": 40,
+          "pump": { "target": "pressure", "pressure": 9, "flow": 0 },
+          "targets": [ { "type": "volumetric", "operator": "gte", "value": 40 } ] }
+      ] }
+    """
+
+    func testGaggiMateProfileBecomesEspressoRecipe() throws {
+        let object = try JSONSerialization.jsonObject(with: Data(gaggiMateProfile.utf8))
+        XCTAssertTrue(GaggiMateProfile.looksLikeProfiles(object))
+        let recipes = GaggiMateProfile.recipes(from: object)
+        XCTAssertEqual(recipes.count, 1)
+        let recipe = try XCTUnwrap(recipes.first)
+        XCTAssertEqual(recipe.id, "gaggimate-abc123")
+        XCTAssertEqual(recipe.name, "Blooming Shot")
+        XCTAssertEqual(recipe.method, .espresso)
+        XCTAssertEqual(recipe.dose, 18.5)
+        XCTAssertEqual(recipe.water, 40)
+        XCTAssertEqual(recipe.temperature, 94)
+        XCTAssertEqual(recipe.pressure, 9)
+        XCTAssertEqual(recipe.isCustom, true)
+        XCTAssertEqual(recipe.steps.map(\.kind), [.preinfuse, .extract])
+        XCTAssertEqual(recipe.steps.last?.time, 10, "extraction starts after both pre-infusion phases")
+        XCTAssertEqual(recipe.steps.last?.target, 40)
+        XCTAssertEqual(recipe.targetTime, 35, "with a target weight the duration is only a cap")
+        XCTAssertEqual(recipe.tips.count, 3)
+        XCTAssertEqual(recipe.tips.first, "Phase 1: Fill · 4 s · 4 ml/s, max 3 bar")
+        XCTAssertEqual(recipe.tips.last, "Phase 3: Extraction · 40 s · 9 bar · to 40 g")
+    }
+
+    func testGaggiMateProfileListSkipsUtilityAndDefaults() throws {
+        let json = """
+        { "profiles": [
+          { "id": "f1", "label": "Flush", "utility": true, "phases": [ { "phase": "brew", "duration": 5, "pump": 100 } ] },
+          { "label": "BrewLog · Classic", "type": "standard",
+            "phases": [ { "name": "Brew", "phase": "brew", "duration": 28, "pump": 100 } ] }
+        ] }
+        """
+        let object = try JSONSerialization.jsonObject(with: Data(json.utf8))
+        XCTAssertTrue(GaggiMateProfile.looksLikeProfiles(object))
+        let recipes = GaggiMateProfile.recipes(from: object)
+        XCTAssertEqual(recipes.map(\.name), ["Classic"], "utility profile skipped, BrewLog prefix removed")
+        let recipe = try XCTUnwrap(recipes.first)
+        XCTAssertEqual(recipe.id, "gaggimate-classic", "stable id from the name")
+        XCTAssertEqual(recipe.dose, 18)
+        XCTAssertEqual(recipe.water, 36)
+        XCTAssertEqual(recipe.targetTime, 28)
+        XCTAssertEqual(recipe.pressure, 9)
+        XCTAssertEqual(recipe.steps.map(\.kind), [.extract])
+        XCTAssertEqual(recipe.tips, ["Phase 1: Brew · 28 s · pump 100 %"])
+    }
+
+    func testGaggiMateDetectionLeavesRecipeFilesAlone() throws {
+        let recipe = try JSONSerialization.jsonObject(with: RecipeFile.encode([RecipeLibrary.blankRecipe()]))
+        XCTAssertFalse(GaggiMateProfile.looksLikeProfiles(recipe))
+        XCTAssertFalse(GaggiMateProfile.looksLikeProfiles(["BREWS": [Any]()]))
+        XCTAssertFalse(GaggiMateProfile.looksLikeProfiles([Any]()))
+    }
+
     // MARK: Recipe files
 
     func testMinimalRecipeFileGetsDefaults() throws {

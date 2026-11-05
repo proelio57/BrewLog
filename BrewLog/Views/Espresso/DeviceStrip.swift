@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Scale · GaggiMate · pressure sensor at a glance: state and live value. Tapping one opens its setup.
+/// Scale · GaggiMate · pressure at a glance: state and live value. Tapping one opens its setup.
+/// The pressure comes from GaggiMate when it measures it, otherwise from the BOOKOO pressure sensor.
 struct DeviceStrip: View {
     var onOpenSettings: () -> Void
 
@@ -16,9 +17,16 @@ struct DeviceStrip: View {
                    value: scale.isReady ? scale.weight.grams1 : "Connect") { showScale = true }
             device("GaggiMate", symbol: "cup.and.saucer.fill", live: machine.isConnected,
                    value: machineValue, action: onOpenSettings)
-            device("Pressure", symbol: "gauge.with.dots.needle.67percent", live: monitor.isReady,
-                   value: monitor.isReady ? String(format: "%.1f bar", monitor.pressure)
-                       : (monitor.isEnabled ? monitor.state.label : "Off")) { showSensor = true }
+            if machine.readsPressure {
+                // GaggiMate measures the pressure itself: show its reading, no separate sensor.
+                let pressure = machine.isConnected ? machine.status.pressure : nil
+                device("Pressure", symbol: "gauge.with.dots.needle.67percent", live: pressure != nil,
+                       value: pressure.map { String(format: "%.1f bar", $0) } ?? "–", action: onOpenSettings)
+            } else {
+                device("Pressure", symbol: "gauge.with.dots.needle.67percent", live: monitor.isReady,
+                       value: monitor.isReady ? String(format: "%.1f bar", monitor.pressure)
+                           : (monitor.isEnabled ? monitor.state.label : "Off")) { showSensor = true }
+            }
         }
         .sheet(isPresented: $showScale) { ScaleConnectSheet() }
         .sheet(isPresented: $showSensor) { PressureMonitorSheet() }

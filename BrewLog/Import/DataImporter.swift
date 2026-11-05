@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// Imports files the user picks: BrewLog backups, recipe files and Beanconqueror backups,
+/// Imports files the user picks: BrewLog backups, recipe files, GaggiMate profiles and Beanconqueror backups,
 /// and exports the BrewLog backup. The file type is detected from the contents, so one "Import" button handles all.
 @MainActor
 enum DataImporter {
@@ -36,8 +36,14 @@ enum DataImporter {
 
     enum ImportError: LocalizedError {
         case tooLarge
+        case noProfiles
 
-        var errorDescription: String? { "This file is too large to import." }
+        var errorDescription: String? {
+            switch self {
+            case .tooLarge: return "This file is too large to import."
+            case .noProfiles: return "No brew profiles found. Utility profiles like flush or descale aren't imported."
+            }
+        }
     }
 
     static let maxFileSize = 200 * 1024 * 1024
@@ -64,6 +70,11 @@ enum DataImporter {
             }
             if BrewLogBackup.looksLikeBackup(object) {
                 return try importBackup(BrewLogBackup.decode(data), into: context)
+            }
+            if GaggiMateProfile.looksLikeProfiles(object) {
+                let recipes = GaggiMateProfile.recipes(from: object)
+                guard !recipes.isEmpty else { throw ImportError.noProfiles }
+                return try importRecipes(recipes, into: context)
             }
         }
         return try importRecipes(RecipeFile.decode(data), into: context)

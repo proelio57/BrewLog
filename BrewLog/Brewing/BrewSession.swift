@@ -230,8 +230,11 @@ final class BrewSession {
     /// Espresso with a connected machine: the shot timer starts and stops with the machine's pump.
     var followsMachine: Bool { isEspresso && machine.isConnected }
 
-    /// Espresso with live pressure, from the BOOKOO Espresso Monitor or the machine.
-    var hasPressure: Bool { isEspresso && (monitor.isReady || (machine.isConnected && machine.status.hasPressure != false)) }
+    /// Espresso with live pressure, from the machine or (for machines BrewLog can't connect to) the BOOKOO Espresso Monitor.
+    var hasPressure: Bool { isEspresso && (usesSensor || (machine.isConnected && machine.status.hasPressure != false)) }
+
+    /// The BOOKOO Espresso Monitor gives the pressure: only when the machine doesn't measure it itself.
+    private var usesSensor: Bool { monitor.isReady && !machine.readsPressure }
 
     private func machineShot(started: Bool, at date: Date) {
         if started {
@@ -256,12 +259,14 @@ final class BrewSession {
     private func machineReading(_ status: GaggiMateStatus, at date: Date) {
         if let temperature = status.temperature, temperature.isFinite { currentTemperature = temperature }
         if weighsViaMachine, let grams = status.weight { ingest(grams, at: date) }
-        // With the pressure sensor connected, its (faster, group-head) readings make the curve.
-        guard !monitor.isReady else { return }
+        // A machine without its own pressure reading leaves the curve to the pressure sensor.
+        guard !usesSensor else { return }
         recordPressure(status.pressure ?? 0, temperature: status.temperature, flow: status.flow, at: date)
     }
 
     private func monitorReading(_ bar: Double, at date: Date) {
+        // A machine that measures the pressure itself (GaggiMate) is the source; the sensor isn't needed then.
+        guard usesSensor else { return }
         // Without a machine connection, rising pressure means the pump started: start the shot timer.
         if phase == .armed && !followsMachine && bar >= 1 { begin(at: date) }
         let status = machine.isConnected ? machine.status : nil

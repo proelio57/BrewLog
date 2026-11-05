@@ -52,6 +52,11 @@ final class MachineManager {
 
     var isConnected: Bool { state == .connected }
 
+    /// The machine measures the pressure itself (GaggiMate with its pressure sensor, the demo machine), so BrewLog
+    /// reads it from there and a separate pressure sensor isn't needed. That one is only for machines BrewLog
+    /// can't connect to, or a GaggiMate without a pressure sensor.
+    var readsPressure: Bool { kind != .none && status.hasPressure != false }
+
     var displayName: String {
         switch kind {
         case .none: return "No machine"
@@ -164,6 +169,22 @@ final class MachineManager {
             self.send(["tp": "req:profiles:select", "id": id]) { [weak self] _ in
                 self?.notice = "\(recipe.name) is selected on the machine"
             }
+        }
+    }
+
+    /// Reads the profiles saved on the machine as espresso recipes. Profiles BrewLog sent itself are left out,
+    /// they already are recipes here. `completion` gets nil if the machine didn't answer.
+    func fetchProfiles(completion: @escaping ([Recipe]?) -> Void) {
+        guard kind == .gaggimate else { completion(nil); return }
+        send(["tp": "req:profiles:list"]) { response in
+            guard let response, response["error"] == nil, let profiles = response["profiles"] as? [Any] else {
+                completion(nil)
+                return
+            }
+            let own = profiles.filter {
+                (($0 as? [String: Any])?["label"] as? String)?.hasPrefix(GaggiMateProfile.labelPrefix) != true
+            }
+            completion(GaggiMateProfile.recipes(from: own))
         }
     }
 
