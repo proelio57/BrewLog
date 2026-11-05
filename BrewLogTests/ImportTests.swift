@@ -71,6 +71,69 @@ final class ImportTests: XCTestCase {
         XCTAssertFalse(GaggiMateProfile.looksLikeProfiles([Any]()))
     }
 
+    private func listResponse(_ json: String) throws -> [String: Any] {
+        try XCTUnwrap(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+    }
+
+    private let brewPhase = #"{ "name": "Brew", "phase": "brew", "valve": 1, "duration": 28, "pump": 100 }"#
+
+    func testSummariesUseSelectedFlag() throws {
+        let response = try listResponse("""
+        { "tp": "res:profiles:list", "profiles": [
+          { "id": "a", "label": "Turbo", "phases": [\(brewPhase)] },
+          { "id": "b", "label": "Turbo", "selected": true, "phases": [\(brewPhase)] } ] }
+        """)
+        let summaries = GaggiMateProfile.summaries(fromListResponse: response)
+        XCTAssertEqual(summaries.first?.id, "b")
+        XCTAssertEqual(summaries.filter(\.isSelected).map(\.id), ["b"])
+    }
+
+    func testSummariesOrderAndSkip() throws {
+        let response = try listResponse("""
+        { "profiles": [
+          { "id": "x", "label": "Plain", "phases": [\(brewPhase)] },
+          { "id": "y", "label": "Fav", "favorite": true, "phases": [\(brewPhase)] },
+          { "id": "z", "label": "Flush", "utility": true, "phases": [\(brewPhase)] },
+          { "label": "No id", "phases": [\(brewPhase)] },
+          { "id": "c", "label": "BrewLog · Classic", "phases": [\(brewPhase)] } ] }
+        """)
+        let summaries = GaggiMateProfile.summaries(fromListResponse: response)
+        XCTAssertEqual(summaries.map(\.id), ["y", "x", "c"])
+        let own = try XCTUnwrap(summaries.last)
+        XCTAssertTrue(own.isBrewLogs)
+        XCTAssertEqual(own.label, "Classic")
+        XCTAssertTrue(summaries[0].isFavorite)
+        XCTAssertNotNil(summaries[0].recipe)
+    }
+
+    func testRatioTargetSetsYield() throws {
+        let profile = try listResponse("""
+        { "label": "Long", "dose": 18, "phases": [
+          { "name": "Brew", "phase": "brew", "valve": 1, "duration": 40,
+            "pump": { "target": "pressure", "pressure": 9, "flow": 0 },
+            "targets": [ { "type": "ratio", "value": 2.5 } ] } ] }
+        """)
+        let recipe = try XCTUnwrap(GaggiMateProfile.recipe(from: profile))
+        XCTAssertEqual(recipe.water, 45)
+    }
+
+    func testHoldPressureIsIgnored() throws {
+        let profile = try listResponse("""
+        { "label": "Hold", "phases": [
+          { "name": "Pre", "phase": "preinfusion", "valve": 1, "duration": 5,
+            "pump": { "target": "pressure", "pressure": 3, "flow": 0 } },
+          { "name": "Hold", "phase": "brew", "valve": 1, "duration": 10,
+            "pump": { "target": "pressure", "pressure": -1, "flow": -1 } },
+          { "name": "Ramp", "phase": "brew", "valve": 1, "duration": 20,
+            "pump": { "target": "pressure", "pressure": 6, "flow": 0 } } ] }
+        """)
+        let recipe = try XCTUnwrap(GaggiMateProfile.recipe(from: profile))
+        XCTAssertEqual(recipe.pressure, 6)
+        let tip = try XCTUnwrap(recipe.tips.first { $0.contains("Hold ·") })
+        XCTAssertTrue(tip.contains("hold"), tip)
+        XCTAssertFalse(tip.contains("-1"), tip)
+    }
+
     // MARK: Recipe files
 
     func testMinimalRecipeFileGetsDefaults() throws {
