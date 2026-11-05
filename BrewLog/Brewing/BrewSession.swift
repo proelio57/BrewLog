@@ -230,6 +230,10 @@ final class BrewSession {
     /// Espresso with a connected machine: the shot timer starts and stops with the machine's pump.
     var followsMachine: Bool { isEspresso && machine.isConnected }
 
+    /// The machine reports the pump live (GaggiMate, DE1). La Marzocco's cloud reports it seconds late, so there the
+    /// scale or pressure sensor may start the timer too.
+    private var machineStartsShot: Bool { followsMachine && machine.kind.capabilities.contains(.startStop) }
+
     /// Espresso with live pressure, from the machine or (for machines BrewLog can't connect to) the BOOKOO Espresso Monitor.
     var hasPressure: Bool { isEspresso && (usesSensor || (machine.isConnected && machine.status.hasPressure != false)) }
 
@@ -268,7 +272,7 @@ final class BrewSession {
         // A machine that measures the pressure itself (GaggiMate) is the source; the sensor isn't needed then.
         guard usesSensor else { return }
         // Without a machine connection, rising pressure means the pump started: start the shot timer.
-        if phase == .armed && !followsMachine && bar >= 1 { begin(at: date) }
+        if phase == .armed && !machineStartsShot && bar >= 1 { begin(at: date) }
         let status = machine.isConnected ? machine.status : nil
         recordPressure(bar, temperature: status?.temperature, flow: status?.flow, at: date)
     }
@@ -407,7 +411,7 @@ final class BrewSession {
                     if weighsViaMachine { machine.tareScale() } else { scale.tare() }
                     retareSent = true
                 }
-            } else if grams >= AppSettings.autoStartThreshold && !followsMachine {
+            } else if grams >= AppSettings.autoStartThreshold && !machineStartsShot {
                 // Backdate the start to when the weight first left zero.
                 var onset = date
                 for reading in recent.reversed() {
