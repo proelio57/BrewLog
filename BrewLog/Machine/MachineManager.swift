@@ -2,13 +2,14 @@ import Foundation
 import Observation
 
 enum MachineKind: String, CaseIterable, Identifiable {
-    case none, gaggimate, demo
+    case none, gaggimate, decent, demo
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
         case .none: return "None"
         case .gaggimate: return "GaggiMate"
+        case .decent: return "Decent DE1"
         case .demo: return "Demo machine"
         }
     }
@@ -32,6 +33,8 @@ extension MachineKind {
         switch self {
         case .none: return []
         case .gaggimate, .demo: return [.profiles, .temperatureNudge, .machineScale, .startStop]
+        // Profile upload to the DE1 isn't built yet; it has no scale of its own.
+        case .decent: return [.startStop]
         }
     }
 }
@@ -86,9 +89,13 @@ final class MachineManager {
         switch kind {
         case .none: return "No machine"
         case .gaggimate: return "GaggiMate"
+        case .decent: return decent.connectedName ?? "Decent DE1"
         case .demo: return "Demo machine"
         }
     }
+
+    /// Bluetooth connection to a Decent DE1 (used when `kind == .decent`; Settings pairs it).
+    let decent = DecentConnection()
 
     /// Every telemetry frame (about twice a second). Used by the brew engine to record the shot.
     @ObservationIgnored var onReading: ((MachineStatus, Date) -> Void)?
@@ -107,6 +114,14 @@ final class MachineManager {
     init() {
         demo.onStatus = { [weak self] status, frameIsTelemetry in
             self?.apply(status: status, telemetry: frameIsTelemetry)
+        }
+        decent.onStatus = { [weak self] status, telemetry in
+            guard let self, self.kind == .decent else { return }
+            self.apply(status: status, telemetry: telemetry)
+        }
+        decent.onDisconnect = { [weak self] in
+            guard let self, self.kind == .decent else { return }
+            self.decentLost()
         }
     }
 
@@ -135,6 +150,7 @@ final class MachineManager {
 
     func setMode(_ mode: MachineMode) {
         if kind == .demo { demo.setMode(mode); return }
+        if kind == .decent { writeToDecent(DecentProtocol.command(for: mode)); return }
         send(["tp": "req:change-mode", "mode": mode.rawValue])
     }
 
@@ -142,18 +158,28 @@ final class MachineManager {
     func startShot(ignoreWarnings: Bool = false) {
         startBlockedBy = []
         if kind == .demo { demo.startShotNow(); return }
+        if kind == .decent {
+            guard writeToDecent(DecentProtocol.startShot) else { return }
+            // A DE1 with a group head controller only starts shots from the machine.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                guard let self, self.kind == .decent, self.isConnected, !self.status.isBrewing else { return }
+                self.notice = "Start the shot on the machine."
+            }
+            return
+        }
         if status.mode != MachineMode.brew.rawValue { send(["tp": "req:change-mode", "mode": MachineMode.brew.rawValue]) }
         send(["tp": "req:process:activate", "ignoreWarnings": ignoreWarnings])
     }
 
     func stopShot() {
         if kind == .demo { demo.stopShot(); return }
+        if kind == .decent { writeToDecent(DecentProtocol.stopShot); return }
         send(["tp": "req:process:deactivate"])
     }
 
     /// Tares the scale connected to the machine.
     func tareScale() {
-        if kind == .demo { return }
+        guard kind.capabilities.contains(.machineScale), kind != .demo else { return }
         send(["tp": "req:scale:tare"])
     }
 
@@ -165,6 +191,7 @@ final class MachineManager {
     /// Changes the brew temperature by 1 °C.
     func nudgeTemperature(up: Bool) {
         if kind == .demo { demo.nudgeTemperature(up: up); return }
+        guard kind.capabilities.contains(.temperatureNudge) else { return }
         send(["tp": up ? "req:raise-temp" : "req:lower-temp"])
     }
 
@@ -308,6 +335,7 @@ final class MachineManager {
     private func restart() {
         disconnect()
         demo.stop()
+        if kind != .decent { decent.disconnect(forget: false) }
         status = MachineStatus()
         profiles = []
         profilesLoading = false
@@ -319,7 +347,35 @@ final class MachineManager {
             demo.start()
         case .gaggimate:
             connect()
+        case .decent:
+            notice = nil
+            state = decent.hasSavedMachine ? .connecting : .unreachable
+            decent.reconnectRemembered()
         }
+    }
+
+    /// Pairs the DE1 chosen in Settings and starts using it.
+    func connectDecent(_ id: UUID) {
+        decent.connect(id)
+        if kind == .decent { state = .connecting }
+    }
+
+    @discardableResult
+    private func writeToDecent(_ command: Data) -> Bool {
+        guard decent.write(command) else {
+            notice = "The machine isn't connected."
+            return false
+        }
+        notice = nil
+        return true
+    }
+
+    /// The DE1 went away: end a running shot once; the connection keeps trying in the background.
+    private func decentLost() {
+        let wasBrewing = status.isBrewing
+        state = .unreachable
+        status = MachineStatus()
+        if wasBrewing { onShot?(false, Date()) }
     }
 
     private func connect() {

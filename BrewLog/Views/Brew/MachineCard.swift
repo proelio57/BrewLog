@@ -31,8 +31,7 @@ struct MachineCard: View {
                 } else if machine.isConnected {
                     connectedControls
                 } else {
-                    Text(machine.state == .connecting ? "Connecting to \(machine.host)…"
-                         : "Can't reach \(machine.host). Is the machine on and in the same Wi-Fi?")
+                    Text(unreachableText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Button("Machine settings", action: onOpenSettings)
@@ -94,6 +93,16 @@ struct MachineCard: View {
                 .font(.caption)
                 .foregroundStyle(.orange)
         }
+    }
+
+    private var unreachableText: String {
+        if machine.kind == .decent {
+            if !machine.decent.hasSavedMachine { return "Pair your DE1 in the machine settings." }
+            return machine.state == .connecting ? "Connecting to the DE1 over Bluetooth…"
+                : "Can't reach the DE1. Is it on and nearby?"
+        }
+        return machine.state == .connecting ? "Connecting to \(machine.host)…"
+            : "Can't reach \(machine.host). Is the machine on and in the same Wi-Fi?"
     }
 
     private var stateBadge: some View {

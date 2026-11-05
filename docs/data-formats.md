@@ -193,6 +193,23 @@ WebSocket `ws://<host>/ws` (default host `gaggimate.local`), JSON messages with 
   Pump `pressure`/`flow` `-1` means "hold the current value" and is not read as a pressure; a `ratio` target sets the
   yield to dose × ratio when there is no `volumetric` target.
 
+### Decent DE1
+
+Bluetooth LE, service `0000A000-0000-1000-8000-00805F9B34FB`, characteristics `0000A00x-…`: `A002` RequestedState
+(write 1 byte), `A00D` ShotSample (notify), `A00E` StateInfo (read + notify). Big-endian. Source: decentespresso/de1app
+(`de1plus/binary.tcl`), cross-checked with nicpottier/decent.
+
+- ShotSample, 19 bytes: SampleTime U16 (half-cycles), GroupPressure U16 /4096 bar, GroupFlow U16 /4096 ml/s, MixTemp
+  U16 /256 °C, HeadTemp U24 /65536 °C, SetMixTemp U16 /256, SetHeadTemp U16 /256, SetGroupPressure U8 /16,
+  SetGroupFlow U8 /16, FrameNumber U8, SteamTemp U8. BrewLog uses head temperature as "temperature".
+- StateInfo: state, substate. States 0 sleep, 2 idle, 4 espresso, 5 steam, 6 hot water, 11 fatal error, 15 hot water
+  rinse (flush), 16 steam rinse, 18 clean, 10 descale … Substates 4 pre-infuse, 5 pour, 6 flush, 7 steaming, ≥ 200
+  errors (204 temperature sensor, 205 pressure sensor, 206 water level).
+- A shot runs while state 4 with substate 4 or 5. Flush, hot water, steam, clean and descale are never shots.
+- Commands (RequestedState): 0 sleep (standby), 2 idle (brew mode / stop a shot), 4 espresso (start), 5 steam,
+  6 hot water. A DE1 with a group head controller ignores app-started shots; BrewLog then says "Start the shot on the
+  machine." No profile upload yet.
+
 ## Online recipe list
 
 `Shared/recipes.json` is published by `.github/workflows/recipes.yml` to
