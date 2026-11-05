@@ -23,7 +23,7 @@ struct MachineCard: View {
                         .font(.subheadline)
                 }
                 if machine.kind == .none {
-                    Text("Connect a GaggiMate (Wi-Fi) or a Decent DE1 (Bluetooth) to record pressure, temperature and flow and start shots from here. Without one, BrewLog times the shot with your scale.")
+                    Text("Connect a GaggiMate (Wi-Fi), a Decent DE1 (Bluetooth) or a La Marzocco (your La Marzocco account) to record pressure, temperature and flow and start shots from here. Without one, BrewLog times the shot with your scale.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Button("Set up machine", action: onOpenSettings)
@@ -47,6 +47,11 @@ struct MachineCard: View {
     private var connectedControls: some View {
         let status = machine.status
         HStack(spacing: 16) {
+            if machine.kind == .laMarzocco {
+                // The cloud has no live temperature or profiles: the boiler's state and target instead.
+                StatView(value: boilerText(status.systemState), label: "Boiler", symbol: "thermometer.medium")
+                StatView(value: status.targetTemperature.map { String(format: "%.1f°", $0) } ?? "–", label: "Target")
+            } else {
             StatView(value: status.temperature.map { String(format: "%.1f°", $0) } ?? "–", label: "Boiler",
                      symbol: "thermometer.medium")
             StatView(value: status.targetTemperature.map { String(format: "%.0f°", $0) } ?? "–", label: "Target")
@@ -59,12 +64,21 @@ struct MachineCard: View {
             } else {
                 StatView(value: status.profile ?? "–", label: "Profile")
             }
+            }
         }
-        Picker("Mode", selection: Binding(get: { MachineMode(rawValue: status.mode ?? 0) ?? .standby },
-                                          set: { machine.setMode($0) })) {
-            ForEach(MachineMode.allCases) { Text($0.title).tag($0) }
+        if machine.kind.capabilities.contains(.startStop) {
+            Picker("Mode", selection: Binding(get: { MachineMode(rawValue: status.mode ?? 0) ?? .standby },
+                                              set: { machine.setMode($0) })) {
+                ForEach(MachineMode.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+        } else if machine.kind.capabilities.contains(.power) {
+            Toggle(isOn: Binding(get: { status.mode == MachineMode.brew.rawValue },
+                                 set: { machine.setPower($0) })) {
+                Label("Machine on", systemImage: "power")
+            }
+            .font(.subheadline)
         }
-        .pickerStyle(.segmented)
         if machine.kind.capabilities.contains(.temperatureNudge) {
             HStack {
                 Label("Temperature", systemImage: "thermometer.medium").foregroundStyle(.secondary)
@@ -96,7 +110,22 @@ struct MachineCard: View {
         }
     }
 
+    private func boilerText(_ state: String?) -> String {
+        switch state {
+        case "ready": return "Ready"
+        case "heating": return "Heating"
+        case "standby": return "Off"
+        case "error": return "Check"
+        default: return "–"
+        }
+    }
+
     private var unreachableText: String {
+        if machine.kind == .laMarzocco {
+            if !machine.laMarzocco.isReady { return "Sign in to your La Marzocco account in the machine settings." }
+            return machine.state == .connecting ? "Connecting to La Marzocco…"
+                : (machine.notice ?? "Can't reach the machine through La Marzocco right now.")
+        }
         if machine.kind == .decent {
             if !machine.decent.hasSavedMachine { return "Pair your DE1 in the machine settings." }
             return machine.state == .connecting ? "Connecting to the DE1 over Bluetooth…"

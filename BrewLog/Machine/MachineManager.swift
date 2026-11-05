@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 enum MachineKind: String, CaseIterable, Identifiable {
-    case none, gaggimate, decent, demo
+    case none, gaggimate, decent, laMarzocco, demo
     var id: String { rawValue }
 
     var displayName: String {
@@ -10,6 +10,7 @@ enum MachineKind: String, CaseIterable, Identifiable {
         case .none: return "None"
         case .gaggimate: return "GaggiMate"
         case .decent: return "Decent DE1"
+        case .laMarzocco: return "La Marzocco"
         case .demo: return "Demo machine"
         }
     }
@@ -26,6 +27,8 @@ struct MachineCapabilities: OptionSet {
     static let machineScale = MachineCapabilities(rawValue: 1 << 2)
     /// Start and stop shots, switch modes.
     static let startStop = MachineCapabilities(rawValue: 1 << 3)
+    /// Switch the machine on or to standby (no shot control).
+    static let power = MachineCapabilities(rawValue: 1 << 4)
 }
 
 extension MachineKind {
@@ -35,6 +38,8 @@ extension MachineKind {
         case .gaggimate, .demo: return [.profiles, .temperatureNudge, .machineScale, .startStop]
         // Profile upload to the DE1 isn't built yet; it has no scale of its own.
         case .decent: return [.startStop]
+        // Through La Marzocco's cloud: power and brew temperature only; shots are started on the machine.
+        case .laMarzocco: return [.power, .temperatureNudge]
         }
     }
 }
@@ -85,19 +90,22 @@ final class MachineManager {
     /// The machine measures the pressure itself (GaggiMate with its pressure sensor, the demo machine), so BrewLog
     /// reads it from there and a separate pressure sensor isn't needed. That one is only for machines BrewLog
     /// can't connect to, or a GaggiMate without a pressure sensor.
-    var readsPressure: Bool { kind != .none && status.hasPressure != false }
+    var readsPressure: Bool { kind != .none && kind != .laMarzocco && status.hasPressure != false }
 
     var displayName: String {
         switch kind {
         case .none: return "No machine"
         case .gaggimate: return "GaggiMate"
         case .decent: return decent.connectedName ?? "Decent DE1"
+        case .laMarzocco: return laMarzocco.machine?.name ?? "La Marzocco"
         case .demo: return "Demo machine"
         }
     }
 
     /// Bluetooth connection to a Decent DE1 (used when `kind == .decent`; Settings pairs it).
     let decent = DecentConnection()
+    /// La Marzocco's cloud (used when `kind == .laMarzocco`; Settings signs in).
+    let laMarzocco = LaMarzoccoCloud()
 
     /// Every telemetry frame (about twice a second). Used by the brew engine to record the shot.
     @ObservationIgnored var onReading: ((MachineStatus, Date) -> Void)?
@@ -112,6 +120,8 @@ final class MachineManager {
     @ObservationIgnored private let demo = DemoMachine()
     @ObservationIgnored private var pending: [String: ([String: Any]?) -> Void] = [:]
     @ObservationIgnored private var nextRequest = 0
+    /// La Marzocco: the temperature last sent and when, so quick taps add up.
+    @ObservationIgnored private var pendingTarget: (value: Double, at: Date)?
 
     init() {
         demo.onStatus = { [weak self] status, frameIsTelemetry in
@@ -123,7 +133,20 @@ final class MachineManager {
         }
         decent.onDisconnect = { [weak self] in
             guard let self, self.kind == .decent else { return }
-            self.decentLost()
+            self.machineLost()
+        }
+        laMarzocco.onStatus = { [weak self] status in
+            guard let self, self.kind == .laMarzocco else { return }
+            // No live readings in the cloud data: never "telemetry", but shot start/stop still counts.
+            self.apply(status: status, telemetry: false)
+        }
+        laMarzocco.onOnline = { [weak self] online in
+            guard let self, self.kind == .laMarzocco, !online else { return }
+            self.machineLost()
+        }
+        laMarzocco.onNotice = { [weak self] message in
+            guard let self, self.kind == .laMarzocco, self.notice != message else { return }
+            self.notice = message
         }
     }
 
@@ -145,7 +168,8 @@ final class MachineManager {
 
     // MARK: Control (GaggiMate)
 
-    var canControl: Bool { kind != .none && isConnected }
+    /// BrewLog can start and stop shots on this machine.
+    var canControl: Bool { kind.capabilities.contains(.startStop) && isConnected }
 
     /// The machine keeps profiles that can be listed and selected from BrewLog.
     var canChooseProfile: Bool { kind.capabilities.contains(.profiles) && isConnected }
@@ -153,6 +177,14 @@ final class MachineManager {
     func setMode(_ mode: MachineMode) {
         if kind == .demo { demo.setMode(mode); return }
         if kind == .decent { writeToDecent(DecentProtocol.command(for: mode)); return }
+        if kind == .laMarzocco {
+            guard mode == .standby || mode == .brew else {
+                notice = "Steam and hot water are set on the machine."
+                return
+            }
+            setPower(mode == .brew)
+            return
+        }
         send(["tp": "req:change-mode", "mode": mode.rawValue])
     }
 
@@ -160,6 +192,10 @@ final class MachineManager {
     func startShot(ignoreWarnings: Bool = false) {
         startBlockedBy = []
         if kind == .demo { demo.startShotNow(); return }
+        if kind == .laMarzocco {
+            notice = "Start the shot on the machine."
+            return
+        }
         if kind == .decent {
             guard writeToDecent(DecentProtocol.startShot) else { return }
             // A DE1 with a group head controller only starts shots from the machine.
@@ -177,6 +213,7 @@ final class MachineManager {
     func stopShot() {
         if kind == .demo { demo.stopShot(); return }
         if kind == .decent { writeToDecent(DecentProtocol.stopShot); return }
+        if kind == .laMarzocco { return }  // the cloud can't stop a shot
         send(["tp": "req:process:deactivate"])
     }
 
@@ -194,6 +231,22 @@ final class MachineManager {
     /// Changes the brew temperature by 1 °C.
     func nudgeTemperature(up: Bool) {
         if kind == .demo { demo.nudgeTemperature(up: up); return }
+        if kind == .laMarzocco {
+            // Quick taps add up: start from the last value sent, not from the (not yet updated) machine value.
+            let recent = pendingTarget.flatMap { Date().timeIntervalSince($0.at) < 10 ? $0.value : nil }
+            guard let current = recent ?? status.targetTemperature else {
+                notice = "Waiting for the machine's temperature."
+                return
+            }
+            let next = min(max(current + (up ? 1 : -1), 80), 100)
+            pendingTarget = (next, Date())
+            Task { [weak self] in
+                guard let self else { return }
+                let done = await self.laMarzocco.setTargetTemperature(next)
+                await MainActor.run { if done { self.notice = nil } }
+            }
+            return
+        }
         guard kind.capabilities.contains(.temperatureNudge) else { return }
         send(["tp": up ? "req:raise-temp" : "req:lower-temp"])
     }
@@ -353,6 +406,7 @@ final class MachineManager {
         refreshAgain = false
         demo.stop()
         if kind != .decent { decent.disconnect(forget: false) }
+        if kind != .laMarzocco { laMarzocco.disconnect() }
         status = MachineStatus()
         profiles = []
         profilesLoading = false
@@ -368,14 +422,36 @@ final class MachineManager {
             notice = nil
             state = decent.hasSavedMachine ? .connecting : .unreachable
             decent.reconnectRemembered()
+        case .laMarzocco:
+            state = laMarzocco.isReady ? .connecting : .unreachable
+            laMarzocco.connect()
         }
+    }
+
+    /// Switches a La Marzocco on (brewing mode) or to standby through the cloud.
+    func setPower(_ on: Bool) {
+        guard kind == .laMarzocco else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            let done = await self.laMarzocco.setPower(on)
+            await MainActor.run { if done { self.notice = nil } }
+        }
+    }
+
+    /// La Marzocco: a machine was chosen (or the account signed out) in Settings.
+    func laMarzoccoChanged() {
+        guard kind == .laMarzocco else { return }
+        // Another machine (or signed out): drop the old dashboard subscription before following the new one.
+        laMarzocco.disconnect()
+        pendingTarget = nil
+        restart()
     }
 
     /// "Disconnect & forget" in Settings: unpairs the DE1 and shows it as gone right away.
     func forgetDecent() {
         decent.disconnect(forget: true)
         guard kind == .decent else { return }
-        decentLost()
+        machineLost()
         notice = nil
     }
 
@@ -395,8 +471,8 @@ final class MachineManager {
         return true
     }
 
-    /// The DE1 went away: end a running shot once; the connection keeps trying in the background.
-    private func decentLost() {
+    /// The machine (DE1, La Marzocco) went away: end a running shot once; its connection keeps trying in the background.
+    private func machineLost() {
         let wasBrewing = status.isBrewing
         state = .unreachable
         status = MachineStatus()

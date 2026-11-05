@@ -212,6 +212,16 @@ Bluetooth LE, service `0000A000-0000-1000-8000-00805F9B34FB`, characteristics `0
   6 hot water. A DE1 with a group head controller ignores app-started shots; BrewLog then says "Start the shot on the
   machine." No profile upload yet.
 
+### La Marzocco (cloud, opt-in)
+
+Through the user's own La Marzocco account; protocol, signing and test vectors in
+[`docs/la-marzocco-protocol.md`](la-marzocco-protocol.md). BrewLog reads `CMMachineStatus` (`Brewing` = a shot runs,
+`StandBy`/`Off` = standby) and `CMCoffeeBoiler` (target temperature, `HeatingUp`/`Ready`/`NoWater`) and sends
+`CoffeeMachineChangeMode` and `CoffeeMachineSettingCoffeeBoilerTargetTemperature`. No pressure: the BOOKOO pressure
+sensor stays available. Login, password and the installation key are in the Keychain (`lm.username`, `lm.password`,
+`lm.installation`), the chosen machine (serial, name, model) in UserDefaults `machine.lmMachine`; none of it is in
+backups or the Git sync.
+
 ## Online recipe list
 
 `Shared/recipes.json` is published by `.github/workflows/recipes.yml` to
