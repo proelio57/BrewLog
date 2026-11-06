@@ -14,7 +14,7 @@ A pour-over brewing companion for iPhone, with matching [Android](android/README
 
 - **Setup assistant on first launch**: one simple question per screen with big tappable tiles: brewer (pour-over or espresso machine) → connect the espresso machine (GaggiMate, Decent DE1 or La Marzocco; only if you picked one) → filter papers (the ones that fit your brewer come first; skipped for espresso only) → grinder + your usual setting → beans → scale. The Gear tab lists espresso machines apart from pour-over brewers. Every step can be skipped. **"Skip, just use the scale"** goes straight to Quick weigh. Run it again any time from **Gear → Setup assistant**. If you skipped it, the Brew tab shows a small reminder card.
 - **Quick weigh**: just a scale and timer, with no recipe and nothing saved. Big weight readout, flow, tare, and a timer that starts by itself when you pour (it waits for a real zero after taring). Open it from the **Weigh** button on the Brew tab.
-- **BOOKOO Themis Mini over Bluetooth**: live weight, flow and battery, auto-reconnect, tare and timer control. A **demo scale** simulates realistic pours, so you can try everything without hardware or in the Simulator.
+- **Bluetooth scales: BOOKOO Themis Mini and Timemore Black Mirror Dot** (also the Basic3 Link, same protocol): live weight, flow and battery, auto-reconnect, tare and timer control. The Timemore scales follow [Timemore's open scale protocol](https://github.com/TIMEMORE-COFFEE/open-scale-protocol). A **demo scale** simulates realistic pours, so you can try everything without hardware or in the Simulator.
 - **Brew assistant**
   - With a scale connected, a brew starts by **weighing the beans**: the scale is tared, a bar fills up to your dose and pings when you hit it. **Tare** is right there. Tap **Ready** to go straight on: BrewLog keeps what you weighed (the last settled reading, even if you already lifted the cup off) and from 0.5 g off the plan scales the recipe to it (water and pour targets). **Skip weighing** is optional. Whether to **rinse the paper** (its own first step: rinse, then tap *Rinsed*) and whether to weigh are check marks under *Before you brew* on the Brew tab and are remembered, so steps you don't do don't show up (iOS, web). Switch it off in Settings → Brew assistant → *Weigh the beans first*.
   - Press **Ready** and the scale is tared. The timer **starts automatically when you start pouring** (backdated to the moment the weight left zero).
@@ -207,7 +207,7 @@ Hosting, installing and the browser details are in [web/README.md](web/README.md
 See [docs/feature-requests.md](docs/feature-requests.md) for detailed architectural proposals and community requests, including:
 - **Zero-knowledge cryptographic sync**: Accountless journal restore using a secret hash / recovery key so data persists across app reinstalls without accounts or telemetry.
 - **Brewing science**: water calculator, TDS & extraction yield, voice prompts, bean photos with label scan and the grind converter are done on iOS; Android and web follow.
-- **Hardware & sensors**: Smart BLE kettles (Fellow Stagg), additional scales (Acaia, Timemore), Wear OS / watchOS companion timer.
+- **Hardware & sensors**: Smart BLE kettles (Fellow Stagg), additional scales (Acaia), Wear OS / watchOS companion timer.
 
 For AI assistants (Claude, Gemini) and contributors maintaining cross-platform synchronization, see the [AI Parity & Maintenance Guide](docs/ai-parity-guide.md).
 

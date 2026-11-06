@@ -57,12 +57,19 @@ class TimemoreDotTest {
         assertEquals(listOf(Event.Weight(1.0, 0), Event.Weight(2.0, 0)), parser.feed(weightFrame(1.0) + weightFrame(2.0)))
         assertEquals(listOf(Event.Weight(3.0, 0)), parser.feed(bytes(0x00, 0xFF, 0x12) + weightFrame(3.0)))
         assertEquals(listOf(Event.Weight(4.0, 0)), parser.feed(bytes(0xA5, 0x5A, 0x01, 0x01, 0xFF, 0xFF) + weightFrame(4.0)))
+        // Overload flag set (scale over its limit): the reading is not a weight.
+        val overload = weightFrame(5_000.0)
+        overload[overload.size - 3] = 1
+        assertTrue(parser.feed(overload).isEmpty())
         assertTrue(parser.feed(weightFrame(99_999.0)).isEmpty())
     }
 
     @Test fun detectsTheModelFromTheAdvertisement() {
         assertEquals(ScaleModel.TIMEMORE_DOT, ScaleModel.detect("TIMEMORE Dot", emptyList()))
         assertEquals(ScaleModel.TIMEMORE_DOT, ScaleModel.detect("TES017-1A2B", emptyList()))
+        assertEquals(ScaleModel.TIMEMORE_DOT, ScaleModel.detect("TIMEMORE Black Mirror Dot Coffee", emptyList()))
+        assertEquals(ScaleModel.TIMEMORE_DOT, ScaleModel.detect("TES016-9F00", emptyList()))
+        assertEquals(ScaleModel.TIMEMORE_DOT, ScaleModel.detect("TIMEMORE Basic3 Link", emptyList()))
         assertEquals(ScaleModel.TIMEMORE_DOT, ScaleModel.detect(null, listOf(TimemoreDotProtocol.SERVICE_UUID)))
         assertEquals(ScaleModel.BOOKOO, ScaleModel.detect("BOOKOO_SC", emptyList()))
         assertEquals(ScaleModel.BOOKOO, ScaleModel.detect(null, listOf(BookooProtocol.SERVICE_UUID)))
