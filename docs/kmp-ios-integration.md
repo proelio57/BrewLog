@@ -62,33 +62,18 @@ The `:shared` module is located at `android/shared` and is part of the Gradle pr
 
 The project uses [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`project.yml`).
 
-### Option A: Direct Embed & Sign Script Phase in Xcode (`embedAndSignAppleFrameworkForXcode`)
-In `project.yml` or the Xcode target build phases for `BrewLog`:
-Add a Run Script phase **before** the "Compile Sources" phase (or "Embed Frameworks"):
+### Option A (in use): Gradle build phase in `project.yml`
+The `BrewLog` target has a pre-build script that runs `./gradlew :shared:embedAndSignAppleFrameworkForXcode`
+in `$SRCROOT/android` (`project.yml` lives in the repo root, so it is `$SRCROOT/android`, not `../android`).
+Gradle reads `CONFIGURATION`, `SDK_NAME` and `ARCHS` from Xcode and writes the static framework to
+`android/shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)`, which is on `FRAMEWORK_SEARCH_PATHS`;
+`OTHER_LDFLAGS` links it with `-framework Shared`. `ENABLE_USER_SCRIPT_SANDBOXING` is off for the app target
+because the phase writes to `android/` and `~/.gradle`. Without `JAVA_HOME` the phase uses `/usr/libexec/java_home`.
+The iOS workflow sets up Java 17 and Gradle and also runs on changes to `android/shared/**`.
 
-```yaml
-targets:
-  BrewLog:
-    preBuildScripts:
-      - name: Compile and Embed KMP Shared Framework
-        script: |
-          cd "$SRCROOT/../android"
-          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
-        outputFiles:
-          - "${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/Shared.framework"
-```
-
-And in Xcode Build Settings:
-```yaml
-    settings:
-      FRAMEWORK_SEARCH_PATHS:
-        - $(inherited)
-        - $(SRCROOT)/../android/shared/build/bin/iosSimulatorArm64/debugFramework
-        - $(SRCROOT)/../android/shared/build/bin/iosArm64/debugFramework
-      OTHER_LDFLAGS:
-        - $(inherited)
-        - -framework Shared
-```
+The Kotlin types share names with the Swift ones (`WeightSample`, `Recipe`, ...): the app's own types win, the
+Kotlin ones are written `Shared.WeightSample`. Swift wrappers convert at the boundary, so views and SwiftData
+models stay unchanged (first one: `BrewLog/Analysis/WeightCleanup.swift`).
 
 ### Option B: Building XCFramework
 Run from terminal or script:
