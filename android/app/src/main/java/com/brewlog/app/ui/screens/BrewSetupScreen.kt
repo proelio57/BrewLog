@@ -158,6 +158,7 @@ fun BrewSetupScreen(nav: NavHostController) {
                 ),
                 selection = mode,
                 onSelectionChanged = { container.brewMode = it },
+                modifier = Modifier.widthIn(max = 240.dp), // ✅ Begrenzt die Breite in der TopAppBar
             )
         },
         actions = {

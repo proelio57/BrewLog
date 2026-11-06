@@ -416,7 +416,7 @@ fun <T : Any> CapsuleSwitch(
             modifier = Modifier
                 .offset { IntOffset(animatedThumbX.roundToInt(), 0) }
                 .width(segmentWidthDp)
-                .fillMaxHeight()
+                .matchParentSize() // ✅ Übernimmt exakt die gemessene Text-/Icon-Zeilenhöhe
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary),
         )
