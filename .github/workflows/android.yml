@@ -9,12 +9,16 @@ on:
       - "android/**"
       - "Shared/**"
       - "scripts/build-apk.sh"
+      - "scripts/next-version.sh"
+      - "scripts/release-notes.sh"
       - ".github/workflows/android.yml"
   pull_request:
     paths:
       - "android/**"
       - "Shared/**"
       - "scripts/build-apk.sh"
+      - "scripts/next-version.sh"
+      - "scripts/release-notes.sh"
       - ".github/workflows/android.yml"
   workflow_dispatch:
 
@@ -52,10 +56,14 @@ jobs:
 
       - name: Version
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          base="0.1"
-          echo "version=${base}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-          echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          # One version for iOS and Android: the highest release + 1 (scripts/next-version.sh).
+          read -r version build < <(scripts/next-version.sh)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "Version $version ($build)"
 
       - name: Unit tests
         if: vars.SKIP_TESTS != 'true'
@@ -130,11 +138,14 @@ jobs:
           apk_file="build/BrewLog-${{ steps.version.outputs.version }}.apk"
           
           # Create or update GitHub release with the APK asset
-          if gh release view "$tag" --repo "${RELEASE_REPO}" >/dev/null 2>&1; then
-            gh release upload "$tag" "$apk_file" --clobber --repo "${RELEASE_REPO}"
-          else
-            gh release create "$tag" "$apk_file" \
+          # Notes of the merged commit, not of the APK commit pushed above. iOS publishes the same version into the
+          # same release; whichever is second (or loses the race to create it) uploads into it.
+          notes=$(scripts/release-notes.sh "$GITHUB_SHA")
+          if ! gh release view "$tag" --repo "${RELEASE_REPO}" >/dev/null 2>&1; then
+            gh release create "$tag" \
               --title "BrewLog ${{ steps.version.outputs.version }}" \
-              --notes "$(scripts/release-notes.sh)" \
-              --repo "${RELEASE_REPO}"
+              --notes "$notes" \
+              --target "$GITHUB_SHA" \
+              --repo "${RELEASE_REPO}" || true
           fi
+          gh release upload "$tag" "$apk_file" --clobber --repo "${RELEASE_REPO}"
