@@ -339,6 +339,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.autoStartThreshold) private var autoStartThreshold = 1.5
     @AppStorage(SettingsKey.autoStopShot) private var autoStopShot = true
     @AppStorage(SettingsKey.shotStopLag) private var shotStopLag = 1.0
+    @AppStorage(SettingsKey.pressureFocus) private var pressureFocus = PressureFocusMode.automatic
+    @AppStorage(SettingsKey.landscapeChart) private var landscapeChart = true
     @AppStorage(SettingsKey.pingLeadMode) private var pingLeadMode = PingLeadMode.auto.rawValue
     @AppStorage(SettingsKey.pingLeadGrams) private var pingLeadGrams = 3.0
     @AppStorage(SettingsKey.reactionTime) private var reactionTime = 0.6
@@ -543,10 +545,14 @@ struct SettingsView: View {
             if !machine.readsPressure {
                 PressureMonitorRow()
             }
+            Picker("Pressure view", selection: $pressureFocus) {
+                ForEach(PressureFocusMode.allCases) { Text($0.title).tag($0) }
+            }
+            Toggle("Landscape chart", isOn: $landscapeChart)
         } header: {
             Text("Espresso machine")
         } footer: {
-            Text("GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes, send recipes as profiles and import the machine's profiles as recipes. Use the address from GaggiMate's web interface. La Marzocco: BrewLog uses your La Marzocco account through their servers (opt-in): it follows the shot, shows the boiler and can switch the machine on or to standby and change the brew temperature. Decent DE1: BrewLog connects over Bluetooth, records pressure, temperature and flow, follows the shot and can start it (on a DE1 without a group head controller) and switch modes. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there. GaggiMate measures the pressure itself. For a machine BrewLog can't connect to, use a pressure sensor: BOOKOO Espresso Monitor over Bluetooth.")
+            Text("GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes, send recipes as profiles and import the machine's profiles as recipes. Use the address from GaggiMate's web interface. La Marzocco: BrewLog uses your La Marzocco account through their servers (opt-in): it follows the shot, shows the boiler and can switch the machine on or to standby and change the brew temperature. Decent DE1: BrewLog connects over Bluetooth, records pressure, temperature and flow, follows the shot and can start it (on a DE1 without a group head controller) and switch modes. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there. GaggiMate measures the pressure itself. For a machine BrewLog can't connect to, use a pressure sensor: BOOKOO Espresso Monitor over Bluetooth. Pressure view: Automatic shows a big pressure number and graph while a pressure sensor is connected, for setting the pressure by hand; Always also with the machine's own pressure. Landscape chart: a button on the live chart, and turning the phone, show the charts full screen.")
         }
         .onDisappear { if machine.host != machineHost, gaggiMateURL(host: machineHost) != nil { machine.host = machineHost } }
     }

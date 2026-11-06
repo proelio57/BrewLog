@@ -2,11 +2,14 @@ import SwiftUI
 import Charts
 
 /// Espresso machine curves: pressure (bar) and pump flow (ml/s) on one 0–12 axis.
+/// `emphasis` (Settings → Pressure view) is for setting the pressure by hand: a thick pressure line, the target as a
+/// green band of ± `PressureFocus.tolerance`, a label for every bar and the latest reading as a coloured dot.
 struct MachineChart: View {
     let samples: [MachineSample]
     var targetPressure: Double?
     var currentTime: Double? = nil
     var height: CGFloat = 140
+    var emphasis = false
 
     private var maxT: Double { max(samples.last?.t ?? 0, currentTime ?? 0, 25) + 2 }
 
@@ -14,15 +17,31 @@ struct MachineChart: View {
         VStack(alignment: .leading, spacing: 6) {
             Chart {
                 if let targetPressure {
-                    RuleMark(y: .value("Target", targetPressure))
-                        .foregroundStyle(Color.accentColor.opacity(0.35))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    if emphasis {
+                        RectangleMark(xStart: .value("Start", 0.0), xEnd: .value("End", maxT),
+                                      yStart: .value("Low", max(targetPressure - PressureFocus.tolerance, 0)),
+                                      yEnd: .value("High", min(targetPressure + PressureFocus.tolerance, 12)))
+                            .foregroundStyle(Color.green.opacity(0.18))
+                        RuleMark(y: .value("Target", targetPressure))
+                            .foregroundStyle(Color.green)
+                            .lineStyle(StrokeStyle(lineWidth: 1.5))
+                    } else {
+                        RuleMark(y: .value("Target", targetPressure))
+                            .foregroundStyle(Color.accentColor.opacity(0.6))
+                            .lineStyle(StrokeStyle(lineWidth: 1))
+                    }
                 }
                 ForEach(Array(samples.enumerated()), id: \.offset) { _, sample in
                     LineMark(x: .value("Time", sample.t), y: .value("Bar", min(sample.p, 12)),
                              series: .value("Series", "Pressure"))
                         .foregroundStyle(Color.accentColor)
+                        .lineStyle(StrokeStyle(lineWidth: emphasis ? 3 : 2))
                         .interpolationMethod(.monotone)
+                }
+                if emphasis, let last = samples.last {
+                    PointMark(x: .value("Time", last.t), y: .value("Bar", min(last.p, 12)))
+                        .foregroundStyle(PressureFocus.zone(pressure: last.p, target: targetPressure).color)
+                        .symbolSize(140)
                 }
                 ForEach(Array(samples.enumerated()), id: \.offset) { _, sample in
                     if let flow = sample.f {
@@ -43,8 +62,8 @@ struct MachineChart: View {
                 }
             }
             .chartYAxis {
-                AxisMarks(position: .leading, values: [0, 3, 6, 9, 12]) { value in
-                    AxisGridLine()
+                AxisMarks(position: .leading, values: emphasis ? Array(stride(from: 0.0, through: 12, by: 1)) : [0, 3, 6, 9, 12]) { value in
+                    if let v = value.as(Double.self), v.truncatingRemainder(dividingBy: 3) == 0 { AxisGridLine() }
                     AxisValueLabel { if let v = value.as(Double.self) { Text("\(Int(v))") } }
                 }
             }

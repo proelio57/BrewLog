@@ -31,6 +31,8 @@ enum SettingsKey {
     static let machineDecentID = "machine.decentID"
     static let pressureEnabled = "pressure.enabled"
     static let pressureDemo = "pressure.demo"
+    static let pressureFocus = "pressure.focus"
+    static let landscapeChart = "chart.landscape"
     static let autoStopShot = "autoStopShot"
     static let shotStopLag = "shotStopLag"
     static let brewMode = "brewMode"
@@ -74,6 +76,8 @@ enum AppSettings {
             SettingsKey.chartShowsFlow: true,
             SettingsKey.autoStopShot: true,
             SettingsKey.shotStopLag: 1.0,
+            SettingsKey.pressureFocus: PressureFocusMode.automatic.rawValue,
+            SettingsKey.landscapeChart: true,
         ])
     }
 

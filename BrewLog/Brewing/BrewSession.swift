@@ -240,6 +240,15 @@ final class BrewSession {
     /// The BOOKOO Espresso Monitor gives the pressure: only when the machine doesn't measure it itself.
     private var usesSensor: Bool { monitor.isReady && !machine.readsPressure }
 
+    /// The live screen is about the pressure (big number, big graph): Settings → Pressure view. Fixed once the shot runs.
+    var pressureFocus: Bool { focusLatch.value(live: livePressureFocus) }
+
+    private var livePressureFocus: Bool {
+        isEspresso && PressureFocus.isActive(mode: .current, sensorIsSource: usesSensor, hasPressure: hasPressure)
+    }
+
+    private var focusLatch = PressureFocusLatch()
+
     private func machineShot(started: Bool, at date: Date) {
         if started {
             switch phase {
@@ -461,6 +470,7 @@ final class BrewSession {
             peakPressure = 0
             currentPressure = nil
             stopRequested = false
+            focusLatch.latch(livePressureFocus)
             if machine.isConnected {
                 machineTargetTemperature = machine.status.targetTemperature
                 machineTargetPressure = machine.status.targetPressure
