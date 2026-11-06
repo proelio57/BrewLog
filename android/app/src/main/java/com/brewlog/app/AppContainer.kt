@@ -62,7 +62,7 @@ class AppContainer(context: Context) {
     val repository = BrewRepository(context.filesDir, scope)
     val scale = ScaleManager(context.applicationContext, prefs, scope)
     val pressure = com.brewlog.app.scale.PressureManager(context.applicationContext, prefs, scope)
-    val machine = com.brewlog.app.machine.MachineManager(prefs) { presets }
+    val machine = com.brewlog.app.machine.MachineManager(prefs, context.applicationContext) { presets }
     val sound = SoundPlayer { settings.current }
     val haptics = Haptics(context.applicationContext) { settings.current }
     val setup = BrewSetupState(prefs, presets, SetupScope.POUR_OVER).also { it.restoreCustom(repository.data.value.customRecipes) }

@@ -5,7 +5,7 @@
 
 ---
 
-> **Android is behind iOS** on Decent DE1, La Marzocco and the gear/setup-assistant changes. The step-by-step port list is in
+> **Android is behind iOS** on La Marzocco and the gear/setup-assistant changes. The step-by-step port list is in
 > [`docs/gemini-android-parity.md`](gemini-android-parity.md).
 
 ## 1. Core Philosophy & Non-Negotiable Invariants
@@ -50,7 +50,7 @@ Use this reference table to find the corresponding implementation files across p
 | **Pressure Sensor (BOOKOO Espresso Monitor)** | `Scale/PressureMonitor.swift`, `Scale/BookooMonitorProtocol.swift` | `scale/PressureManager.kt`, `scale/BookooPressureProtocol.kt` | `scale/pressure.ts` |
 | **Brew Statistics** | `Analysis/BrewStats.swift`, `Analysis/BrewStats+Brew.swift`, `Views/Stats/StatsView.swift`, `Views/Stats/StatsCharts.swift` | `analysis/BrewStats.kt`, `ui/screens/StatsScreens.kt`, `ui/screens/JournalScreen.kt` | – |
 | **Espresso Tab** | `Brewing/ShotMonitor.swift`, `Views/Espresso/EspressoSetupView.swift`, `Views/Espresso/DeviceStrip.swift`, `Views/Espresso/ShotReadouts.swift`, `Views/Brew/BrewSetupView.swift` | `brewing/ShotMonitor.kt`, `data/BrewSetupState.kt`, `ui/components/Components.kt` (`CapsuleSwitch`), `ui/screens/BrewSetupScreen.kt` (`DeviceStrip`, `EspressoSetupCard`), `ui/screens/LiveBrewScreen.kt` (`ShotReadouts`) | – |
-| **Espresso Machine (GaggiMate)** | `Machine/MachineManager.swift`, `Machine/MachineStatus.swift`, `Machine/GaggiMateProfileImport.swift` (profiles → recipes), `Views/Espresso/MachineProfilesSheet.swift` (profile picker), `Machine/DecentProtocol.swift` + `Machine/DecentConnection.swift` + `Views/Gear/DecentConnectSheet.swift` (Decent DE1, Bluetooth; iOS only), `Machine/LaMarzoccoAuth.swift` + `Machine/LaMarzoccoProtocol.swift` + `Machine/LaMarzoccoCloud.swift` + `Views/Gear/LaMarzoccoAccountSheet.swift` (La Marzocco cloud; iOS only) | `machine/MachineManager.kt`, `machine/GaggiMate.kt`, `machine/GaggiMateProfileImport.kt`, `ui/screens/MachineViews.kt` (`MachineProfilesSheet`, `EspressoMachineSettingsCard`) | `machine/machineManager.ts`, `machine/gaggimate.ts` |
+| **Espresso Machine (GaggiMate, Decent DE1)** | `Machine/MachineManager.swift`, `Machine/MachineStatus.swift`, `Machine/GaggiMateProfileImport.swift` (profiles → recipes), `Views/Espresso/MachineProfilesSheet.swift` (profile picker), `Machine/DecentProtocol.swift` + `Machine/DecentConnection.swift` + `Views/Gear/DecentConnectSheet.swift` (Decent DE1, Bluetooth), `Machine/LaMarzoccoAuth.swift` + `Machine/LaMarzoccoProtocol.swift` + `Machine/LaMarzoccoCloud.swift` + `Views/Gear/LaMarzoccoAccountSheet.swift` (La Marzocco cloud; iOS only) | `machine/MachineManager.kt`, `machine/GaggiMate.kt`, `machine/GaggiMateProfileImport.kt`, `machine/DecentProtocol.kt`, `machine/DecentConnection.kt`, `ui/screens/MachineViews.kt` (`MachineProfilesSheet`, `EspressoMachineSettingsCard`, `DecentConnectSheet`) | `machine/machineManager.ts`, `machine/gaggimate.ts` |
 | **Audio & Haptics** | `Audio/SoundPlayer.swift` | `audio/SoundPlayer.kt` | `audio/sound.ts` |
 | **Voice Prompts** | `Audio/StepAnnouncement.swift` (texts), `Audio/VoicePrompter.swift` (AVSpeechSynthesizer) | `domain/StepAnnouncement.kt`, `audio/VoicePrompter.kt` (TextToSpeech) | – |
 | **Extraction (TDS / EY)** | `Tools/Extraction.swift`, `Views/Tools/ToolViews.swift` (`ExtractionCalculatorView`, `BrewExtractionCard`, `ExtractionChart`) | `domain/Extraction.kt`, `ui/screens/ToolsScreens.kt` (`ExtractionCalculatorScreen`, `BrewExtractionCard`, `ExtractionChart`) | – |
@@ -106,6 +106,7 @@ Use this reference table to find the corresponding implementation files across p
 | **Brew Statistics** (Journal → Stats: pour-over / espresso, 30 / 90 days / all; brews per week, rating trend, times, ratios, extraction, first drops, peak pressure, channeling, shot scatter, beans and recipes ranking) | Yes | Yes | No | `BrewStats` (pure, tested); a ranking needs at least 2 rated brews. |
 | **Auto Stop at Yield** (stop when weight + flow × lead ≥ yield, "Stop now" without machine control, finish when the cup has settled) | Yes | Yes | No | `ShotMonitor`; settings "Stop at the target yield" and "Stop lead" (0.5–2.5 s, default 1.0). |
 | **GaggiMate** (live telemetry, send profiles, machine profile picker, import profiles as recipes from machine and files) | Yes | Yes | Partial | Web only when the app is opened over http (browsers block `ws://` from https pages). |
+| **Decent DE1** (Bluetooth telemetry, espresso mode, remote start/stop, group-head alert) | Yes | Yes | No | BLE service A000, ShotSample notification, StateInfo decoding. |
 | **Backup Export** (wrapped format with curves) | Yes | Yes | Yes | Android writes the same wrapped format with `samples`, `machine` and `photos`. Bean photos, TDS and water fields: iOS only so far; Android and web ignore them on import (unknown keys), so they are lost when re-exported there. |
 | **Backup Import** (merge by id) | Yes | Yes | Yes | Android reads the wrapped format (and bare `data` objects from older Android exports). |
 | **Beanconqueror Import** | Yes | Yes | Yes | `.zip` and `.json`, de-duplicated by `externalId`. |

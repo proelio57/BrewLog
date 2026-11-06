@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Download
@@ -39,6 +40,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +63,7 @@ import com.brewlog.app.machine.MachineKind
 import com.brewlog.app.machine.MachineMode
 import com.brewlog.app.machine.MachineProfileSummary
 import com.brewlog.app.machine.gaggiMateUrl
+import com.brewlog.app.scale.ScaleConnectionState
 import com.brewlog.app.ui.components.BrewCard
 import com.brewlog.app.ui.components.PillChip
 import com.brewlog.app.ui.components.SectionHeader
@@ -141,6 +144,7 @@ fun EspressoMachineSettingsCard() {
     var host by remember { mutableStateOf(state.host) }
     var importLoading by remember { mutableStateOf(false) }
     var importMessage by remember { mutableStateOf<String?>(null) }
+    var showDecentSheet by remember { mutableStateOf(false) }
     val valid = gaggiMateUrl(host) != null
     SectionHeader("Espresso machine")
     Spacer(Modifier.height(8.dp))
@@ -194,6 +198,27 @@ fun EspressoMachineSettingsCard() {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        if (state.kind == MachineKind.DECENT) {
+            val decent = machine.decent
+            val connectedName by decent.connectedName.collectAsStateWithLifecycle()
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDecentSheet = true }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Filled.Bluetooth, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text("DE1", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    if (decent.hasSavedMachine) (connectedName ?: "Paired") else "Find machine",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         if (state.kind != MachineKind.NONE) {
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                 Text("Status", Modifier.weight(1f))
@@ -202,9 +227,16 @@ fun EspressoMachineSettingsCard() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Text("GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes and send recipes as profiles. Use the address from GaggiMate's web interface (the IP address works if your phone can't resolve gaggimate.local). Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val explText = when (state.kind) {
+            MachineKind.GAGGIMATE -> "GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes and send recipes as profiles. Use the address from GaggiMate's web interface (the IP address works if your phone can't resolve gaggimate.local). Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there."
+            MachineKind.DECENT -> "Decent DE1: BrewLog connects over Bluetooth, records live pressure, flow and head temperature, follows the shot and can start and stop it. Close the Decent tablet app first: the DE1 talks to one app at a time."
+            MachineKind.LA_MARZOCCO -> "La Marzocco: BrewLog connects through your La Marzocco account, turns the machine on and off and sets boiler temperatures."
+            MachineKind.DEMO -> "Demo machine: simulated espresso machine with realistic pressure, temperature and flow curves."
+            MachineKind.NONE -> "Without a machine, BrewLog times your espresso shots with your scale."
+        }
+        Text(explText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+    if (showDecentSheet) DecentConnectSheet { showDecentSheet = false }
 }
 
 /** GaggiMate refused to start because of a warning (e.g. low water): ask whether to start anyway. */
@@ -343,6 +375,118 @@ fun MachineProfilesSheet(onDismiss: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
+        }
+    }
+}
+
+/** Find a Decent DE1 nearby and pair it, or forget the paired one. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DecentConnectSheet(onDismiss: () -> Unit) {
+    val container = LocalContainer.current
+    val machine = container.machine
+    val decent = machine.decent
+    val state by decent.state.collectAsStateWithLifecycle()
+    val discovered by decent.discovered.collectAsStateWithLifecycle()
+    val connectedName by decent.connectedName.collectAsStateWithLifecycle()
+    val askBluetooth = rememberBluetoothAccess { decent.startScan() }
+
+    LaunchedEffect(Unit) {
+        if (state != ScaleConnectionState.CONNECTED) askBluetooth()
+    }
+    DisposableEffect(Unit) {
+        onDispose { decent.stopScan() }
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Decent DE1", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = onDismiss) { Text("Done") }
+            }
+
+            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Coffee, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            connectedName ?: state.label,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (state == ScaleConnectionState.SCANNING || state == ScaleConnectionState.CONNECTING) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        }
+                    }
+                    if (decent.hasSavedMachine) {
+                        TextButton(
+                            onClick = { machine.forgetDecent() },
+                        ) {
+                            Text("Disconnect & forget", color = Color(0xFFFF3B30))
+                        }
+                    }
+                }
+            }
+
+            Text(
+                "Switch the DE1 on and keep the phone nearby. Close the Decent tablet app first: the DE1 talks to one app at a time.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            if (state != ScaleConnectionState.CONNECTED) {
+                Text("Nearby machines", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                if (discovered.isEmpty()) {
+                    Text(
+                        if (state == ScaleConnectionState.SCANNING) "Searching…" else "Tap Search to find your DE1",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                LazyColumn(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    items(discovered, key = { it.address }) { device ->
+                        Surface(
+                            onClick = { machine.connectDecent(device.address) },
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.Transparent,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Filled.Coffee, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(8.dp))
+                                Text(device.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                                Text("${device.rssi} dBm", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+                FilledTonalButton(
+                    onClick = {
+                        if (state == ScaleConnectionState.SCANNING) decent.stopScan() else askBluetooth()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (state == ScaleConnectionState.SCANNING) "Stop searching" else "Search")
+                }
+            }
         }
     }
 }

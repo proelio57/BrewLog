@@ -103,6 +103,7 @@ data class MachineState(
 
 class MachineManager(
     private val prefs: SharedPreferences,
+    private val context: android.content.Context? = null,
     private val presets: () -> List<Recipe> = { emptyList() },
 ) {
     private val main = Handler(Looper.getMainLooper())
@@ -110,6 +111,15 @@ class MachineManager(
         MachineState(kind = MachineKind.from(prefs.getString(KEY_KIND, null)), host = prefs.getString(KEY_HOST, null) ?: "gaggimate.local"),
     )
     val state: StateFlow<MachineState> = _state.asStateFlow()
+
+    val decent = DecentConnection(context, prefs).also { conn ->
+        conn.onStatus = { st, telemetry ->
+            if (_state.value.kind == MachineKind.DECENT) apply(st, telemetry)
+        }
+        conn.onDisconnect = {
+            if (_state.value.kind == MachineKind.DECENT) machineLost()
+        }
+    }
 
     private val client by lazy { OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(0, TimeUnit.SECONDS).build() }
     private var socket: WebSocket? = null
@@ -170,18 +180,29 @@ class MachineManager(
 
     fun setMode(mode: MachineMode) {
         if (_state.value.kind == MachineKind.DEMO) return demo.setMode(mode.value)
+        if (_state.value.kind == MachineKind.DECENT) return run { writeToDecent(DecentProtocol.command(mode)) }
         send(buildJsonObject { put("tp", "req:change-mode"); put("mode", mode.value) })
     }
 
     fun startShot(ignoreWarnings: Boolean = false) {
         _state.update { it.copy(startBlockedBy = emptyList()) }
         if (_state.value.kind == MachineKind.DEMO) return demo.startShotNow()
+        if (_state.value.kind == MachineKind.DECENT) {
+            if (!writeToDecent(DecentProtocol.startShot)) return
+            main.postDelayed({
+                if (_state.value.kind == MachineKind.DECENT && isConnected && !decent.isInEspressoState) {
+                    _state.update { it.copy(notice = "Start the shot on the machine.") }
+                }
+            }, 2_000)
+            return
+        }
         if (status.mode != MachineMode.BREW.value) send(buildJsonObject { put("tp", "req:change-mode"); put("mode", MachineMode.BREW.value) })
         send(buildJsonObject { put("tp", "req:process:activate"); put("ignoreWarnings", ignoreWarnings) })
     }
 
     fun stopShot() {
         if (_state.value.kind == MachineKind.DEMO) return demo.stopShot()
+        if (_state.value.kind == MachineKind.DECENT) return run { writeToDecent(DecentProtocol.stopShot) }
         send(buildJsonObject { put("tp", "req:process:deactivate") })
     }
 
@@ -312,11 +333,36 @@ class MachineManager(
 
     // MARK: Connection
 
+    fun connectDecent(address: String) {
+        decent.connect(address)
+    }
+
+    fun forgetDecent() {
+        decent.disconnect(forget = true)
+        _state.update { it.copy(connection = MachineConnection.UNREACHABLE, status = MachineStatus()) }
+    }
+
+    private fun writeToDecent(command: ByteArray): Boolean {
+        if (!decent.write(command)) {
+            _state.update { it.copy(notice = "The machine isn't connected.") }
+            return false
+        }
+        _state.update { it.copy(notice = null) }
+        return true
+    }
+
+    private fun machineLost() {
+        val wasBrewing = status.isBrewing
+        _state.update { it.copy(connection = MachineConnection.UNREACHABLE, status = MachineStatus()) }
+        if (wasBrewing) shotListeners.toList().forEach { it(false, monotonicMillis()) }
+    }
+
     private fun restart() {
         disconnect()
         refreshAgain = false
         demo.stop()
         val kind = _state.value.kind
+        if (kind != MachineKind.DECENT) decent.disconnect(forget = false)
         _state.update {
             it.copy(
                 status = MachineStatus(),
@@ -327,14 +373,16 @@ class MachineManager(
                     MachineKind.NONE -> MachineConnection.OFF
                     MachineKind.DEMO -> MachineConnection.CONNECTED
                     MachineKind.GAGGIMATE -> MachineConnection.CONNECTING
-                    MachineKind.DECENT, MachineKind.LA_MARZOCCO -> MachineConnection.OFF
+                    MachineKind.DECENT -> if (decent.hasSavedMachine) MachineConnection.CONNECTING else MachineConnection.UNREACHABLE
+                    MachineKind.LA_MARZOCCO -> MachineConnection.OFF
                 },
             )
         }
         when (kind) {
             MachineKind.DEMO -> demo.start()
             MachineKind.GAGGIMATE -> connect()
-            MachineKind.DECENT, MachineKind.LA_MARZOCCO, MachineKind.NONE -> Unit
+            MachineKind.DECENT -> decent.reconnectRemembered()
+            MachineKind.LA_MARZOCCO, MachineKind.NONE -> Unit
         }
     }
 
