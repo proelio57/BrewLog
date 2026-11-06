@@ -120,7 +120,7 @@ object AppUpdater {
     suspend fun downloadAndInstall(context: Context, info: UpdateInfo) = withContext(Dispatchers.IO) {
         _updateState.value = UpdateState.Downloading(0f)
         try {
-            val updateDir = File(context.cacheDir, "updates").apply { mkdirs() }
+            val updateDir = File(context.filesDir, "updates").apply { mkdirs() }
             val targetFile = File(updateDir, info.apkFileName)
             if (targetFile.exists()) targetFile.delete()
 
@@ -184,7 +184,37 @@ object AppUpdater {
             setDataAndType(apkUri, "application/vnd.android.package-archive")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
         }
+
+        // Explicitly grant read URI permission to the system package installers and Google Play Services
+        // so Play Protect's background scanner does not lose access or cause the installer to abort.
+        val installerPackages = listOf(
+            "com.google.android.packageinstaller",
+            "com.android.packageinstaller",
+            "com.google.android.gms",
+        )
+        for (pkg in installerPackages) {
+            try {
+                context.grantUriPermission(pkg, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Exception) {}
+        }
+        val resolveList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.packageManager.queryIntentActivities(
+                installIntent,
+                android.content.pm.PackageManager.ResolveInfoFlags.of(android.content.pm.PackageManager.MATCH_DEFAULT_ONLY.toLong()),
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            context.packageManager.queryIntentActivities(installIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+        }
+        for (res in resolveList) {
+            try {
+                context.grantUriPermission(res.activityInfo.packageName, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Exception) {}
+        }
+
         context.startActivity(installIntent)
     }
 

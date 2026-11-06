@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
+import com.brewlog.app.domain.DarkMode
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -449,6 +450,19 @@ fun SettingsScreen(nav: NavHostController) {
                 }
             }
             item {
+                SectionHeader("Appearance")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DarkMode.entries.forEach { mode ->
+                            PillChip(mode.title, settings.darkMode == mode) {
+                                update { it.copy(darkMode = mode) }
+                            }
+                        }
+                    }
+                }
+            }
+            item {
                 SectionHeader("Backup & AI")
                 Spacer(Modifier.height(8.dp))
                 BrewCard {
@@ -604,7 +618,11 @@ fun SettingsScreen(nav: NavHostController) {
                         }
                         is com.brewlog.app.data.AppUpdater.UpdateState.ReadyToInstall -> {
                             Spacer(Modifier.height(8.dp))
-                            Text("Download complete. Opening installer…", style = MaterialTheme.typography.bodySmall, color = GoodGreen)
+                            Text("Download complete. If the installer didn't appear automatically, tap below:", style = MaterialTheme.typography.bodySmall, color = GoodGreen)
+                            Spacer(Modifier.height(8.dp))
+                            PrimaryButton(text = "Install update now", onClick = {
+                                com.brewlog.app.data.AppUpdater.installApk(context, state.apkFile)
+                            })
                         }
                         is com.brewlog.app.data.AppUpdater.UpdateState.Error -> {
                             Spacer(Modifier.height(8.dp))
