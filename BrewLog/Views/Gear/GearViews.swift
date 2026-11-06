@@ -180,9 +180,14 @@ struct EquipmentEditorView: View {
 
             switch type {
             case .brewer:
-                Section("Brewer") {
-                    Picker("Method", selection: $method) {
-                        ForEach(BrewMethod.allCases) { Text($0.displayName).tag($0) }
+                if item?.isEspressoMachine == true {
+                    // An espresso machine has no pour-over method to pick; what matters is how BrewLog reaches it.
+                    EspressoMachineConnectionSection(machineName: name)
+                } else {
+                    Section("Brewer") {
+                        Picker("Method", selection: $method) {
+                            ForEach(BrewMethod.allCases) { Text($0.displayName).tag($0) }
+                        }
                     }
                 }
             case .filter:
@@ -609,6 +614,51 @@ private struct MachineProfileImportRow: View {
             } catch {
                 message = "Import failed: \(error.localizedDescription)"
             }
+        }
+    }
+}
+
+/// Gear editor of an espresso machine: how BrewLog connects to it (the same setting as Settings → Espresso machine).
+private struct EspressoMachineConnectionSection: View {
+    let machineName: String
+    @Environment(MachineManager.self) private var machine
+
+    var body: some View {
+        @Bindable var machine = machine
+        let suggested = MachineKind.suggested(forBrewerNamed: machineName)
+        Section {
+            Picker("Connection", selection: $machine.kind) {
+                ForEach(MachineKind.allCases) { kind in
+                    Text(kind == .none ? "Not connected" : kind.displayName).tag(kind)
+                }
+            }
+            if let suggested, machine.kind != suggested {
+                Button("Connect as \(suggested.displayName)") { machine.kind = suggested }
+            }
+            switch machine.kind {
+            case .decent: DecentMachineRow()
+            case .laMarzocco: LaMarzoccoAccountRow()
+            default: EmptyView()
+            }
+            if machine.kind != .none {
+                LabeledContent("Status", value: statusText)
+            }
+            NavigationLink("Machine settings") { SettingsView() }
+        } header: {
+            Text("Espresso machine")
+        } footer: {
+            Text("BrewLog connects one machine at a time. GaggiMate's address, the DE1 pairing and the La Marzocco account are under Machine settings.")
+        }
+    }
+
+    private var statusText: String {
+        switch machine.state {
+        case .off: return "Off"
+        case .connecting: return "Connecting…"
+        case .connected:
+            if let temperature = machine.status.temperature { return String(format: "Connected · %.1f °C", temperature) }
+            return "Connected"
+        case .unreachable: return "Not reachable"
         }
     }
 }

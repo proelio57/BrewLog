@@ -309,11 +309,16 @@ fun EquipmentEditorScreen(nav: NavHostController, itemId: String) {
             }
             when (type) {
                 EquipmentType.BREWER -> item {
-                    SectionHeader("Brewer")
-                    Spacer(Modifier.height(8.dp))
-                    BrewCard {
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            BrewMethod.entries.forEach { m -> PillChip(m.displayName, method == m) { method = m } }
+                    if (existing?.method == BrewMethod.ESPRESSO) {
+                        // An espresso machine has no pour-over method to pick; what matters is how BrewLog reaches it.
+                        EspressoMachineSettingsCard()
+                    } else {
+                        SectionHeader("Brewer")
+                        Spacer(Modifier.height(8.dp))
+                        BrewCard {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                BrewMethod.entries.forEach { m -> PillChip(m.displayName, method == m) { method = m } }
+                            }
                         }
                     }
                 }
