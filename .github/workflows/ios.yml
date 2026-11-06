@@ -12,6 +12,10 @@ on:
       - "ActivityShared/**"
       - "BrewLogTests/**"
       - "Shared/**"
+      - "android/shared/**"
+      - "android/gradle/**"
+      - "android/*.kts"
+      - "android/gradle.properties"
       - "Config/**"
       - "project.yml"
       - "scripts/build-ipa.sh"
@@ -27,6 +31,10 @@ on:
       - "ActivityShared/**"
       - "BrewLogTests/**"
       - "Shared/**"
+      - "android/shared/**"
+      - "android/gradle/**"
+      - "android/*.kts"
+      - "android/gradle.properties"
       - "Config/**"
       - "project.yml"
       - "scripts/build-ipa.sh"
@@ -61,6 +69,22 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
+
+      # Gradle builds the Kotlin Shared framework (android/shared) in an Xcode build phase.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Kotlin Native cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml') }}
 
       - name: Install XcodeGen
         run: brew install xcodegen ldid
