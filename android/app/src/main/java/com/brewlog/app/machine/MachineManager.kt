@@ -93,13 +93,18 @@ data class MachineState(
     val notice: String? = null,
     /** The machine refused to start because of a warning (e.g. low water). */
     val startBlockedBy: List<String> = emptyList(),
+    val profiles: List<MachineProfileSummary> = emptyList(),
+    val profilesLoading: Boolean = false,
 ) {
     val isConnected: Boolean get() = connection == MachineConnection.CONNECTED
     val canControl: Boolean get() = MachineCapability.START_STOP in kind.capabilities && isConnected
     val readsPressure: Boolean get() = kind != MachineKind.NONE && kind != MachineKind.LA_MARZOCCO && status.hasPressure != false
 }
 
-class MachineManager(private val prefs: SharedPreferences) {
+class MachineManager(
+    private val prefs: SharedPreferences,
+    private val presets: () -> List<Recipe> = { emptyList() },
+) {
     private val main = Handler(Looper.getMainLooper())
     private val _state = MutableStateFlow(
         MachineState(kind = MachineKind.from(prefs.getString(KEY_KIND, null)), host = prefs.getString(KEY_HOST, null) ?: "gaggimate.local"),
@@ -113,7 +118,8 @@ class MachineManager(private val prefs: SharedPreferences) {
     private val readingListeners = mutableSetOf<(GaggiMateStatus, Long) -> Unit>()
     private val pending = mutableMapOf<String, (JsonObject?) -> Unit>()
     private var nextRequest = 0
-    private val demo = DemoMachine { status, telemetry -> apply(status, telemetry) }
+    private var refreshAgain = false
+    private val demo = DemoMachine(presets) { status, telemetry -> apply(status, telemetry) }
 
     val kind: MachineKind get() = _state.value.kind
     val isConnected: Boolean get() = _state.value.isConnected
@@ -121,6 +127,9 @@ class MachineManager(private val prefs: SharedPreferences) {
     val canChooseProfile: Boolean get() = isConnected && MachineCapability.PROFILES in kind.capabilities
     val readsPressure: Boolean get() = _state.value.readsPressure
     val status: MachineStatus get() = _state.value.status
+    val profiles: List<MachineProfileSummary> get() = _state.value.profiles
+    val profilesLoading: Boolean get() = _state.value.profilesLoading
+    val notice: String? get() = _state.value.notice
     val displayName: String
         get() = when (_state.value.kind) {
             MachineKind.GAGGIMATE -> "GaggiMate"
@@ -221,19 +230,106 @@ class MachineManager(private val prefs: SharedPreferences) {
         }
     }
 
+    /**
+     * Reads the profiles saved on the machine as espresso recipes. Profiles BrewLog sent itself are left out.
+     * `completion` gets null if the machine didn't answer.
+     */
+    fun fetchProfiles(completion: (List<Recipe>?) -> Unit) {
+        if (_state.value.kind != MachineKind.GAGGIMATE) {
+            completion(null)
+            return
+        }
+        requestProfiles { summaries ->
+            completion(summaries?.filter { !it.isBrewLogs }?.mapNotNull { it.recipe })
+        }
+    }
+
+    /** Loads the machine's profile list into `profiles` (selected first, then favorites). */
+    fun refreshProfiles() {
+        if (_state.value.kind == MachineKind.DEMO) {
+            _state.update { it.copy(profiles = demo.profiles) }
+            return
+        }
+        if (_state.value.kind != MachineKind.GAGGIMATE || !isConnected) return
+        if (_state.value.profilesLoading) {
+            refreshAgain = true
+            return
+        }
+        _state.update { it.copy(profilesLoading = true) }
+        refreshAgain = false
+        requestProfiles { summaries ->
+            if (_state.value.kind != MachineKind.GAGGIMATE) return@requestProfiles
+            _state.update { s ->
+                s.copy(
+                    profilesLoading = false,
+                    profiles = summaries ?: s.profiles,
+                    notice = if (summaries == null) "Couldn't read the profiles from the machine." else s.notice,
+                )
+            }
+            if (refreshAgain) {
+                refreshAgain = false
+                refreshProfiles()
+            }
+        }
+    }
+
+    /** Selects a profile on the machine; `completion` gets whether the machine accepted it. */
+    fun selectProfile(id: String, completion: (Boolean) -> Unit) {
+        if (_state.value.kind == MachineKind.DEMO) {
+            demo.selectProfile(id)
+            _state.update { it.copy(profiles = demo.profiles) }
+            completion(true)
+            return
+        }
+        send(buildJsonObject { put("tp", "req:profiles:select"); put("id", id) }) { response ->
+            val accepted = response != null && response["error"] == null
+            if (accepted) {
+                _state.update { it.copy(notice = null) }
+                refreshProfiles()
+            } else {
+                val error = (response?.get("error") as? JsonPrimitive)?.content
+                _state.update { it.copy(notice = "The machine didn't select the profile" + (error?.let { e -> ": $e" } ?: ".")) }
+            }
+            completion(accepted)
+        }
+    }
+
+    /** The BrewLog recipe a profile was sent from (`sendProfile` remembers the profile id per recipe). */
+    fun recipeIdForProfile(id: String): String? {
+        val prefix = "machine.profile."
+        return prefs.all.entries.firstOrNull { it.key.startsWith(prefix) && it.value == id }?.key?.removePrefix(prefix)
+    }
+
+    private fun requestProfiles(completion: (List<MachineProfileSummary>?) -> Unit) {
+        send(buildJsonObject { put("tp", "req:profiles:list") }) { response ->
+            if (response == null || response["error"] != null || response["profiles"] !is JsonArray) {
+                completion(null)
+                return@send
+            }
+            completion(GaggiMateProfileImport.summaries(response))
+        }
+    }
+
     // MARK: Connection
 
     private fun restart() {
         disconnect()
+        refreshAgain = false
         demo.stop()
         val kind = _state.value.kind
         _state.update {
-            it.copy(status = MachineStatus(), connection = when (kind) {
-                MachineKind.NONE -> MachineConnection.OFF
-                MachineKind.DEMO -> MachineConnection.CONNECTED
-                MachineKind.GAGGIMATE -> MachineConnection.CONNECTING
-                MachineKind.DECENT, MachineKind.LA_MARZOCCO -> MachineConnection.OFF
-            })
+            it.copy(
+                status = MachineStatus(),
+                profiles = emptyList(),
+                profilesLoading = false,
+                notice = null,
+                connection = when (kind) {
+                    MachineKind.NONE -> MachineConnection.OFF
+                    MachineKind.DEMO -> MachineConnection.CONNECTED
+                    MachineKind.GAGGIMATE -> MachineConnection.CONNECTING
+                    MachineKind.DECENT, MachineKind.LA_MARZOCCO -> MachineConnection.OFF
+                },
+            )
         }
         when (kind) {
             MachineKind.DEMO -> demo.start()
@@ -296,7 +392,7 @@ class MachineManager(private val prefs: SharedPreferences) {
     private fun connectionLost() {
         val wasBrewing = status.isBrewing
         disconnect()
-        _state.update { it.copy(connection = MachineConnection.UNREACHABLE, status = GaggiMateStatus()) }
+        _state.update { it.copy(connection = MachineConnection.UNREACHABLE, status = GaggiMateStatus(), profilesLoading = false) }
         if (wasBrewing) shotListeners.toList().forEach { it(false, monotonicMillis()) }
         main.postDelayed(retry, 5_000)
     }
@@ -348,7 +444,10 @@ class MachineManager(private val prefs: SharedPreferences) {
 }
 
 /** Simulated machine: idles at brew temperature and runs a realistic pressure profile during a simulated shot. */
-private class DemoMachine(private val emit: (GaggiMateStatus, Boolean) -> Unit) {
+private class DemoMachine(
+    private val presets: () -> List<Recipe>,
+    private val emit: (GaggiMateStatus, Boolean) -> Unit,
+) {
     private val main = Handler(Looper.getMainLooper())
     private var running = false
     private var status = GaggiMateStatus()
@@ -356,6 +455,29 @@ private class DemoMachine(private val emit: (GaggiMateStatus, Boolean) -> Unit) 
     private var preinfusion = 7.0
     private var peak = 9.0
     private var duration = 28.0
+    private var selectedProfile: String? = null
+
+    val profiles: List<MachineProfileSummary>
+        get() {
+            val recipes = presets().filter { it.method.isEspresso }.take(2)
+            val selected = selectedProfile ?: recipes.firstOrNull()?.id
+            return recipes.map {
+                MachineProfileSummary(
+                    id = it.id,
+                    label = it.name,
+                    isSelected = it.id == selected,
+                    isFavorite = false,
+                    isBrewLogs = false,
+                    recipe = it,
+                )
+            }.sortedBy { !it.isSelected }
+        }
+
+    fun selectProfile(id: String) {
+        selectedProfile = id
+        status = status.copy(profile = profiles.firstOrNull { it.id == id }?.label)
+        emit(status, false)
+    }
 
     private val tick: Runnable = object : Runnable {
         override fun run() {
@@ -366,7 +488,15 @@ private class DemoMachine(private val emit: (GaggiMateStatus, Boolean) -> Unit) 
     }
 
     fun start() {
-        status = GaggiMateStatus(mode = 1, profile = "Demo", hasPressure = true, targetTemperature = 93.0, temperature = 93.0, pressure = 0.0, flow = 0.0)
+        status = GaggiMateStatus(
+            mode = 1,
+            profile = profiles.firstOrNull()?.label ?: "Demo",
+            hasPressure = true,
+            targetTemperature = 93.0,
+            temperature = 93.0,
+            pressure = 0.0,
+            flow = 0.0,
+        )
         if (!running) {
             running = true
             main.post(tick)

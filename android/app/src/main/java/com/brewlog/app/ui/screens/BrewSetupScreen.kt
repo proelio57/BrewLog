@@ -117,6 +117,7 @@ fun BrewSetupScreen(nav: NavHostController) {
     val pressureState by container.pressure.state.collectAsStateWithLifecycle()
     var showScale by rememberSaveable { mutableStateOf(false) }
     var showPressure by rememberSaveable { mutableStateOf(false) }
+    var showProfiles by rememberSaveable { mutableStateOf(false) }
 
     val beans = data.beans.filter { !it.isArchived }.sortedByDescending { it.createdAt }
     val brewers = data.equipment.filter { it.type == EquipmentType.BREWER && (it.method == BrewMethod.ESPRESSO) == isEspresso }.sortedBy { it.name }
@@ -210,7 +211,7 @@ fun BrewSetupScreen(nav: NavHostController) {
                     )
                 }
                 item { RecipeCard(setup = setup, onClick = { nav.navigate(Routes.RECIPE_PICKER) }) }
-                item { EspressoSetupCard(setup = setup, machine = container.machine, onOpenProfiles = { nav.navigate(Routes.SETTINGS) }) }
+                item { EspressoSetupCard(setup = setup, machine = container.machine, onOpenProfiles = { showProfiles = true }) }
                 item { MachineCard(setup.scaledRecipe, setup.dose, setup.waterTemp) { nav.navigate(Routes.SETTINGS) } }
             } else {
                 item { ScaleStatusCard { showScale = true } }
@@ -329,6 +330,7 @@ fun BrewSetupScreen(nav: NavHostController) {
     }
     if (showScale) ScaleSheet { showScale = false }
     if (showPressure) PressureMonitorSheet { showPressure = false }
+    if (showProfiles) MachineProfilesSheet { showProfiles = false }
 }
 
 @Composable

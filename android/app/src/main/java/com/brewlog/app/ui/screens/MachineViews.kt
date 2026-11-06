@@ -1,29 +1,45 @@
 package com.brewlog.app.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Coffee
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,12 +51,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.brewlog.app.AppContainer
 import com.brewlog.app.LocalContainer
+import com.brewlog.app.data.DataImporter
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.fmt1
 import com.brewlog.app.machine.MachineConnection
 import com.brewlog.app.machine.MachineKind
 import com.brewlog.app.machine.MachineMode
+import com.brewlog.app.machine.MachineProfileSummary
 import com.brewlog.app.machine.gaggiMateUrl
 import com.brewlog.app.ui.components.BrewCard
 import com.brewlog.app.ui.components.PillChip
@@ -96,7 +115,7 @@ fun MachineCard(recipe: Recipe, dose: Double, temperature: Double, onOpenSetting
                     IconButton(onClick = { machine.nudgeTemperature(true) }) { Icon(Icons.Filled.Add, contentDescription = "1 °C hotter") }
                 }
                 FilledTonalButton(onClick = { machine.sendProfile(recipe, dose, temperature) }) {
-                    Icon(Icons.Filled.Send, null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.AutoMirrored.Filled.Send, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Send recipe to machine")
                 }
@@ -116,9 +135,12 @@ fun MachineCard(recipe: Recipe, dose: Double, temperature: Double, onOpenSetting
 /** Settings: which espresso machine and where to find it. */
 @Composable
 fun EspressoMachineSettingsCard() {
-    val machine = LocalContainer.current.machine
+    val container = LocalContainer.current
+    val machine = container.machine
     val state by machine.state.collectAsStateWithLifecycle()
     var host by remember { mutableStateOf(state.host) }
+    var importLoading by remember { mutableStateOf(false) }
+    var importMessage by remember { mutableStateOf<String?>(null) }
     val valid = gaggiMateUrl(host) != null
     SectionHeader("Espresso machine")
     Spacer(Modifier.height(8.dp))
@@ -136,7 +158,41 @@ fun EspressoMachineSettingsCard() {
                 modifier = Modifier.fillMaxWidth(),
             )
             if (!valid) Text("Enter a host name like gaggimate.local or an IP address like 192.168.1.20.", style = MaterialTheme.typography.bodySmall, color = Color(0xFFFF9500))
-            TextButton(onClick = { machine.configure(MachineKind.GAGGIMATE, host) }, enabled = valid && host != state.host) { Text("Connect") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { machine.configure(MachineKind.GAGGIMATE, host) }, enabled = valid && host != state.host) { Text("Connect") }
+            }
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = state.isConnected && !importLoading) {
+                        importLoading = true
+                        importMessage = null
+                        machine.fetchProfiles { recipes ->
+                            importLoading = false
+                            if (recipes == null) {
+                                importMessage = "The machine didn't send its profiles. Check the connection and try again."
+                            } else if (recipes.isEmpty()) {
+                                importMessage = "No brew profiles on the machine besides the ones BrewLog sent."
+                            } else {
+                                val summary = DataImporter.importRecipes(recipes, container.repository, container.presets)
+                                importMessage = summary.message + " They're with the espresso recipes."
+                            }
+                        }
+                    }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text("Import profiles as recipes", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                if (importLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                }
+            }
+            importMessage?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         if (state.kind != MachineKind.NONE) {
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
@@ -164,4 +220,129 @@ fun MachineWarningDialog() {
         confirmButton = { TextButton(onClick = { machine.startShot(ignoreWarnings = true) }) { Text("Start anyway", color = Color(0xFFFF3B30)) } },
         dismissButton = { TextButton(onClick = { machine.dismissStartWarning() }) { Text("Cancel") } },
     )
+}
+
+private fun resolveProfileRecipe(profile: MachineProfileSummary, container: AppContainer): Recipe? {
+    val saved = container.repository.data.value.customRecipes
+    fun savedRecipe(id: String): Recipe? = saved.firstOrNull { it.id == id }
+    if (profile.isBrewLogs) {
+        val id = container.machine.recipeIdForProfile(profile.id)
+        if (id != null) {
+            container.presets.firstOrNull { it.id == id }?.let { return it }
+            savedRecipe(id)?.let { return it }
+        }
+        return profile.recipe
+    }
+    val recipe = profile.recipe ?: return null
+    if (container.machine.kind == MachineKind.DEMO) return recipe
+    savedRecipe(recipe.id)?.let { return it }
+    container.repository.upsertRecipe(recipe)
+    return recipe
+}
+
+/** Modal sheet listing the profiles stored on the machine. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MachineProfilesSheet(onDismiss: () -> Unit) {
+    val container = LocalContainer.current
+    val machine = container.machine
+    val state by machine.state.collectAsStateWithLifecycle()
+    var selecting by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        machine.refreshProfiles()
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Machine profiles", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = onDismiss) { Text("Done") }
+            }
+
+            if (!state.isConnected) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Warning, null, tint = Color(0xFFFF9500), modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("The machine isn't connected.", color = Color(0xFFFF9500), style = MaterialTheme.typography.bodyMedium)
+                }
+            } else if (state.profiles.isEmpty()) {
+                if (state.profilesLoading) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                } else {
+                    Text("No profiles on the machine.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                items(state.profiles, key = { it.id }) { profile ->
+                    Surface(
+                        onClick = {
+                            selecting = profile.id
+                            machine.selectProfile(profile.id) { accepted ->
+                                selecting = null
+                                if (accepted) {
+                                    val r = resolveProfileRecipe(profile, container)
+                                    if (r != null) container.espressoSetup.select(r)
+                                    onDismiss()
+                                }
+                            }
+                        },
+                        enabled = selecting == null && state.isConnected,
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Transparent,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 10.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                profile.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (profile.isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            if (profile.isFavorite) {
+                                Spacer(Modifier.width(6.dp))
+                                Icon(Icons.Filled.Star, contentDescription = "Favorite", tint = Color(0xFFFFCC00), modifier = Modifier.size(16.dp))
+                            }
+                            Spacer(Modifier.weight(1f))
+                            if (selecting == profile.id) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            } else if (profile.isSelected) {
+                                Icon(Icons.Filled.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            state.notice?.let { notice ->
+                if (selecting == null) {
+                    Text(notice, color = Color(0xFFFF9500), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Text(
+                "Selecting a profile sets it on the machine and brews with it here: BrewLog takes the yield, time and pressure from it.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
 }
