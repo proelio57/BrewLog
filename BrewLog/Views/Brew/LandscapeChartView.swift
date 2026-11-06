@@ -5,9 +5,9 @@ import UIKit
 /// (Settings → Landscape chart). Closes with the button or by turning the phone back.
 struct LandscapeChartView: View {
     let session: BrewSession
+    @Binding var isPresented: Bool
     @Environment(MachineManager.self) private var machine
     @Environment(PressureMonitor.self) private var monitor
-    @Environment(\.dismiss) private var dismiss
     /// Only after the phone was held in landscape does turning it back to portrait close the view.
     @State private var sawLandscape = false
 
@@ -22,7 +22,7 @@ struct LandscapeChartView: View {
         .padding(.vertical, 8)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .overlay(alignment: .topTrailing) {
-            Button { dismiss() } label: {
+            Button(action: close) {
                 Image(systemName: "arrow.down.right.and.arrow.up.left")
                     .font(.headline)
                     .frame(width: 36, height: 36)
@@ -34,17 +34,26 @@ struct LandscapeChartView: View {
         .onAppear {
             UIDevice.current.beginGeneratingDeviceOrientationNotifications()
             sawLandscape = UIDevice.current.orientation.isLandscape
-            OrientationLock.set(.landscape, rotateTo: .landscape)
+            // Normally already turned by the opener (BrewSessionView.openLandscapeChart).
+            if OrientationLock.mask != .landscape { OrientationLock.set(.landscape, rotateTo: .landscape) }
         }
         .onDisappear {
-            OrientationLock.set(.portrait, rotateTo: .portrait)
+            if OrientationLock.mask != .portrait { OrientationLock.set(.portrait, rotateTo: .portrait) }
             UIDevice.current.endGeneratingDeviceOrientationNotifications()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
             let orientation = UIDevice.current.orientation
             if orientation.isLandscape { sawLandscape = true }
-            if orientation == .portrait && sawLandscape { dismiss() }
+            if orientation == .portrait && sawLandscape { close() }
         }
+    }
+
+    /// Back to portrait first, then away without the slide-down, so the brew screen isn't shown sideways.
+    private func close() {
+        OrientationLock.set(.portrait, rotateTo: .portrait)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { isPresented = false }
     }
 
     private var numbers: some View {

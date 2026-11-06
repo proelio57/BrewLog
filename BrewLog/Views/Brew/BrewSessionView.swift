@@ -39,13 +39,13 @@ struct BrewSessionView: View {
             session.deactivate()
             UIDevice.current.endGeneratingDeviceOrientationNotifications()
         }
-        .fullScreenCover(isPresented: $showLandscapeChart) { LandscapeChartView(session: session) }
+        .fullScreenCover(isPresented: $showLandscapeChart) { LandscapeChartView(session: session, isPresented: $showLandscapeChart) }
         // Turning the phone during a brew opens the charts full screen (Settings → Landscape chart).
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
             guard landscapeChart, !showLandscapeChart, savedBrew == nil,
                   session.phase == .brewing || session.phase == .finished,
                   UIDevice.current.orientation.isLandscape else { return }
-            showLandscapeChart = true
+            openLandscapeChart()
         }
     }
 
@@ -66,12 +66,15 @@ struct BrewSessionView: View {
             }
             stepCard
             if session.phase == .brewing || session.phase == .finished {
-                liveCharts
+                // The charts take the room that is left, so the screen never runs past its edges.
+                GeometryReader { proxy in liveCharts(height: proxy.size.height) }
+                    .frame(minHeight: 80)
+                stepsStrip
             } else {
                 preparationCard
+                stepsStrip
+                Spacer(minLength: 0)
             }
-            stepsStrip
-            Spacer(minLength: 0)
             if session.stopRequested && session.phase == .brewing { StopNowBanner() }
             controls
         }
@@ -87,31 +90,36 @@ struct BrewSessionView: View {
         .modifier(MachineWarningAlert())
     }
 
+    /// Space each chart needs besides its plot (legend, axis labels).
+    private static let chartChrome: CGFloat = 34
+
     @ViewBuilder
-    private var liveCharts: some View {
-        VStack(spacing: 14) {
+    private func liveCharts(height: CGFloat) -> some View {
+        VStack(spacing: 10) {
             if session.pressureFocus {
-                // Settings → Pressure view: the pressure graph big and first, for setting the pressure by hand.
+                // Settings → Pressure view: only the pressure graph, as big as fits, for setting the pressure by hand.
+                // The weight curve is in the full-screen chart.
                 MachineChart(samples: session.machineSamples, targetPressure: session.recipe.pressure,
-                             currentTime: session.elapsed, height: 240, emphasis: true)
+                             currentTime: session.elapsed, height: max(height - Self.chartChrome, 60), emphasis: true)
                     .padding(.horizontal, 4)
-                BrewChart(samples: session.samples, recipe: session.recipe, currentTime: session.elapsed, height: 90)
+            } else if session.hasPressure {
+                let plots = max(height - 2 * Self.chartChrome - 10, 100)
+                BrewChart(samples: session.samples, recipe: session.recipe, currentTime: session.elapsed,
+                          height: plots * 0.58)
+                    .padding(.horizontal, 4)
+                MachineChart(samples: session.machineSamples, targetPressure: session.recipe.pressure,
+                             currentTime: session.elapsed, height: plots * 0.42)
                     .padding(.horizontal, 4)
             } else {
-                let withMachine = session.hasPressure
                 BrewChart(samples: session.samples, recipe: session.recipe, currentTime: session.elapsed,
-                          height: withMachine ? 120 : 160)
+                          height: min(max(height - Self.chartChrome, 60), 320))
                     .padding(.horizontal, 4)
-                if withMachine {
-                    MachineChart(samples: session.machineSamples, targetPressure: session.recipe.pressure,
-                                 currentTime: session.elapsed, height: 90)
-                        .padding(.horizontal, 4)
-                }
             }
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .overlay(alignment: .topTrailing) {
             if landscapeChart {
-                Button { showLandscapeChart = true } label: {
+                Button(action: openLandscapeChart) {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                         .font(.caption.weight(.semibold))
                         .frame(width: 28, height: 28)
@@ -121,6 +129,15 @@ struct BrewSessionView: View {
                 .accessibilityLabel("Chart full screen")
             }
         }
+    }
+
+    /// Turns the screen first, then shows the full-screen chart without the slide-up, so it doesn't appear
+    /// in portrait and turn afterwards.
+    private func openLandscapeChart() {
+        OrientationLock.set(.landscape, rotateTo: .landscape)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { showLandscapeChart = true }
     }
 
     private var header: some View {

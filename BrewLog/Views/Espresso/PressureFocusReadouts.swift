@@ -30,7 +30,7 @@ struct PressureFocusReadouts: View {
         let pressure = liveShotPressure(session: session, machine: machine, monitor: monitor)
         let target = session.recipe.pressure
         let zone = PressureFocus.zone(pressure: pressure, target: target)
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 compact("TIME", session.elapsed.mmss,
                         color: session.isPastTargetTime && session.phase == .brewing ? .orange : .primary)
@@ -40,21 +40,21 @@ struct PressureFocusReadouts: View {
             VStack(spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(pressure.map { String(format: "%.1f", max($0, 0)) } ?? "–")
-                        .font(.system(size: 96, weight: .bold, design: .rounded))
+                        .font(.system(size: 76, weight: .bold, design: .rounded))
                         .minimumScaleFactor(0.5)
                         .lineLimit(1)
                         .monospacedDigit()
                         .contentTransition(.numericText())
-                    Text("bar").font(.title.weight(.semibold))
+                    Text("bar").font(.title2.weight(.semibold))
                 }
                 .foregroundStyle(zone.color)
                 Text(caption(pressure: pressure, target: target, zone: zone))
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(zone == .noTarget ? Color.secondary : zone.color)
                     .monospacedDigit()
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+            .padding(.vertical, 4)
             .background(zone.color.opacity(0.1), in: RoundedRectangle(cornerRadius: 18))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(accessibility(pressure: pressure, zone: zone))
@@ -100,7 +100,7 @@ struct PressureFocusReadouts: View {
         VStack(alignment: alignment, spacing: 0) {
             Text(title).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
             Text(value)
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
+                .font(.system(size: 26, weight: .semibold, design: .rounded))
                 .foregroundStyle(color)
                 .monospacedDigit()
                 .contentTransition(.numericText())
@@ -110,11 +110,11 @@ struct PressureFocusReadouts: View {
     private func tile(_ title: String, _ value: String, color: Color = .primary) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-            Text(value).font(.headline).foregroundStyle(color).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+            Text(value).font(.subheadline.weight(.semibold)).foregroundStyle(color).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 }

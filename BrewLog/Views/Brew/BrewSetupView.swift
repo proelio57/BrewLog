@@ -24,29 +24,43 @@ struct BrewSetupView: View {
     var body: some View {
         let mode = BrewMode(rawValue: modeRaw) ?? .filter
         NavigationStack {
-            // Below this point `BrewSetup` is the selected mode's setup (recipe picker included).
-            SetupScreen(mode: mode)
-                .environment(mode == .espresso ? espressoSetup : pourOverSetup)
-                .id(mode)
-                // Outside the `.id(mode)` subtree: the switch stays the same view when the screen behind it is
-                // rebuilt, so its thumb doesn't reset and jump.
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        CapsuleSwitch(options: [CapsuleOption(value: BrewMode.filter.rawValue, title: "Filter", symbol: "drop.fill"),
-                                                CapsuleOption(value: BrewMode.espresso.rawValue, title: "Espresso", symbol: "cup.and.saucer.fill")],
-                                      selection: $modeRaw)
-                            .accessibilityIdentifier("brew.mode")
-                    }
+            // Both modes stay built, so switching only cross-fades (no rebuild of the screen, no wait).
+            // Below this point `BrewSetup` is that mode's setup (recipe picker included).
+            ZStack {
+                screen(.filter, active: mode)
+                screen(.espresso, active: mode)
+            }
+            .animation(.easeInOut(duration: 0.25), value: mode)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    CapsuleSwitch(options: [CapsuleOption(value: BrewMode.filter.rawValue, title: "Filter", symbol: "drop.fill"),
+                                            CapsuleOption(value: BrewMode.espresso.rawValue, title: "Espresso", symbol: "cup.and.saucer.fill")],
+                                  selection: $modeRaw, commitDelay: 0)
+                        .accessibilityIdentifier("brew.mode")
                 }
+            }
         }
         .onAppear {
             if BrewSetup.moveEspressoRecipe(from: pourOverSetup, to: espressoSetup) { modeRaw = BrewMode.espresso.rawValue }
         }
     }
+
+    /// One mode's screen: the shown one in front, the other faded out a little to its side, not tappable.
+    private func screen(_ screenMode: BrewMode, active mode: BrewMode) -> some View {
+        let isActive = screenMode == mode
+        return SetupScreen(mode: screenMode, isActive: isActive)
+            .environment(screenMode == .espresso ? espressoSetup : pourOverSetup)
+            .opacity(isActive ? 1 : 0)
+            .offset(x: isActive ? 0 : (screenMode == .espresso ? 30 : -30))
+            .allowsHitTesting(isActive)
+            .accessibilityHidden(!isActive)
+    }
 }
 
 private struct SetupScreen: View {
     let mode: BrewMode
+    /// The mode shown; the other one stays built behind it (toolbar, widget start and focus only for this one).
+    var isActive = true
 
     @Environment(BrewSetup.self) private var setup
     @Environment(ScaleManager.self) private var scale
@@ -128,6 +142,13 @@ private struct SetupScreen: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Brew")
         .toolbar {
+            if isActive { toolbarItems }
+        }
+        .safeAreaInset(edge: .bottom) { startButton }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
             ToolbarItem(placement: .topBarLeading) {
                 Button { router.present(.quickWeigh) } label: {
                     Label("Weigh", systemImage: "scalemass")
@@ -142,8 +163,6 @@ private struct SetupScreen: View {
                 Spacer()
                 Button("Done") { grindFocused = false }
             }
-        }
-        .safeAreaInset(edge: .bottom) { startButton }
     }
 
     private func presentingSheets(_ content: some View) -> some View {
@@ -192,11 +211,12 @@ private struct SetupScreen: View {
                 startIfRequested()
             }
             .onChange(of: router.startBrewRequested) { startIfRequested() }
+            .onChange(of: isActive) { _, active in if active { startIfRequested() } else { grindFocused = false } }
     }
 
     /// The widgets' "Brew" (brewlog://start) starts the brew with what's set up here.
     private func startIfRequested() {
-        guard router.startBrewRequested else { return }
+        guard isActive, router.startBrewRequested else { return }
         router.startBrewRequested = false
         guard activeBrew == nil, router.cover == nil else { return }
         // Let the tab switch settle before the brew screen slides up.

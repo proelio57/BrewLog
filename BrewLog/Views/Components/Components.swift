@@ -280,6 +280,9 @@ struct CapsuleOption<Value: Hashable> {
 struct CapsuleSwitch<Value: Hashable>: View {
     let options: [CapsuleOption<Value>]
     @Binding var selection: Value
+    /// How long the selection waits for the thumb to arrive. 0 when the content behind doesn't rebuild
+    /// (Brew's Filter | Espresso keeps both screens), so the switch is instant.
+    var commitDelay: Double = 0.26
     /// The option the thumb is on; ahead of `selection` while the thumb slides.
     @State private var shown: Value?
     /// Thumb position (leading edge) while the finger drags it.
@@ -370,6 +373,10 @@ struct CapsuleSwitch<Value: Hashable>: View {
         Haptics.tap()
         // Back to the screen that is showing: nothing to swap.
         guard value != selection else { return }
+        if commitDelay <= 0 {
+            selection = value
+            return
+        }
         // Let the thumb arrive before the content behind it changes. A newer pick cancels this one,
         // so quick taps back and forth don't swap the screen twice.
         let work = DispatchWorkItem {
@@ -377,7 +384,7 @@ struct CapsuleSwitch<Value: Hashable>: View {
             selection = value
         }
         commit = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.26, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + commitDelay, execute: work)
     }
 }
 
