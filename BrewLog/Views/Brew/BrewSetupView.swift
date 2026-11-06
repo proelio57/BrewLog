@@ -95,7 +95,6 @@ private struct SetupScreen: View {
                 } else {
                     ScaleStatusCard()
                 }
-                recipeCard
                 if espresso {
                     EspressoSetupView()
                     MachineCard(recipe: setup.scaledRecipe, dose: setup.dose, temperature: setup.waterTemp) {
@@ -115,6 +114,11 @@ private struct SetupScreen: View {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionHeader(title: "Before you brew")
                     stepsCard
+                }
+                // Last: the recipe is set once and rarely changed.
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionHeader(title: "Recipe")
+                    recipeCard
                 }
                 Color.clear.frame(height: 80)
             }

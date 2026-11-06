@@ -210,7 +210,6 @@ fun BrewSetupScreen(nav: NavHostController) {
                         onOpenPressure = { showPressure = true },
                     )
                 }
-                item { RecipeCard(setup = setup, onClick = { nav.navigate(Routes.RECIPE_PICKER) }) }
                 item { EspressoSetupCard(setup = setup, machine = container.machine, onOpenProfiles = { showProfiles = true }) }
                 item { MachineCard(setup.scaledRecipe, setup.dose, setup.waterTemp) { nav.navigate(Routes.SETTINGS) } }
             } else {
@@ -218,7 +217,6 @@ fun BrewSetupScreen(nav: NavHostController) {
                 if (settings.espressoPressureEnabled) {
                     item { PressureStatusCard { showPressure = true } }
                 }
-                item { RecipeCard(setup = setup, onClick = { nav.navigate(Routes.RECIPE_PICKER) }) }
                 item { DoseCard(setup = setup) }
             }
             item {
@@ -325,6 +323,12 @@ fun BrewSetupScreen(nav: NavHostController) {
                         }
                     }
                 }
+            }
+            // Last: the recipe is set once and rarely changed.
+            item {
+                SectionHeader("Recipe")
+                Spacer(Modifier.height(8.dp))
+                RecipeCard(setup = setup, onClick = { nav.navigate(Routes.RECIPE_PICKER) })
             }
         }
     }
