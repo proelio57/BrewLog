@@ -62,7 +62,8 @@ class AppContainer(context: Context) {
     val repository = BrewRepository(context.filesDir, scope)
     val scale = ScaleManager(context.applicationContext, prefs, scope)
     val pressure = com.brewlog.app.scale.PressureManager(context.applicationContext, prefs, scope)
-    val machine = com.brewlog.app.machine.MachineManager(prefs, context.applicationContext) { presets }
+    val secrets = com.brewlog.app.sync.SecretStore(prefs)
+    val machine = com.brewlog.app.machine.MachineManager(prefs, context.applicationContext, { presets }, secrets)
     val sound = SoundPlayer { settings.current }
     val haptics = Haptics(context.applicationContext) { settings.current }
     val setup = BrewSetupState(prefs, presets, SetupScope.POUR_OVER).also { it.restoreCustom(repository.data.value.customRecipes) }
@@ -79,7 +80,6 @@ class AppContainer(context: Context) {
     val activeSetup: BrewSetupState
         get() = if (brewMode == "espresso") espressoSetup else setup
 
-    val secrets = com.brewlog.app.sync.SecretStore(prefs)
     val gitSync = com.brewlog.app.sync.GitSync(prefs, secrets, repository) { presets }
 
     /** Git backup after a brew, when automatic sync is on, and fresh widgets. */

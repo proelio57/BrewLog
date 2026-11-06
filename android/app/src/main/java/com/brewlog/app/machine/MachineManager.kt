@@ -6,10 +6,15 @@ import android.os.Looper
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.StepKind
 import com.brewlog.app.scale.monotonicMillis
+import com.brewlog.app.sync.SecretStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -105,7 +110,9 @@ class MachineManager(
     private val prefs: SharedPreferences,
     private val context: android.content.Context? = null,
     private val presets: () -> List<Recipe> = { emptyList() },
+    secretStore: SecretStore? = null,
 ) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val main = Handler(Looper.getMainLooper())
     private val _state = MutableStateFlow(
         MachineState(kind = MachineKind.from(prefs.getString(KEY_KIND, null)), host = prefs.getString(KEY_HOST, null) ?: "gaggimate.local"),
@@ -120,6 +127,22 @@ class MachineManager(
             if (_state.value.kind == MachineKind.DECENT) machineLost()
         }
     }
+
+    val laMarzocco = LaMarzoccoCloud(secretStore ?: SecretStore(prefs), prefs, scope).also { lm ->
+        lm.onStatus = { st ->
+            if (_state.value.kind == MachineKind.LA_MARZOCCO) apply(st, telemetry = false)
+        }
+        lm.onOnline = { online ->
+            if (_state.value.kind == MachineKind.LA_MARZOCCO && !online) machineLost()
+        }
+        lm.onNotice = { msg ->
+            if (_state.value.kind == MachineKind.LA_MARZOCCO && _state.value.notice != msg) {
+                _state.update { it.copy(notice = msg) }
+            }
+        }
+    }
+
+    private var pendingTarget: Pair<Double, Long>? = null
 
     private val client by lazy { OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(0, TimeUnit.SECONDS).build() }
     private var socket: WebSocket? = null
@@ -144,7 +167,7 @@ class MachineManager(
         get() = when (_state.value.kind) {
             MachineKind.GAGGIMATE -> "GaggiMate"
             MachineKind.DECENT -> "Decent DE1"
-            MachineKind.LA_MARZOCCO -> "La Marzocco"
+            MachineKind.LA_MARZOCCO -> laMarzocco.machine.value?.name ?: "La Marzocco"
             MachineKind.DEMO -> "Demo machine"
             MachineKind.NONE -> "No machine"
         }
@@ -181,6 +204,14 @@ class MachineManager(
     fun setMode(mode: MachineMode) {
         if (_state.value.kind == MachineKind.DEMO) return demo.setMode(mode.value)
         if (_state.value.kind == MachineKind.DECENT) return run { writeToDecent(DecentProtocol.command(mode)) }
+        if (_state.value.kind == MachineKind.LA_MARZOCCO) {
+            if (mode != MachineMode.STANDBY && mode != MachineMode.BREW) {
+                _state.update { it.copy(notice = "Steam and hot water are set on the machine.") }
+                return
+            }
+            setPower(mode == MachineMode.BREW)
+            return
+        }
         send(buildJsonObject { put("tp", "req:change-mode"); put("mode", mode.value) })
     }
 
@@ -217,7 +248,38 @@ class MachineManager(
 
     fun nudgeTemperature(up: Boolean) {
         if (_state.value.kind == MachineKind.DEMO) return demo.nudgeTemperature(up)
+        if (_state.value.kind == MachineKind.LA_MARZOCCO) {
+            val now = System.currentTimeMillis()
+            val recent = pendingTarget?.takeIf { now - it.second < 10_000L }?.first
+            val current = recent ?: status.targetTemperature
+            if (current == null) {
+                _state.update { it.copy(notice = "Waiting for the machine's temperature.") }
+                return
+            }
+            val next = min(max(current + if (up) 1.0 else -1.0, 80.0), 100.0)
+            pendingTarget = Pair(next, now)
+            scope.launch {
+                val done = laMarzocco.setTargetTemperature(next)
+                if (done) _state.update { it.copy(notice = null) }
+            }
+            return
+        }
         send(buildJsonObject { put("tp", if (up) "req:raise-temp" else "req:lower-temp") })
+    }
+
+    fun setPower(on: Boolean) {
+        if (_state.value.kind != MachineKind.LA_MARZOCCO) return
+        scope.launch {
+            val done = laMarzocco.setPower(on)
+            if (done) _state.update { it.copy(notice = null) }
+        }
+    }
+
+    fun laMarzoccoChanged() {
+        if (_state.value.kind != MachineKind.LA_MARZOCCO) return
+        laMarzocco.disconnect()
+        pendingTarget = null
+        restart()
     }
 
     /** Saves the recipe as a GaggiMate profile (updating the one sent before) and selects it. */
@@ -363,6 +425,7 @@ class MachineManager(
         demo.stop()
         val kind = _state.value.kind
         if (kind != MachineKind.DECENT) decent.disconnect(forget = false)
+        if (kind != MachineKind.LA_MARZOCCO) laMarzocco.disconnect()
         _state.update {
             it.copy(
                 status = MachineStatus(),
@@ -374,7 +437,7 @@ class MachineManager(
                     MachineKind.DEMO -> MachineConnection.CONNECTED
                     MachineKind.GAGGIMATE -> MachineConnection.CONNECTING
                     MachineKind.DECENT -> if (decent.hasSavedMachine) MachineConnection.CONNECTING else MachineConnection.UNREACHABLE
-                    MachineKind.LA_MARZOCCO -> MachineConnection.OFF
+                    MachineKind.LA_MARZOCCO -> if (laMarzocco.isReady) MachineConnection.CONNECTING else MachineConnection.UNREACHABLE
                 },
             )
         }
@@ -382,7 +445,8 @@ class MachineManager(
             MachineKind.DEMO -> demo.start()
             MachineKind.GAGGIMATE -> connect()
             MachineKind.DECENT -> decent.reconnectRemembered()
-            MachineKind.LA_MARZOCCO, MachineKind.NONE -> Unit
+            MachineKind.LA_MARZOCCO -> laMarzocco.connect()
+            MachineKind.NONE -> Unit
         }
     }
 

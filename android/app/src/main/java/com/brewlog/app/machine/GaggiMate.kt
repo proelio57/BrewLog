@@ -114,7 +114,13 @@ data class MachineStatus(
 typealias GaggiMateStatus = MachineStatus
 
 enum class MachineMode(val value: Int, val title: String) {
-    STANDBY(0, "Standby"), BREW(1, "Brew"), STEAM(2, "Steam"), WATER(3, "Water"),
+    STANDBY(0, "Standby"),
+    BREW(1, "Brew"),
+    STEAM(2, "Steam"),
+    WATER(3, "Water"),
+    GRIND(4, "Grind");
+
+    val rawValue: Int get() = value
 }
 
 object GaggiMateProfile {

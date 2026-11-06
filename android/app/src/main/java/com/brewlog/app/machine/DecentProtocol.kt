@@ -128,7 +128,7 @@ object DecentProtocol {
     fun command(mode: MachineMode): ByteArray = byteArrayOf(
         when (mode) {
             MachineMode.STANDBY -> State.SLEEP.value.toByte()
-            MachineMode.BREW -> State.IDLE.value.toByte()
+            MachineMode.BREW, MachineMode.GRIND -> State.IDLE.value.toByte()
             MachineMode.STEAM -> State.STEAM.value.toByte()
             MachineMode.WATER -> State.HOT_WATER.value.toByte()
         }

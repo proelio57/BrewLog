@@ -18,15 +18,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -35,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -45,12 +52,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brewlog.app.AppContainer
@@ -58,6 +68,9 @@ import com.brewlog.app.LocalContainer
 import com.brewlog.app.data.DataImporter
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.fmt1
+import com.brewlog.app.machine.LaMarzoccoCloud
+import com.brewlog.app.machine.MachineManager
+import kotlinx.coroutines.launch
 import com.brewlog.app.machine.MachineConnection
 import com.brewlog.app.machine.MachineKind
 import com.brewlog.app.machine.MachineMode
@@ -217,6 +230,32 @@ fun EspressoMachineSettingsCard() {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+        if (state.kind == MachineKind.LA_MARZOCCO) {
+            val cloud = machine.laMarzocco
+            var showLMSheet by remember { mutableStateOf(false) }
+            val signedInAs by cloud.signedInAs.collectAsStateWithLifecycle()
+            val currentMachine by cloud.machine.collectAsStateWithLifecycle()
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showLMSheet = true }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text("La Marzocco account", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    currentMachine?.name ?: (if (signedInAs == null) "Sign in" else "Choose machine"),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (showLMSheet) {
+                LaMarzoccoAccountSheet(cloud, machine) { showLMSheet = false }
             }
         }
         if (state.kind != MachineKind.NONE) {
@@ -486,6 +525,226 @@ fun DecentConnectSheet(onDismiss: () -> Unit) {
                 ) {
                     Text(if (state == ScaleConnectionState.SCANNING) "Stop searching" else "Search")
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LaMarzoccoAccountSheet(
+    cloud: LaMarzoccoCloud,
+    machine: MachineManager,
+    onDismiss: () -> Unit,
+) {
+    val signedInAs by cloud.signedInAs.collectAsStateWithLifecycle()
+    val currentMachine by cloud.machine.collectAsStateWithLifecycle()
+    val machines by cloud.machines.collectAsStateWithLifecycle()
+
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var working by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("La Marzocco", style = MaterialTheme.typography.titleLarge)
+                TextButton(onClick = onDismiss) { Text("Done") }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            val account = signedInAs
+            if (account != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Signed in as", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(account, style = MaterialTheme.typography.bodyLarge)
+                        Spacer(Modifier.height(12.dp))
+                        TextButton(
+                            onClick = {
+                                cloud.signOut()
+                                machine.laMarzoccoChanged()
+                            },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        ) {
+                            Text("Sign out")
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Signing out deletes your login and BrewLog's key from this phone. Nothing is sent to La Marzocco afterwards.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Spacer(Modifier.height(20.dp))
+                Text("Machine", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+
+                if (machines.isEmpty() && currentMachine != null) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column {
+                                Text(currentMachine!!.name, style = MaterialTheme.typography.bodyLarge)
+                                if (currentMachine!!.model.isNotEmpty()) {
+                                    Text(currentMachine!!.model, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+
+                machines.forEach { item ->
+                    val isSelected = item.id == currentMachine?.id
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                cloud.choose(item)
+                                machine.laMarzoccoChanged()
+                                onDismiss()
+                            },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                        ),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column {
+                                Text(item.name, style = MaterialTheme.typography.bodyLarge)
+                                if (item.model.isNotEmpty()) {
+                                    Text(item.model, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            if (isSelected) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        working = true
+                        error = null
+                        scope.launch {
+                            try {
+                                val list = cloud.reloadMachines()
+                                if (list.isEmpty()) error = "No coffee machine in this La Marzocco account."
+                            } catch (e: Exception) {
+                                error = e.message ?: "Failed to load machines"
+                            } finally {
+                                working = false
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !working,
+                ) {
+                    if (working) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                    } else {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(if (machines.isEmpty()) "Show my machines" else "Reload machines")
+                }
+            } else {
+                Text("Your La Marzocco account", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Email") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, capitalization = KeyboardCapitalization.None),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "BrewLog talks to La Marzocco's servers with your La Marzocco account, like their app does. Your login stays in this phone's Keychain. BrewLog reads whether the machine is on and brewing and its brew temperature, and can switch it on or to standby and change the temperature.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        working = true
+                        error = null
+                        scope.launch {
+                            try {
+                                val list = cloud.signIn(username, password)
+                                password = ""
+                                if (list.size == 1) {
+                                    cloud.choose(list.first())
+                                    machine.laMarzoccoChanged()
+                                    onDismiss()
+                                } else if (list.isEmpty()) {
+                                    error = "No coffee machine in this La Marzocco account."
+                                }
+                            } catch (e: Exception) {
+                                error = e.message ?: "Sign in failed"
+                            } finally {
+                                working = false
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !working && username.trim().isNotEmpty() && password.isNotEmpty(),
+                ) {
+                    if (working) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text("Sign in")
+                }
+            }
+
+            if (error != null) {
+                Spacer(Modifier.height(12.dp))
+                Text(error ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
