@@ -1,4 +1,4 @@
-<!-- Notes for the next release (v1.0.5), grouped by platform. scripts/release-notes.sh uses this file for the release
+<!-- Notes for the next release (v2.0.0), grouped by platform. scripts/release-notes.sh uses this file for the release
      whose commits change it; otherwise the notes come from the feat/fix/perf commit subjects. -->
 iOS
 • Pressure view: big colour-coded pressure number and pressure graph with a target band while a pressure sensor is connected (Settings: Automatic, Always, Off)
