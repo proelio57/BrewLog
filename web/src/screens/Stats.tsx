@@ -4,7 +4,7 @@ import { repository } from '../app'
 import { BrewStats, type StatsGroup, type StatsPoint, type StatsSummary, type StatsTrend, type StatsWeek } from '../analysis/brewStats'
 import { useStore } from '../data/store'
 import { fmt1, formatDate, mmss } from '../domain/format'
-import { Card, Chip, SectionHeader, Stat } from '../ui/components'
+import { CapsuleSwitch, Card, SectionHeader, Stat } from '../ui/components'
 
 export function StatsScreen() {
   const data = useStore(repository.data)
@@ -23,14 +23,26 @@ export function StatsScreen() {
 
   return (
     <div className="stats-screen">
-      <div className="chips" style={{ marginBottom: 8 }}>
-        <Chip title="Pour-over" selected={!espresso} onClick={() => setMethod('pourOver')} />
-        <Chip title="Espresso" selected={espresso} onClick={() => setMethod('espresso')} />
-      </div>
-      <div className="chips" style={{ marginBottom: 16 }}>
-        <Chip title="30 days" selected={rangeDays === 30} onClick={() => setRangeDays(30)} />
-        <Chip title="90 days" selected={rangeDays === 90} onClick={() => setRangeDays(90)} />
-        <Chip title="All" selected={rangeDays === 0} onClick={() => setRangeDays(0)} />
+      <div className="stats-filters">
+        <CapsuleSwitch
+          fullWidth
+          options={[
+            { id: 'pourOver', title: 'Pour-over' },
+            { id: 'espresso', title: 'Espresso' },
+          ]}
+          selected={method}
+          onChange={(m) => setMethod(m as 'pourOver' | 'espresso')}
+        />
+        <CapsuleSwitch
+          fullWidth
+          options={[
+            { id: '30', title: '30 days' },
+            { id: '90', title: '90 days' },
+            { id: '0', title: 'All' },
+          ]}
+          selected={String(rangeDays)}
+          onChange={(r) => setRangeDays(Number(r))}
+        />
       </div>
 
       <Card>

@@ -3,16 +3,16 @@
 A pour-over and espresso brewing companion for iPhone, with matching [Android](android/README.md) and [web](web/README.md) versions, in the spirit of Beanconqueror. It connects to Bluetooth scales (BOOKOO Themis Mini, Timemore Black Mirror Dot, Decent Scale) and espresso machines (Decent DE1, La Marzocco, GaggiMate, Cafelat Robot, Flair 58), features a guided brew assistant with soft audio cues, a brew journal with 12-week statistics, extraction and water calculators, and rule-based (no AI) taste feedback that tells you what to change next time, down to the click on your grinder.
 
 | Welcome | Setup: brewer | Quick weigh | Brew setup |
-|---|---|---|---|
-| ![Welcome](docs/screenshots/welcome.png) | ![Brewer step](docs/screenshots/setup-brewer.png) | ![Quick weigh](docs/screenshots/quick-weigh.png) | ![Setup](docs/screenshots/setup.png) |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/welcome.png" width="220" alt="Welcome"> | <img src="docs/screenshots/setup-brewer.png" width="220" alt="Brewer step"> | <img src="docs/screenshots/quick-weigh.png" width="220" alt="Quick weigh"> | <img src="docs/screenshots/setup.png" width="220" alt="Brew setup"> |
 
 | What to try next | Pour analysis | Statistics | Extraction tool |
-|---|---|---|---|
-| ![Suggestions](docs/screenshots/suggestions.png) | ![Pours](docs/screenshots/pours.png) | ![Statistics](docs/screenshots/stats.png) | ![Extraction tool](docs/screenshots/tools-extraction.png) |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/suggestions.png" width="220" alt="What to try next"> | <img src="docs/screenshots/pours.png" width="220" alt="Pour analysis"> | <img src="docs/screenshots/stats.png" width="220" alt="Statistics"> | <img src="docs/screenshots/tools-extraction.png" width="220" alt="Extraction tool"> |
 
 | Water recipes | Grind converter |
-|---|---|
-| ![Water recipes](docs/screenshots/tools-water.png) | ![Grind converter](docs/screenshots/tools-grind.png) |
+| :---: | :---: |
+| <img src="docs/screenshots/tools-water.png" width="220" alt="Water recipes"> | <img src="docs/screenshots/tools-grind.png" width="220" alt="Grind converter"> |
 
 ## Features
 

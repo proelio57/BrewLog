@@ -8,7 +8,7 @@ import { GrindConverter } from '../domain/grindConverter'
 import { WaterChemistry } from '../domain/waterChemistry'
 import { defaultGrinderSpec, type Equipment, type GrinderSpec, type WaterProfile } from '../domain/models'
 import { GRINDER_PRESETS } from '../domain/library'
-import { Card, Chip, Field, NumberInput, SectionHeader, TopBar } from '../ui/components'
+import { CapsuleSwitch, Card, Chip, Field, NumberInput, SectionHeader, TopBar } from '../ui/components'
 
 // MARK: - Extraction Chart
 
@@ -114,10 +114,21 @@ export function ExtractionCalculatorScreen() {
     <div className="screen">
       <TopBar title="Extraction" onBack={() => goBack('/gear')} />
       <div className="content">
-        <div className="chips" style={{ marginBottom: 12 }}>
-          <Chip title="Filter" selected={!espresso} onClick={() => { setEspresso(false); setBeverage(220); setDose(15) }} />
-          <Chip title="Espresso" selected={espresso} onClick={() => { setEspresso(true); setBeverage(36); setDose(18) }} />
-        </div>
+        <CapsuleSwitch
+          fullWidth
+          options={[
+            { id: 'filter', title: 'Filter' },
+            { id: 'espresso', title: 'Espresso' },
+          ]}
+          selected={espresso ? 'espresso' : 'filter'}
+          onChange={(val) => {
+            const isEsp = val === 'espresso'
+            setEspresso(isEsp)
+            setBeverage(isEsp ? 36 : 220)
+            setDose(isEsp ? 18 : 15)
+          }}
+          style={{ marginBottom: 12 }}
+        />
 
         <Card>
           <Field label="Coffee dose (g)">
