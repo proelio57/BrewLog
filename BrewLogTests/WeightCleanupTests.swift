@@ -25,24 +25,31 @@ final class WeightCleanupTests: XCTestCase {
 
     func testFinalWeightIgnoresSpikesAtTheEnd() {
         // 30 s at 230 g, a single spike to 236 g, then one last reading at 233 g.
-        let values = [Double](repeating: 0, count: 4) + [100, 180, 220] + [Double](repeating: 230, count: 60) + [236, 230, 230, 233]
+        let start: [Double] = [0, 0, 0, 0, 100, 180, 220]
+        let plateau = [Double](repeating: 230, count: 60)
+        let end: [Double] = [236, 230, 230, 233]
+        let values: [Double] = start + plateau + end
         XCTAssertEqual(WeightCleanup.settledFinalWeight(samples(values)), 230)
     }
 
     func testFinalWeightTakesTheLongestPlateau() {
         // Creeps from 228 g (5 s) to 230 g (20 s): 230 g is where it stayed.
-        let values = [Double](repeating: 228, count: 10) + [Double](repeating: 230, count: 40) + [231]
+        let low = [Double](repeating: 228, count: 10)
+        let high = [Double](repeating: 230, count: 40)
+        let values: [Double] = low + high + [231]
         XCTAssertEqual(WeightCleanup.settledFinalWeight(samples(values)), 230)
     }
 
     func testFinalWeightIgnoresLiftingTheDripper() {
         // 20 s at 230 g, then the dripper comes off and the scale shows 180 g for a minute.
-        let values = [Double](repeating: 230, count: 40) + [Double](repeating: 180, count: 120)
+        let brewed = [Double](repeating: 230, count: 40)
+        let lifted = [Double](repeating: 180, count: 120)
+        let values: [Double] = brewed + lifted
         XCTAssertEqual(WeightCleanup.settledFinalWeight(samples(values)), 230)
     }
 
     func testFinalWeightKeepsDecimals() {
-        let values = [Double](repeating: 36.4, count: 20) + [36.6]
+        let values: [Double] = [Double](repeating: 36.4, count: 20) + [36.6]
         XCTAssertEqual(WeightCleanup.settledFinalWeight(samples(values)) ?? 0, 36.4, accuracy: 0.001)
     }
 
@@ -53,7 +60,11 @@ final class WeightCleanupTests: XCTestCase {
 
     func testSmoothedFlowIsSteadyDespiteJitter() {
         // 4 g/s for 20 s, every reading ±0.5 g off, plus one spike of +60 g.
-        var values = (0..<100).map { i in 4 * Double(i) * 0.2 + (i % 2 == 0 ? 0.5 : -0.5) }
+        var values: [Double] = []
+        for i in 0..<100 {
+            let jitter: Double = i % 2 == 0 ? 0.5 : -0.5
+            values.append(0.8 * Double(i) + jitter)
+        }
         values[50] += 60
         let flows = WeightCleanup.smoothedFlows(samples(values, step: 0.2))
         XCTAssertEqual(flows.count, 100)
