@@ -21,6 +21,10 @@ on:
       - "scripts/release-notes.sh"
       - ".github/workflows/android.yml"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to build into (e.g. to redo a release); empty = highest release + 1"
+        required: false
 
 concurrency:
   group: android-${{ github.ref }}
@@ -60,13 +64,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # One version for iOS and Android: the highest release + 1 (scripts/next-version.sh).
-          read -r version build < <(scripts/next-version.sh)
+          # The version is shared with iOS; versionCode is this workflow's run number, which only goes up
+          # (Android refuses an update with a lower versionCode).
+          version="${{ inputs.version }}"
+          if [ -z "$version" ]; then read -r version _ < <(scripts/next-version.sh); fi
+          build=$GITHUB_RUN_NUMBER
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "build=$build" >> "$GITHUB_OUTPUT"
           echo "Version $version ($build)"
 
+      # Tests run on the pull request; the release build after the merge skips them.
       - name: Unit tests
-        if: vars.SKIP_TESTS != 'true'
+        if: vars.SKIP_TESTS != 'true' && github.event_name == 'pull_request'
         env:
           VERSION_CODE: ${{ steps.version.outputs.build }}
           VERSION_NAME: ${{ steps.version.outputs.version }}

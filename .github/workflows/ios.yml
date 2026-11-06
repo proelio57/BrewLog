@@ -46,6 +46,10 @@ on:
       - "scripts/*next-version.sh"
       - ".github/workflows/ios.yml"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to build into (e.g. to redo a release); empty = highest release + 1"
+        required: false
 
 concurrency:
   group: ios-${{ github.ref }}
@@ -97,7 +101,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # One version for iOS and Android: the highest release + 1 (scripts/next-version.sh).
-          read -r version build < <(scripts/next-version.sh)
+          # The version is shared with Android; the build number is this workflow's run number, which only goes up
+          # (iOS and SideStore compare it on updates).
+          version="${{ inputs.version }}"
+          if [ -z "$version" ]; then read -r version _ < <(scripts/next-version.sh); fi
+          build=$GITHUB_RUN_NUMBER
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "build=$build" >> "$GITHUB_OUTPUT"
           echo "Version $version ($build)"
@@ -106,8 +114,9 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      # Tests run on the pull request; the release build after the merge skips them.
       - name: Unit tests
-        if: vars.SKIP_TESTS != 'true'
+        if: vars.SKIP_TESTS != 'true' && github.event_name == 'pull_request'
         run: |
           set -o pipefail
           device=$(xcrun simctl list devices available -j | python3 -c '
