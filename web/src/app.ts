@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SoundPlayer, WakeLock } from './audio/sound'
+import { VoicePrompter } from './audio/voicePrompter'
 import type { BrewCue, BrewSession } from './brewing/brewSession'
 import { Repository } from './data/repository'
 import { SettingsStore } from './data/settings'
@@ -22,6 +23,9 @@ export interface BrewConfig {
   filter: Equipment | null
   grindValue: number | null
   grindText: string
+  water?: Equipment | null
+  profileId?: string | null
+  profileName?: string | null
 }
 
 // App-wide singletons (simple manual wiring).
@@ -33,12 +37,15 @@ export const machine = new MachineManager(settings.get().machineKind, settings.g
 export const pressure = new PressureMonitor(settings.get().pressureEnabled, settings.get().pressureDemo,
   (pressureEnabled, pressureDemo) => settings.change((s) => ({ ...s, pressureEnabled, pressureDemo })))
 export const sound = new SoundPlayer(() => settings.get())
+export const voice = new VoicePrompter()
 export const wakeLock = new WakeLock()
 /** Built-in recipes, kept up to date by the online recipe list. */
 export const recipeFeed = new RecipeFeed(() => settings.get().onlineRecipes)
 export const presetRecipes = (): Recipe[] => recipeFeed.presets.get()
 export const allRecipes = (): Recipe[] => [...repository.data.get().customRecipes, ...presetRecipes()]
-export const setup = new BrewSetup(allRecipes)
+export const setup = new BrewSetup(allRecipes, 'filter')
+export const espressoSetup = new BrewSetup(allRecipes, 'espresso')
+export const activeSetup = (): BrewSetup => (settings.get().brewMode === 'espresso' ? espressoSetup : setup)
 
 /** The live brew survives re-renders and navigation because it lives here. */
 export const live: { brew: { config: BrewConfig; session: BrewSession } | null } = { brew: null }

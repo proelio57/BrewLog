@@ -6,6 +6,7 @@ import { LIMITS, clamped, sanitized } from '../domain/validation'
 import {
   type BeanconquerorBackup, grindValueFrom, looksLikeBackup, methodFrom, parseBeanconqueror, processFrom, roastLevelFrom, stars,
 } from './beanconqueror'
+import { GaggiMateProfileImport } from '../machine/gaggimateProfileImport'
 import { decodeRecipes } from './recipeFile'
 import { isZip } from './zip'
 
@@ -63,6 +64,9 @@ export async function parseImport(bytes: Uint8Array): Promise<ParsedImport> {
     throw new Error('No recipes found. A recipe file needs at least a "name" and "steps".')
   }
   if (looksLikeBackup(value)) return { kind: 'beanconqueror', backup: await parseBeanconqueror(bytes) }
+  if (GaggiMateProfileImport.looksLikeProfiles(value)) {
+    return { kind: 'recipes', recipes: GaggiMateProfileImport.recipes(value) }
+  }
   // BrewLog backup: {app: "BrewLog", data, samples} or the bare app data (older Android exports).
   if (isObj(value) && (value.app === 'BrewLog' || Array.isArray(value.brews) || Array.isArray(value.beans))) {
     return { kind: 'brewlog', backup: value }

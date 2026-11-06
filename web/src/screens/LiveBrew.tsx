@@ -5,7 +5,7 @@ import { goBack, live, machine, navigate, pressure, repository, scale, settings,
 import type { BrewSession, BrewSnapshot } from '../brewing/brewSession'
 import { useStore } from '../data/store'
 import { fmt1, grams, grams1, mmss, newId, scaleReadout } from '../domain/format'
-import { formatGrind, type Brew } from '../domain/models'
+import { formatGrind, machineReadsPressure, type Brew } from '../domain/models'
 import { STEP_TITLES, isPour, stepHeadline, type Recipe, type RecipeStep } from '../domain/recipe'
 import { BrewChart, MachineChart } from '../ui/chart'
 import { Card, STEP_ICONS } from '../ui/components'
@@ -47,6 +47,8 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
       filterId: config.filter?.id ?? null, filterName: config.filter?.name ?? '', filterFlow: config.filter?.filterFlow ?? null,
       filterIdealRoast: config.filter?.idealRoast ?? null, beanId: config.beanId, usedScale: session.usesScale,
       rating: 0, feedback: [], notes: '', externalId: null,
+      waterId: config.water?.id ?? null, waterName: config.water?.name ?? '',
+      profileId: config.profileId ?? null, profileName: config.profileName ?? null,
     }
     repository.saveNewBrew(brew, session.usesScale ? session.recordedSamples() : [], session.recordedMachineSamples())
     live.brew = null
@@ -100,29 +102,39 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
         </span>
       </div>
 
-      <div className="readouts">
-        <div>
-          <div className="readout-label">TIME</div>
-          <div className="readout">{mmss(snapshot.elapsed)}</div>
-          <div className="small" style={{ color: late ? 'var(--warn)' : 'var(--muted)' }}>target {mmss(session.recipe.targetTime)}</div>
+      {espresso ? (
+        <EspressoShotReadouts snapshot={snapshot} session={session} machineState={machineState} pressureState={pressureState} />
+      ) : (
+        <div className="readouts">
+          <div>
+            <div className="readout-label">TIME</div>
+            <div className="readout">{mmss(snapshot.elapsed)}</div>
+            <div className="small" style={{ color: late ? 'var(--warn)' : 'var(--muted)' }}>target {mmss(session.recipe.targetTime)}</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div className="readout-label">WEIGHT</div>
+            {snapshot.usesScale ? (
+              <>
+                <div className="readout">{scaleReadout(snapshot.phase === 'preparing' || snapshot.phase === 'dosing' || snapshot.phase === 'rinsing' ? snapshot.weight : Math.max(snapshot.weight, 0))}</div>
+                <div className="small muted tnum">{fmt1(Math.max(snapshot.flowRate, 0))} g/s</div>
+              </>
+            ) : (
+              <>
+                <div className="readout">{snapshot.activeTarget != null ? `→${Math.trunc(snapshot.activeTarget)}` : '–'}</div>
+                <div className="small muted">no scale</div>
+              </>
+            )}
+          </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div className="readout-label">WEIGHT</div>
-          {snapshot.usesScale ? (
-            <>
-              <div className="readout">{scaleReadout(snapshot.phase === 'preparing' || snapshot.phase === 'dosing' || snapshot.phase === 'rinsing' ? snapshot.weight : Math.max(snapshot.weight, 0))}</div>
-              <div className="small muted tnum">{fmt1(Math.max(snapshot.flowRate, 0))} g/s</div>
-            </>
-          ) : (
-            <>
-              <div className="readout">{snapshot.activeTarget != null ? `→${Math.trunc(snapshot.activeTarget)}` : '–'}</div>
-              <div className="small muted">no scale</div>
-            </>
-          )}
-        </div>
-      </div>
+      )}
 
-      {showMachine && (
+      {snapshot.stopRequested && (
+        <div style={{ background: 'var(--warn)', color: '#fff', padding: '12px 16px', borderRadius: 14, fontWeight: 700, textAlign: 'center', margin: '8px 0' }}>
+          Stop now — target yield reached
+        </div>
+      )}
+
+      {showMachine && !espresso && (
         <div className="row small tnum" style={{ fontWeight: 600, gap: 12 }}>
           <Gauge size={18} className="accent" />
           <span>{pressure.isReady ? `${fmt1(pressureState.pressure)} bar` : machineState.status.pressure != null ? `${fmt1(machineState.status.pressure)} bar` : '–'}</span>
@@ -229,6 +241,85 @@ function LiveBrewInner({ config, session }: { config: BrewConfig; session: BrewS
   )
 }
 
+function EspressoShotReadouts({
+  snapshot,
+  session,
+  machineState,
+  pressureState,
+}: {
+  snapshot: BrewSnapshot
+  session: BrewSession
+  machineState: typeof machine.state['value']
+  pressureState: typeof pressure.state['value']
+}) {
+  const late = snapshot.phase === 'brewing' && snapshot.elapsed >= session.recipe.targetTime
+  const readsPressure = machineReadsPressure(machineState.kind, machineState.status)
+  const livePressure = pressure.isReady
+    ? pressureState.pressure
+    : readsPressure && machineState.status.pressure != null
+      ? machineState.status.pressure
+      : null
+  const peakPressure = Math.max(0, ...snapshot.machineSamples.map((s) => s.p ?? 0))
+  const liveTemp = machineState.status.temperature
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="readouts">
+        <div>
+          <div className="readout-label">TIME</div>
+          <div className="readout">{mmss(snapshot.elapsed)}</div>
+          <div className="small" style={{ color: late ? 'var(--warn)' : 'var(--muted)' }}>
+            target {mmss(session.recipe.targetTime)}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div className="readout-label">WEIGHT</div>
+          <div className="readout">{scaleReadout(Math.max(snapshot.weight, 0))}</div>
+          <div className="small muted">of {grams(session.recipe.water)}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: 8 }}>
+        <ShotTile label="Ratio" value={snapshot.liveRatio != null ? `1:${fmt1(snapshot.liveRatio)}` : '–'} />
+        {snapshot.usesScale && (
+          <ShotTile label="Flow" value={`${fmt1(Math.max(snapshot.flowRate, 0))} g/s`} />
+        )}
+        <ShotTile
+          label="Pressure"
+          value={livePressure != null ? `${fmt1(livePressure)} bar` : '–'}
+          detail={peakPressure > 0 ? `peak ${fmt1(peakPressure)}` : undefined}
+        />
+        {machineState.connection === 'connected' && liveTemp != null && (
+          <ShotTile label="Temp" value={`${Math.round(liveTemp)} °C`} />
+        )}
+        <ShotTile
+          label="First drops"
+          value={snapshot.firstDropsTime != null ? `${Math.round(snapshot.firstDropsTime)} s` : '–'}
+        />
+      </div>
+    </div>
+  )
+}
+
+function ShotTile({ label, value, detail }: { label: string; value: string; detail?: string }) {
+  return (
+    <div
+      style={{
+        background: 'var(--card)',
+        padding: '8px 10px',
+        borderRadius: 12,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+      }}
+    >
+      <div className="tiny muted">{label}</div>
+      <div style={{ fontWeight: 600, fontSize: 15, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      {detail && <div className="tiny muted">{detail}</div>}
+    </div>
+  )
+}
+
 function ActiveStep({ snapshot, session }: { snapshot: BrewSnapshot; session: BrewSession }) {
   const recipe = session.recipe
   const current: RecipeStep | null = snapshot.currentStepIndex != null ? recipe.steps[snapshot.currentStepIndex] : null
@@ -320,7 +411,6 @@ function preparingHint(session: BrewSession, usesScale: boolean): string {
 
 function DoseCard({ weight, dose, status }: { weight: number; dose: number; status: DoseStatus }) {
   const color = status === 'onTarget' ? 'var(--good)' : status === 'over' ? 'var(--warn)' : 'var(--accent)'
-  // From 0.5 g off the plan the recipe follows what was weighed.
   const rescale = Math.abs(weight - dose) >= RESCALE_THRESHOLD ? ` Ready scales the recipe to ${grams1(weight)}.` : ''
   const hint = status === 'empty' ? 'Put a cup on the scale, tare and add the beans. Or tap Ready to brew without weighing.'
     : status === 'under' ? `${fmt1(dose - weight)} g to go.${rescale}`

@@ -1,4 +1,4 @@
-import { Coffee, FileText, Wrench } from 'lucide-react'
+import { Coffee, Droplet, FileText, Wrench } from 'lucide-react'
 import { useState } from 'react'
 import { allRecipes, goBack, repository } from '../app'
 import { useStore } from '../data/store'
@@ -27,14 +27,17 @@ export function BrewEditor({ brewId }: { brewId: string }) {
   const [finalWeight, setFinalWeight] = useState<number | null>(brew?.finalWeight ?? null)
   const [waterTemp, setWaterTemp] = useState<number | null>(brew?.waterTemp ?? null)
   const [time, setTime] = useState(() => (brew ? `${Math.floor(brew.totalTime / 60)}:${String(Math.round(brew.totalTime % 60)).padStart(2, '0')}` : ''))
+  const [tds, setTds] = useState<number | null>(brew?.tds ?? null)
+  const [drinkWeight, setDrinkWeight] = useState<number | null>(brew?.drinkWeight ?? null)
   const [brewerId, setBrewerId] = useState(brew?.brewerId ?? null)
   const [grinderId, setGrinderId] = useState(brew?.grinderId ?? null)
   const [filterId, setFilterId] = useState(brew?.filterId ?? null)
+  const [waterId, setWaterId] = useState(brew?.waterId ?? null)
+
   if (!brew) return <div className="screen"><TopBar title="Edit brew" onBack={() => goBack('/journal')} /></div>
 
   const gear = (type: Equipment['type'], current: string | null, name: string) => {
     const options = data.equipment.filter((e) => e.type === type).map((e) => ({ id: e.id, name: e.name }))
-    // A deleted item stays selectable under its old name until something else is picked.
     if (current && !options.some((o) => o.id === current) && name) options.unshift({ id: current, name })
     return options
   }
@@ -56,14 +59,14 @@ export function BrewEditor({ brewId }: { brewId: string }) {
       waterTemp: clamped(waterTemp ?? brew.waterTemp, 0, 100),
       totalTime: parseTime(),
       dose: newDose,
+      tds: tds != null && tds > 0 ? clamped(tds, 0, 30) : null,
+      drinkWeight: drinkWeight != null && drinkWeight > 0 ? clamped(drinkWeight, 0, LIMITS.maxWater) : null,
     }
     const chosen = recipes.find((r) => r.id === recipeId)
     if (recipeId !== (brew.recipe ? brew.recipeId : '') && chosen) {
-      // Another recipe: store it scaled to this brew's dose, like a brew started from it.
       const recipe = scaled(chosen, newDose > 0 ? newDose : chosen.dose)
       next = { ...next, recipeId: chosen.id, recipeName: chosen.name, recipe, targetWater: recipe.water }
     } else if (newDose !== oldDose && newDose > 0 && brew.recipe) {
-      // Same recipe, corrected dose: keep the recipe in step so ratio and pour targets still match.
       const recipe = scaled(brew.recipe, newDose)
       next = { ...next, recipe, targetWater: recipe.water }
     }
@@ -79,6 +82,10 @@ export function BrewEditor({ brewId }: { brewId: string }) {
     if (filterId !== brew.filterId) {
       const filter = find(filterId)
       next = { ...next, filterId: filter?.id ?? null, filterName: filter?.name ?? '', filterFlow: filter?.filterFlow ?? null, filterIdealRoast: filter?.idealRoast ?? null }
+    }
+    if (waterId !== brew.waterId) {
+      const water = find(waterId)
+      next = { ...next, waterId: water?.id ?? null, waterName: water?.name ?? '' }
     }
     repository.update((d) => ({
       ...d,
@@ -122,11 +129,19 @@ export function BrewEditor({ brewId }: { brewId: string }) {
             <input className="input" inputMode="numeric" value={time} onChange={(e) => setTime(e.target.value.slice(0, 8))} />
           </Field>
         </Card>
+
+        <SectionHeader title="Refractometer (Extraction)" />
+        <Card>
+          <Field label="TDS (%)"><NumberInput label="TDS (%)" value={tds} onChange={setTds} max={30} decimals={2} /></Field>
+          <Field label="Drink weight in cup (g)"><NumberInput label="Drink weight (g)" value={drinkWeight} onChange={setDrinkWeight} max={LIMITS.maxWater} decimals={1} /></Field>
+        </Card>
+
         <SectionHeader title="Gear" />
         <Card>
           <SelectRow label="Brewer" icon={Coffee} options={gear('brewer', brewerId, brew.brewerName)} value={brewerId} onChange={setBrewerId} />
           <SelectRow label="Grinder" icon={Wrench} options={gear('grinder', grinderId, brew.grinderName)} value={grinderId} onChange={setGrinderId} />
           <SelectRow label="Filter" icon={FileText} options={gear('filter', filterId, brew.filterName)} value={filterId} onChange={setFilterId} />
+          <SelectRow label="Water" icon={Droplet} options={gear('water', waterId, brew.waterName ?? '')} value={waterId} onChange={setWaterId} />
         </Card>
       </div>
     </div>

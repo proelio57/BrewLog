@@ -51,9 +51,32 @@ export interface GrinderSpec {
   finerIsLower: boolean
   /** Typical pour-over range, e.g. "20–30 clicks" (informational). */
   rangeNote: string
+  /** Default medium-fine starting value, e.g. 24 clicks for Comandante C40. */
+  defaultGrind?: number | null
+  /** Microns per step, for grind conversion. */
+  micronsPerStep?: number | null
 }
 
 export const defaultGrinderSpec = (): GrinderSpec => ({ unit: 'clicks', step: 1, adjustStep: 2, finerIsLower: true, rangeNote: '' })
+
+export function defaultStartingValue(spec: GrinderSpec): number {
+  if (spec.defaultGrind != null) return spec.defaultGrind
+  const match = spec.rangeNote.match(/([0-9]+(?:\.[0-9]+)?)[–-]([0-9]+(?:\.[0-9]+)?)/)
+  if (match) {
+    const low = parseFloat(match[1])
+    const high = parseFloat(match[2])
+    if (!isNaN(low) && !isNaN(high) && high >= low) {
+      const mid = (low + high) / 2
+      return roundHalfAway(mid / spec.step) * spec.step
+    }
+  }
+  switch (spec.unit) {
+    case 'clicks': return 20
+    case 'numbers': return spec.step < 1 ? 6 : 15
+    case 'dial': return 5
+    case 'microns': return 600
+  }
+}
 
 const decimalsFor = (spec: GrinderSpec): number => (spec.step < 1 ? (spec.step < 0.1 ? 2 : 1) : 0)
 
@@ -129,6 +152,15 @@ export const beanDisplayName = (bean: Bean): string => (bean.roaster ? `${bean.n
 export const daysOffRoast = (bean: Bean, now = Date.now()): number | null =>
   bean.roastDate == null ? null : Math.floor((now - bean.roastDate) / 86_400_000)
 
+export interface WaterProfile {
+  id: string
+  name: string
+  hardness: number
+  alkalinity: number
+  magnesiumShare?: number
+  notes?: string
+}
+
 export interface Equipment {
   id: string
   name: string
@@ -142,6 +174,8 @@ export interface Equipment {
   idealRoast: RoastLevel | null
   /** Grinders only: adjustment scale. */
   grinder: GrinderSpec
+  /** Water gear only: water minerals profile. */
+  waterProfile?: WaterProfile | null
   createdAt: number
   /** Where imported gear came from, e.g. "beanconqueror:<uuid>". */
   externalId?: string | null
@@ -196,6 +230,16 @@ export interface Brew {
   rating: number
   feedback: TasteFeedback[]
   notes: string
+  /** Refractometer reading: total dissolved solids (%). */
+  tds?: number | null
+  /** Actual weight of liquid in the cup (g) when weighed, else null. */
+  drinkWeight?: number | null
+  /** Water profile (gear of type water), optional. */
+  waterId?: string | null
+  waterName?: string | null
+  /** Espresso profile used (machine profile ID or slug). */
+  profileId?: string | null
+  profileName?: string | null
   /** Where an imported brew came from, e.g. "beanconqueror:<uuid>". Prevents duplicates on re-import. */
   externalId: string | null
 }
@@ -228,6 +272,106 @@ export interface AppData {
 
 export const emptyAppData = (): AppData => ({ version: 1, beans: [], equipment: [], brews: [], customRecipes: [] })
 
+export type MachineKind = 'none' | 'gaggimate' | 'decent' | 'laMarzocco' | 'demo'
+export const MACHINE_KINDS: MachineKind[] = ['none', 'gaggimate', 'decent', 'laMarzocco', 'demo']
+
+export const MACHINE_TITLES: Record<MachineKind, string> = {
+  none: 'None',
+  gaggimate: 'GaggiMate',
+  decent: 'Decent DE1',
+  laMarzocco: 'La Marzocco',
+  demo: 'Demo machine',
+}
+
+export type MachineCapability = 'profiles' | 'temperatureNudge' | 'machineScale' | 'startStop' | 'power'
+
+export const MACHINE_CAPABILITIES: Record<MachineKind, Set<MachineCapability>> = {
+  none: new Set(),
+  gaggimate: new Set(['profiles', 'temperatureNudge', 'machineScale', 'startStop']),
+  demo: new Set(['profiles', 'temperatureNudge', 'machineScale', 'startStop']),
+  decent: new Set(['startStop']),
+  laMarzocco: new Set(['power', 'temperatureNudge']),
+}
+
+export function suggestMachineKind(brewerName: string): MachineKind | null {
+  const lower = brewerName.toLowerCase()
+  if (lower.includes('gaggimate')) return 'gaggimate'
+  if (lower.includes('decent')) return 'decent'
+  if (lower.includes('marzocco')) return 'laMarzocco'
+  return null
+}
+
+export type MachineMode = 'standby' | 'brew' | 'steam' | 'water' | 'grind'
+
+export interface MachineProfileSummary {
+  id: string
+  label: string
+  name?: string
+  author?: string
+  notes?: string
+  isSelected: boolean
+  isFavorite: boolean
+  isBrewLogs: boolean
+  recipe: Recipe | null
+}
+
+export interface MachineStatus {
+  connected: boolean
+  online: boolean
+  temperature: number | null
+  targetTemperature: number | null
+  pressure: number | null
+  targetPressure: number | null
+  flow: number | null
+  weight: number | null
+  mode: number | null
+  profile: string | null
+  hasPressure: boolean | null
+  processActive: boolean
+  processKind: string | null
+  processLabel: string | null
+  processIsUtility: boolean
+  scaleConnected: boolean
+  systemState: string | null
+  systemMessage: string | null
+  capabilities: MachineCapability[]
+  deviceKind?: MachineKind
+  deviceName?: string
+  profiles?: MachineProfileSummary[]
+  selectedProfileId?: string | null
+}
+
+export const emptyMachineStatus = (): MachineStatus => ({
+  connected: false,
+  online: false,
+  temperature: null,
+  targetTemperature: null,
+  pressure: null,
+  targetPressure: null,
+  flow: null,
+  weight: null,
+  mode: null,
+  profile: null,
+  hasPressure: null,
+  processActive: false,
+  processKind: null,
+  processLabel: null,
+  processIsUtility: false,
+  scaleConnected: false,
+  systemState: null,
+  systemMessage: null,
+  capabilities: [],
+  deviceKind: 'none',
+})
+
+export function machineReadsPressure(kind: MachineKind, status: { hasPressure?: boolean | null }): boolean {
+  return kind !== 'none' && kind !== 'laMarzocco' && status.hasPressure !== false
+}
+
+export function machineCanControl(kind: MachineKind, isConnected: boolean): boolean {
+  return MACHINE_CAPABILITIES[kind].has('startStop') && isConnected
+}
+
 export type PingLeadMode = 'auto' | 'fixed'
 
 export interface AppSettings {
@@ -253,10 +397,20 @@ export interface AppSettings {
   demoScale: boolean
   /** Download new and updated recipes every few hours. */
   onlineRecipes: boolean
-  machineKind: 'none' | 'gaggimate' | 'demo'
+  machineKind: MachineKind
   machineHost: string
   pressureEnabled: boolean
   pressureDemo: boolean
+  brewMode: 'filter' | 'espresso'
+  autoStopShot: boolean
+  shotStopLag: number
+  voicePrompts: boolean
+  voiceAnnounceAhead: boolean
+  valveCountdown: boolean
+  decentDeviceId: string
+  laMarzoccoUser: string
+  laMarzoccoPassword: string
+  laMarzoccoSerial: string
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -283,4 +437,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   machineHost: 'gaggimate.local',
   pressureEnabled: false,
   pressureDemo: false,
+  brewMode: 'filter',
+  autoStopShot: true,
+  shotStopLag: 1.0,
+  voicePrompts: false,
+  voiceAnnounceAhead: true,
+  valveCountdown: true,
+  decentDeviceId: '',
+  laMarzoccoUser: '',
+  laMarzoccoPassword: '',
+  laMarzoccoSerial: '',
 }

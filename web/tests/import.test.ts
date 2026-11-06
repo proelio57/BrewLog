@@ -173,6 +173,18 @@ describe('import detection and BrewLog backups', () => {
   it('detects the file type', async () => {
     expect((await parseImport(bytes(BACKUP_JSON))).kind).toBe('beanconqueror')
     expect((await parseImport(bytes(JSON.stringify(blankRecipe())))).kind).toBe('recipes')
+    expect(
+      (
+        await parseImport(
+          bytes(
+            JSON.stringify({
+              label: 'My Profile',
+              phases: [{ phase: 'brew', duration: 25, pump: 100 }],
+            }),
+          ),
+        )
+      ).kind,
+    ).toBe('recipes')
     expect((await parseImport(bytes('{"app":"BrewLog","format":1,"data":{}}'))).kind).toBe('brewlog')
     expect((await parseImport(bytes('{"beans":[],"brews":[]}'))).kind).toBe('brewlog')
     await expect(parseImport(bytes('hello'))).rejects.toThrow()

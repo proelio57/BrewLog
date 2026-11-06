@@ -242,3 +242,59 @@ export function suggestionIcon(key: string): LucideIcon {
   if (key === 'clarity') return ChartLine
   return Coffee
 }
+
+export interface CapsuleOption<T extends string = string> {
+  value?: T
+  id?: T
+  label?: string
+  title?: string
+}
+
+export function CapsuleSwitch<T extends string>({
+  options,
+  selected,
+  onChange,
+  onSelect,
+}: {
+  options: CapsuleOption<T>[]
+  selected: T
+  onChange?: (value: T) => void
+  onSelect?: (value: T) => void
+}) {
+  const normalized = options.map((o) => ({
+    value: (o.value ?? o.id) as T,
+    label: (o.label ?? o.title) as string,
+  }))
+  const selectedIndex = Math.max(0, normalized.findIndex((o) => o.value === selected))
+  const widthPercent = 100 / normalized.length
+  const trigger = (val: T) => {
+    onChange?.(val)
+    onSelect?.(val)
+  }
+
+  return (
+    <div className="capsule-switch" role="tablist">
+      <div
+        className="thumb"
+        style={{
+          width: `calc(${widthPercent}% - 6px)`,
+          left: '3px',
+          transform: `translateX(calc(${selectedIndex * 100}% + ${selectedIndex * 6}px))`,
+        }}
+      />
+      {normalized.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          role="tab"
+          aria-selected={opt.value === selected}
+          className={opt.value === selected ? 'active' : ''}
+          onClick={() => trigger(opt.value)}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
