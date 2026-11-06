@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.0.1",
+          "buildVersion": "94",
+          "date": "2026-11-06T18:25:18Z",
+          "localizedDescription": "iOS\n• Fix the live espresso screen running past the screen edges with the pressure view: the pressure chart now fills the space that is left\n• The landscape chart turns straight to landscape instead of showing upright for a moment\n• Pressure view with a machine that measures the pressure itself (GaggiMate, Decent): weight and pressure side by side instead of one giant pressure number, with both charts\n• Switching between Filter and Espresso is instant, with a cross-fade\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.1/BrewLog.ipa",
+          "size": 12613989,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.0.0",
           "buildVersion": "91",
           "date": "2026-11-06T16:45:29Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.52/BrewLog.ipa",
           "size": 3148204,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.47",
-          "buildVersion": "47",
-          "date": "2026-11-02T16:55:56Z",
-          "localizedDescription": "• ShotMonitor decides when an espresso shot stops and finishes\n\n• Espresso remembers its own setup\n\n• Espresso shots stop at the target yield and finish by themselves\n\n• Live shot readouts with ratio, flow, pressure and temperature\n\n• Filter | Espresso switch with its own espresso screen\n\n• Espresso auto-stop settings\n\n• BrewStats computes activity, trends, beans and recipes\n\n• Brews feed the statistics\n\n• Statistics for pour-over and espresso with charts and trends\n\n• Keep the yield ping without auto stop and own espresso recipes in the espresso setup",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.47/BrewLog.ipa",
-          "size": 3137881,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.0.0",
-      "versionDate": "2026-11-06T16:45:29Z",
-      "versionDescription": "iOS\n• Pressure view: big colour-coded pressure number and pressure graph with a target band while a pressure sensor is connected (Settings: Automatic, Always, Off)\n• Landscape full-screen chart with a button or by turning the phone (can be turned off in Settings)\n• Bigger, coloured flow (g/s) readout\n• Weight cleanup now runs on the shared Kotlin Multiplatform core\n\nAndroid\n• Add Dark Mode toggle in Settings (Appearance: System, Light, Dark)\n• Fix capsule switch thumb width across Filter/Espresso and Journal toggles\n• Fix Journal top header layout when no brews have been recorded yet\n• Fix espresso machine chip wrap and eliminate empty space in machine settings\n• Fix in-app APK installer closing unexpectedly after Google Play Protect scan\n• Migrate core domain, brew analytics and Compose theme to Kotlin Multiplatform\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.0/BrewLog.ipa",
-      "size": 12587918
+      "version": "2.0.1",
+      "versionDate": "2026-11-06T18:25:18Z",
+      "versionDescription": "iOS\n• Fix the live espresso screen running past the screen edges with the pressure view: the pressure chart now fills the space that is left\n• The landscape chart turns straight to landscape instead of showing upright for a moment\n• Pressure view with a machine that measures the pressure itself (GaggiMate, Decent): weight and pressure side by side instead of one giant pressure number, with both charts\n• Switching between Filter and Espresso is instant, with a cross-fade\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.1/BrewLog.ipa",
+      "size": 12613989
     }
   ],
   "news": []
