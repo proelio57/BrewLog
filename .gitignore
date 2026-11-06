@@ -40,6 +40,7 @@ keystore.properties
 captures/
 .cxx/
 *.apk
+!BrewLog.apk
 *.aab
 *.hprof
 # Android Studio / IntelliJ / VSCode

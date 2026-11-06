@@ -107,6 +107,20 @@ jobs:
           path: build/*.apk
           retention-days: 14
 
+      - name: Commit APK to repository
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          cp "build/BrewLog-${{ steps.version.outputs.version }}.apk" BrewLog.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BrewLog.apk
+          if git diff --staged --quiet; then
+            echo "No change in BrewLog.apk"
+          else
+            git commit -m "build(android): update BrewLog.apk to v${{ steps.version.outputs.version }} [skip ci]"
+            git push origin main
+          fi
+
       - name: Publish Release APK
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:

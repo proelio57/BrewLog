@@ -52,17 +52,20 @@ fi
 
 if [ "$BUILD_TYPE" == "Release" ]; then
   # Clean up old release builds
-  rm -f build/*release*.apk build/BrewLog.apk build/BrewLog-[0-9]*.apk
+  rm -f build/*release*.apk build/BrewLog.apk build/BrewLog-[0-9]*.apk BrewLog.apk
   if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
     cp "android/app/build/outputs/apk/release/app-release.apk" "build/BrewLog-${VERSION}.apk"
-    echo "==> Successfully built: $(pwd)/build/BrewLog-${VERSION}.apk"
+    cp "android/app/build/outputs/apk/release/app-release.apk" "BrewLog.apk"
+    echo "==> Successfully built: $(pwd)/build/BrewLog-${VERSION}.apk and $(pwd)/BrewLog.apk"
   elif [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
     cp "android/app/build/outputs/apk/release/app-release-unsigned.apk" "build/BrewLog-${VERSION}-release-unsigned.apk"
-    echo "==> Successfully built: $(pwd)/build/BrewLog-${VERSION}-release-unsigned.apk (unsigned)"
+    cp "android/app/build/outputs/apk/release/app-release-unsigned.apk" "BrewLog.apk"
+    echo "==> Successfully built: $(pwd)/build/BrewLog-${VERSION}-release-unsigned.apk (unsigned) and $(pwd)/BrewLog.apk"
   fi
 else
   # Clean up old debug builds
-  rm -f build/*debug*.apk
+  rm -f build/*debug*.apk BrewLog.apk
   cp "android/app/build/outputs/apk/debug/app-debug.apk" "build/BrewLog-${VERSION}-debug.apk"
-  echo "==> Successfully built: $(pwd)/build/BrewLog-${VERSION}-debug.apk"
+  cp "android/app/build/outputs/apk/debug/app-debug.apk" "BrewLog.apk"
+  echo "==> Successfully built: $(pwd)/build/BrewLog-${VERSION}-debug.apk and $(pwd)/BrewLog.apk"
 fi
