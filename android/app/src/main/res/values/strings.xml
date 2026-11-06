@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BrewLog</string>
-    <string name="widget_status_description">Your current beans (days off roast, grams left) and your last brew.</string>
+    <string name="widget_status_title">Next brew</string>
+    <string name="widget_status_description">Your beans with days off roast and what\'s left, and the grind and recipe for the next cup.</string>
+    <string name="widget_quick_title">Quick start</string>
     <string name="widget_quick_description">Start a brew or Quick weigh with one tap.</string>
+    <string name="widget_stats_title">Coffee stats</string>
+    <string name="widget_stats_description">Brews this week, your streak and ratings.</string>
+    <string name="widget_beans_left_title">Beans left</string>
+    <string name="widget_beans_left_description">How many cups your beans still make at your dose, and whether they\'re in their prime.</string>
 </resources>

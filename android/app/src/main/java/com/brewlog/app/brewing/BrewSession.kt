@@ -5,6 +5,7 @@ import com.brewlog.app.domain.InputLimits
 import com.brewlog.app.domain.MachineSample
 import com.brewlog.app.machine.GaggiMateStatus
 import com.brewlog.app.machine.MachineManager
+import com.brewlog.app.machine.MachineStatus
 import com.brewlog.app.domain.PingLeadMode
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.StepAnnouncement
@@ -32,6 +33,8 @@ enum class BrewCue {
 }
 
 enum class BrewPhase {
+    /** Optional paper rinse step before weighing / preparing (pour-over only). */
+    RINSING,
     /** Weighing the beans on the tared scale (optional, before the brewer goes on). */
     DOSING,
     PREPARING, ARMED, BREWING, FINISHED,
@@ -60,6 +63,12 @@ data class BrewSnapshot(
     val doseStatus: BeanDosing.Status = BeanDosing.Status.EMPTY,
     /** Espresso: pressure/temperature/flow recorded during the shot. */
     val machineSamples: List<MachineSample> = emptyList(),
+    val liveRatio: Double? = null,
+    val firstDropsTime: Double? = null,
+    val peakPressure: Double = 0.0,
+    val currentPressure: Double? = null,
+    val currentTemperature: Double? = null,
+    val stopRequested: Boolean = false,
 )
 
 /**
@@ -88,9 +97,23 @@ class BrewSession(
 
     /** Espresso with a connected machine: the shot timer starts and stops with the machine's pump. */
     val followsMachine: Boolean get() = isEspresso && machine?.isConnected == true
+    private val machineStartsShot: Boolean
+        get() = followsMachine && machine?.kind?.capabilities?.contains(com.brewlog.app.machine.MachineCapability.START_STOP) == true
 
     /** Espresso with live pressure, from the BOOKOO Espresso Monitor or the machine. */
     val hasPressure: Boolean get() = isEspresso && (monitorReady() || (machine?.isConnected == true && machine.status.hasPressure != false))
+
+    private var shotMonitor: ShotMonitor? = null
+    var stopRequested: Boolean = false
+        private set
+    var peakPressure: Double = 0.0
+        private set
+    var currentPressure: Double? = null
+        private set
+    var currentTemperature: Double? = null
+        private set
+    val firstDropsTime: Double? get() = shotMonitor?.firstDropsTime
+    val liveRatio: Double? get() = shotMonitor?.liveRatio
 
     /** The weight comes from the scale connected to the espresso machine instead of BrewLog's own connection. */
     private var weighsViaMachine = false
@@ -154,12 +177,27 @@ class BrewSession(
     /** Weighing the beans needs a scale. */
     val canWeighBeans: Boolean get() = scale.isReady && (phase == BrewPhase.PREPARING || phase == BrewPhase.DOSING)
 
-    /** Called once when the live screen opens: starts by weighing the beans if that's switched on. */
+    /** Called once when the live screen opens: starts by rinsing paper / weighing beans if switched on. */
     fun prepare() {
         // Only once per brew, so recreating the screen (e.g. rotating) doesn't ask again.
         if (prepared) return
         prepared = true
-        if (settings().weighBeansFirst) weighBeans()
+        if (settings().rinsePaper && !isEspresso) {
+            phase = BrewPhase.RINSING
+            publish()
+        } else if (settings().weighBeansFirst) {
+            weighBeans()
+        }
+    }
+
+    /** Paper rinsed (or skipped): on to weighing the beans if that's switched on. */
+    fun rinseDone() {
+        if (phase != BrewPhase.RINSING) return
+        phase = BrewPhase.PREPARING
+        publish()
+        if (settings().weighBeansFirst) {
+            weighBeans()
+        }
     }
 
     /** Tare the scale and weigh the beans against the planned dose. */
@@ -241,7 +279,7 @@ class BrewSession(
     private fun machineShot(started: Boolean, atMs: Long) {
         if (started) {
             when (phase) {
-                BrewPhase.DOSING, BrewPhase.PREPARING -> { ready(); begin(atMs) }
+                BrewPhase.RINSING, BrewPhase.DOSING, BrewPhase.PREPARING -> { ready(); begin(atMs) }
                 BrewPhase.ARMED -> begin(atMs)
                 else -> Unit
             }
@@ -251,24 +289,30 @@ class BrewSession(
         }
     }
 
-    private fun machineReading(status: GaggiMateStatus, atMs: Long) {
+    private val usesSensor: Boolean get() = monitorReady() && (machine == null || !machine.readsPressure)
+
+    private fun machineReading(status: MachineStatus, atMs: Long) {
         val grams = status.weight
         if (weighsViaMachine && grams != null) ingest(grams, atMs)
+        if (status.temperature != null) currentTemperature = status.temperature
         // With the pressure sensor connected, its (faster, group-head) readings make the curve.
-        if (monitorReady()) return
+        if (usesSensor) return
         recordPressure(status.pressure ?: 0.0, status.temperature, status.flow, atMs)
     }
 
     /** A reading from the BOOKOO Espresso Monitor. */
     fun monitorReading(bar: Double, atMs: Long) {
-        if (!isEspresso) return
+        if (!isEspresso || !usesSensor) return
         // Without a machine connection, rising pressure means the pump started: start the shot timer.
-        if (phase == BrewPhase.ARMED && !followsMachine && bar >= 1) begin(atMs)
+        if (phase == BrewPhase.ARMED && !machineStartsShot && bar >= 1) begin(atMs)
         val status = if (machine?.isConnected == true) machine.status else null
         recordPressure(bar, status?.temperature, status?.flow, atMs)
     }
 
     private fun recordPressure(bar: Double, temperature: Double?, flow: Double?, atMs: Long) {
+        currentPressure = bar
+        if (bar > peakPressure) peakPressure = bar
+        if (temperature != null) currentTemperature = temperature
         if (phase != BrewPhase.BREWING || machineSamples.size >= MAX_SAMPLES) return
         val start = startMs ?: return
         val t = (atMs - start) / 1000.0
@@ -347,10 +391,36 @@ class BrewSession(
             BrewPhase.BREWING -> {
                 val start = startMs ?: return
                 maxWeight = max(maxWeight, grams)
-                appendSample((atMs - start) / 1000.0, grams, force = false)
-                checkTargetPing()
+                val t = (atMs - start) / 1000.0
+                appendSample(t, grams, force = false)
+                if (isEspresso) {
+                    checkShot(grams, t)
+                } else {
+                    checkTargetPing()
+                }
             }
             else -> Unit
+        }
+    }
+
+    private fun checkShot(grams: Double, t: Double) {
+        val shot = shotMonitor ?: return
+        val action = shot.ingest(grams, flowRate, t)
+        when (action) {
+            ShotMonitor.Action.STOP -> {
+                if (followsMachine && machine?.canControl == true && machine.status.isBrewing) {
+                    machine.stopShot()
+                } else {
+                    stopRequested = true
+                }
+                fire(BrewCue.TARGET)
+            }
+            ShotMonitor.Action.FINISH -> {
+                if (!machineStartsShot) {
+                    onAutoFinish?.invoke()
+                }
+            }
+            ShotMonitor.Action.NONE -> Unit
         }
     }
 
@@ -384,6 +454,20 @@ class BrewSession(
         machineSamples.clear()
         lastMachineSampleT = -1.0
         stopRequestedAt = null
+        if (isEspresso) {
+            val s = settings()
+            shotMonitor = if (usesScale) {
+                ShotMonitor(
+                    yield = recipe.water,
+                    dose = dose,
+                    stopLag = s.shotStopLag,
+                    autoStop = s.autoStopShot,
+                )
+            } else null
+            peakPressure = 0.0
+            currentPressure = null
+            stopRequested = false
+        }
         if (usesScale && !weighsViaMachine) scale.brewStarted()
         // The first step at 0:00 is silent; just mark it as started.
         recipe.steps.forEachIndexed { index, step -> if (step.time <= 0) startPinged.add(index) }
@@ -546,6 +630,12 @@ class BrewSession(
             weighedDose = weighedDose,
             doseStatus = BeanDosing.status(weight, plannedDose),
             machineSamples = machineSamples.toList(),
+            liveRatio = liveRatio,
+            firstDropsTime = firstDropsTime,
+            peakPressure = peakPressure,
+            currentPressure = currentPressure,
+            currentTemperature = currentTemperature,
+            stopRequested = stopRequested,
         )
     }
 

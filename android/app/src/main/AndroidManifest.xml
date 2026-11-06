@@ -56,17 +56,29 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name=".widget.StatusWidgetReceiver" android:exported="false" android:label="Beans &amp; last brew">
+        <receiver android:name=".widget.StatusWidgetReceiver" android:exported="false" android:label="@string/widget_status_title">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/status_widget_info" />
         </receiver>
-        <receiver android:name=".widget.QuickWidgetReceiver" android:exported="false" android:label="Quick start">
+        <receiver android:name=".widget.QuickWidgetReceiver" android:exported="false" android:label="@string/widget_quick_title">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/quick_widget_info" />
+        </receiver>
+        <receiver android:name=".widget.StatsWidgetReceiver" android:exported="false" android:label="@string/widget_stats_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/stats_widget_info" />
+        </receiver>
+        <receiver android:name=".widget.BeansLeftWidgetReceiver" android:exported="false" android:label="@string/widget_beans_left_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/beans_left_widget_info" />
         </receiver>
 
         <provider

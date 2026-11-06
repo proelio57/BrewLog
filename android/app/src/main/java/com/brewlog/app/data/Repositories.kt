@@ -59,6 +59,9 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             .putBoolean("chartShowsFlow", next.chartShowsFlow)
             .putBoolean("onlineRecipes", next.onlineRecipes)
             .putBoolean("espressoPressureEnabled", next.espressoPressureEnabled)
+            .putBoolean("autoStopShot", next.autoStopShot)
+            .putFloat("shotStopLag", next.shotStopLag.toFloat())
+            .putBoolean("rinsePaper", next.rinsePaper)
             .apply()
     }
 
@@ -87,6 +90,9 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             chartShowsFlow = prefs.getBoolean("chartShowsFlow", d.chartShowsFlow),
             onlineRecipes = prefs.getBoolean("onlineRecipes", d.onlineRecipes),
             espressoPressureEnabled = prefs.getBoolean("espressoPressureEnabled", d.espressoPressureEnabled),
+            autoStopShot = prefs.getBoolean("autoStopShot", d.autoStopShot),
+            shotStopLag = prefs.getFloat("shotStopLag", d.shotStopLag.toFloat()).toDouble().coerceIn(0.5, 2.5),
+            rinsePaper = prefs.getBoolean("rinsePaper", d.rinsePaper),
         )
     }
 }

@@ -14,3 +14,6 @@
 -dontwarn com.fasterxml.jackson.**
 -dontwarn org.slf4j.**
 -dontwarn java.beans.**
+-dontwarn java.lang.reflect.AnnotatedParameterizedType
+-dontwarn java.lang.reflect.AnnotatedType
+-dontwarn com.github.victools.**

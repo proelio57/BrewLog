@@ -40,25 +40,32 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -77,6 +84,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brewlog.app.LocalContainer
 import com.brewlog.app.domain.Bean
+import com.brewlog.app.domain.BrewMethod
 import com.brewlog.app.domain.Equipment
 import com.brewlog.app.domain.EquipmentPreset
 import com.brewlog.app.domain.EquipmentType
@@ -84,19 +92,21 @@ import com.brewlog.app.domain.FilterFlow
 import com.brewlog.app.domain.GrindUnit
 import com.brewlog.app.domain.InputLimits
 import com.brewlog.app.domain.RoastLevel
+import com.brewlog.app.domain.fmt1
 import com.brewlog.app.domain.sanitized
+import com.brewlog.app.machine.MachineKind
 import com.brewlog.app.ui.components.BrewCard
 import com.brewlog.app.ui.components.FilterIcon
 import com.brewlog.app.ui.components.PillChip
 import com.brewlog.app.ui.components.SectionHeader
 import com.brewlog.app.ui.theme.GoodGreen
 
-private enum class Step { WELCOME, BREWER, FILTER, GRINDER, BEANS, SCALE, DONE }
+private enum class Step { WELCOME, BREWER, MACHINE, FILTER, GRINDER, BEANS, SCALE, DONE }
 
-private val questionSteps = listOf(Step.BREWER, Step.FILTER, Step.GRINDER, Step.BEANS, Step.SCALE)
+private val allQuestionSteps = listOf(Step.BREWER, Step.MACHINE, Step.FILTER, Step.GRINDER, Step.BEANS, Step.SCALE)
 private const val CUSTOM_GRINDER = "__custom__"
 
-/** First-launch setup assistant: brewer → filter → grinder → beans → scale. Every step is optional. */
+/** First-launch setup assistant: brewer → machine (if espresso) → filter → grinder → beans → scale. Every step is optional. */
 @Composable
 fun OnboardingScreen(onFinish: () -> Unit, onJustWeigh: () -> Unit) {
     val container = LocalContainer.current
@@ -115,18 +125,21 @@ fun OnboardingScreen(onFinish: () -> Unit, onJustWeigh: () -> Unit) {
     val grinderSpec = if (grinder == CUSTOM_GRINDER) EquipmentPreset.specFor(customUnit)
     else EquipmentPreset.grinders.firstOrNull { it.name == grinder }?.grinder
 
-    fun go(next: Step) {
-        forward = next.ordinal > step.ordinal
-        step = next
-        container.haptics.tap()
+    val chosenEspressoMachines = remember(brewers.toList()) {
+        brewers.mapNotNull { name -> EquipmentPreset.brewers.firstOrNull { it.name == name } }
+            .filter { it.method == BrewMethod.ESPRESSO }
     }
+    val hasEspresso = chosenEspressoMachines.isNotEmpty()
+    val onlyEspresso = brewers.isNotEmpty() && chosenEspressoMachines.size == brewers.size
 
-    val hasChoice = when (step) {
-        Step.BREWER -> brewers.isNotEmpty()
-        Step.FILTER -> filters.isNotEmpty()
-        Step.GRINDER -> if (grinder == CUSTOM_GRINDER) customName.isNotBlank() else grinder != null
-        Step.BEANS -> beanName.isNotBlank()
-        else -> true
+    val questionSteps = remember(brewers.toList()) {
+        allQuestionSteps.filter { candidate ->
+            when (candidate) {
+                Step.MACHINE -> hasEspresso
+                Step.FILTER -> brewers.isEmpty() || !onlyEspresso
+                else -> true
+            }
+        }
     }
 
     fun finish() {
@@ -137,7 +150,9 @@ fun OnboardingScreen(onFinish: () -> Unit, onJustWeigh: () -> Unit) {
             repo.upsertEquipment(it)
             byName[it.name] = it
         }
-        brewers.mapNotNull { n -> EquipmentPreset.brewers.firstOrNull { it.name == n } }.map(::ensure).firstOrNull()?.let { setup.brewerId = it.id }
+        val chosenBrewers = brewers.mapNotNull { n -> EquipmentPreset.brewers.firstOrNull { it.name == n } }.map(::ensure)
+        chosenBrewers.firstOrNull { it.method != BrewMethod.ESPRESSO }?.let { setup.brewerId = it.id }
+        chosenBrewers.firstOrNull { it.method == BrewMethod.ESPRESSO }?.let { container.espressoSetup.brewerId = it.id }
         filters.mapNotNull { n -> EquipmentPreset.filters.firstOrNull { it.name == n } }.map(::ensure).firstOrNull()?.let { setup.filterId = it.id }
         val grinderItem = if (grinder == CUSTOM_GRINDER) {
             val name = customName.sanitized(InputLimits.MAX_NAME_LENGTH)
@@ -159,10 +174,43 @@ fun OnboardingScreen(onFinish: () -> Unit, onJustWeigh: () -> Unit) {
         onFinish()
     }
 
+    fun go(next: Step) {
+        forward = next.ordinal > step.ordinal
+        step = next
+        container.haptics.tap()
+    }
+
+    fun goBack() {
+        val currentIdx = questionSteps.indexOf(step)
+        if (currentIdx > 0) go(questionSteps[currentIdx - 1]) else go(Step.WELCOME)
+    }
+
+    fun goNext() {
+        if (step == Step.DONE) {
+            finish()
+        } else {
+            val currentIdx = questionSteps.indexOf(step)
+            if (currentIdx in 0 until questionSteps.size - 1) {
+                go(questionSteps[currentIdx + 1])
+            } else {
+                go(Step.DONE)
+            }
+        }
+    }
+
+    val hasChoice = when (step) {
+        Step.BREWER -> brewers.isNotEmpty()
+        Step.MACHINE -> true
+        Step.FILTER -> filters.isNotEmpty()
+        Step.GRINDER -> if (grinder == CUSTOM_GRINDER) customName.isNotBlank() else grinder != null
+        Step.BEANS -> beanName.isNotBlank()
+        else -> true
+    }
+
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).systemBarsPadding().imePadding()) {
         if (step != Step.WELCOME) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { go(Step.entries[step.ordinal - 1]) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                IconButton(onClick = ::goBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.Center) {
                     questionSteps.forEach { q ->
                         Box(
@@ -188,17 +236,34 @@ fun OnboardingScreen(onFinish: () -> Unit, onJustWeigh: () -> Unit) {
                     container.settings.update { it.copy(onboardingDone = true) }
                     onJustWeigh()
                 })
-                Step.BREWER -> TileStep("What do you brew with?", "Pick one or more. The first one becomes your default.",
-                    EquipmentPreset.brewers, brewers) { p -> Triple(p.method?.displayName ?: "", Icons.Filled.Coffee, null) }
+                Step.BREWER -> {
+                    val pourOver = remember { EquipmentPreset.brewers.filter { it.method != BrewMethod.ESPRESSO } }
+                    val espresso = remember { EquipmentPreset.brewers.filter { it.method == BrewMethod.ESPRESSO } }
+                    val all = remember { pourOver + espresso }
+                    TileStep(
+                        title = "What do you brew with?",
+                        subtitle = "Pick one or more. The first one becomes your default.",
+                        presets = all,
+                        selection = brewers,
+                        sectionTitle = { idx ->
+                            if (idx == 0) "Pour-over" else if (idx == pourOver.size) "Espresso machines" else null
+                        },
+                    ) { p -> Triple(p.method?.displayName ?: "", Icons.Filled.Coffee, null) }
+                }
+                Step.MACHINE -> MachineStep(chosenEspressoMachines)
                 Step.FILTER -> FilterStep(brewers, filters)
                 Step.GRINDER -> GrinderStep(grinder, { grinder = it; grindValue = null }, customName, { customName = it }, customUnit, { customUnit = it })
                 Step.BEANS -> BeansStep(beanName, { beanName = it }, roaster, { roaster = it }, roastLevel) { roastLevel = it }
                 Step.SCALE -> ScaleStep()
-                Step.DONE -> DoneStep(brewers.firstOrNull(), filters.firstOrNull(),
-                    (if (grinder == CUSTOM_GRINDER) customName.ifBlank { null } else grinder)?.let { name ->
+                Step.DONE -> DoneStep(
+                    brewer = brewers.firstOrNull(),
+                    filter = if (onlyEspresso) null else filters.firstOrNull(),
+                    grinder = (if (grinder == CUSTOM_GRINDER) customName.ifBlank { null } else grinder)?.let { name ->
                         name + (grindValue?.let { v -> grinderSpec?.let { " · ${it.format(v)}" } } ?: "")
                     },
-                    beanName.ifBlank { null })
+                    bean = beanName.ifBlank { null },
+                    hasEspresso = hasEspresso,
+                )
             }
         }
         if (step == Step.GRINDER && grinderSpec != null) {
@@ -210,7 +275,7 @@ fun OnboardingScreen(onFinish: () -> Unit, onJustWeigh: () -> Unit) {
         }
         if (step != Step.WELCOME) {
             Button(
-                onClick = { if (step == Step.DONE) finish() else go(Step.entries[step.ordinal + 1]) },
+                onClick = ::goNext,
                 modifier = Modifier.fillMaxWidth().padding(16.dp).height(56.dp),
                 shape = RoundedCornerShape(18.dp),
                 colors = if (hasChoice) ButtonDefaults.buttonColors() else ButtonDefaults.buttonColors(
@@ -220,6 +285,7 @@ fun OnboardingScreen(onFinish: () -> Unit, onJustWeigh: () -> Unit) {
                     when {
                         step == Step.DONE -> "Start brewing"
                         step == Step.SCALE -> "Continue"
+                        step == Step.MACHINE -> "Continue"
                         step == Step.BEANS -> if (hasChoice) "Continue" else "Add beans later"
                         hasChoice -> "Continue"
                         else -> "Skip this step"
@@ -471,9 +537,185 @@ private fun ScaleStep() {
 }
 
 @Composable
-private fun DoneStep(brewer: String?, filter: String?, grinder: String?, bean: String?) {
+private fun MachineStep(
+    chosenEspressoMachines: List<EquipmentPreset>,
+) {
+    val container = LocalContainer.current
+    val machine = container.machine
+    val state by machine.state.collectAsStateWithLifecycle()
+    var machineHost by rememberSaveable { mutableStateOf(state.host) }
+    var showDecentSheet by remember { mutableStateOf(false) }
+    var showLMSheet by remember { mutableStateOf(false) }
+    val names = remember(chosenEspressoMachines) { chosenEspressoMachines.map { it.name } }
+    val kinds = remember { MachineKind.connectable + listOf(MachineKind.DEMO, MachineKind.NONE) }
+
+    LaunchedEffect(Unit) {
+        if (state.kind == MachineKind.NONE) {
+            val suggested = names.firstNotNullOfOrNull { MachineKind.suggested(it) }
+            if (suggested != null) {
+                machine.configure(suggested, state.host)
+            }
+        }
+    }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        item(span = { GridItemSpan(2) }) {
+            StepHeader(
+                "Connect your espresso machine",
+                "BrewLog can record pressure, temperature and the shot from these machines. Yours isn't listed? Skip: the scale times the shot.",
+            )
+        }
+        items(kinds, key = { it.raw }) { kind ->
+            val isSelected = state.kind == kind
+            val isYours = names.any { MachineKind.suggested(it) == kind }
+            val icon = when (kind) {
+                MachineKind.NONE -> Icons.Filled.Close
+                MachineKind.GAGGIMATE -> Icons.Filled.Wifi
+                MachineKind.DECENT -> Icons.Filled.Bluetooth
+                MachineKind.LA_MARZOCCO -> Icons.Filled.Cloud
+                MachineKind.DEMO -> Icons.Filled.PlayCircle
+            }
+            Tile(
+                title = if (kind == MachineKind.NONE) "Not connected" else kind.title,
+                subtitle = kind.connectionNote,
+                icon = icon,
+                selected = isSelected,
+                badge = if (isYours) "Yours" else null,
+            ) {
+                machine.configure(kind, machineHost)
+            }
+        }
+
+        item(span = { GridItemSpan(2) }) {
+            when (state.kind) {
+                MachineKind.GAGGIMATE -> {
+                    BrewCard {
+                        Text("Address of your GaggiMate", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = machineHost,
+                            onValueChange = {
+                                machineHost = it
+                                machine.configure(MachineKind.GAGGIMATE, it)
+                            },
+                            singleLine = true,
+                            placeholder = { Text("gaggimate.local") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Use the address from GaggiMate's web interface. Phone and machine need the same Wi-Fi.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Status: ${state.connection.label}" + (state.status.temperature?.let { " · ${fmt1(it)} °C" } ?: ""),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (state.isConnected) GoodGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                MachineKind.DECENT -> {
+                    val decent = machine.decent
+                    val connectedName by decent.connectedName.collectAsStateWithLifecycle()
+                    BrewCard {
+                        OutlinedButton(
+                            onClick = { showDecentSheet = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Filled.Bluetooth, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (decent.hasSavedMachine) "Paired: ${connectedName ?: "DE1"}" else "Find my DE1")
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Switch the DE1 on and close the Decent tablet app: the DE1 talks to one app at a time.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Status: ${state.connection.label}" + (state.status.temperature?.let { " · ${fmt1(it)} °C" } ?: ""),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (state.isConnected) GoodGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                MachineKind.LA_MARZOCCO -> {
+                    val cloud = machine.laMarzocco
+                    val signedInAs by cloud.signedInAs.collectAsStateWithLifecycle()
+                    val lmMachine by cloud.machine.collectAsStateWithLifecycle()
+                    BrewCard {
+                        OutlinedButton(
+                            onClick = { showLMSheet = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Filled.Cloud, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (signedInAs == null) "Sign in to La Marzocco" else (lmMachine?.name ?: "Choose your machine"))
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Uses your La Marzocco account through their servers. Your login stays in this phone's Keystore.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Status: ${state.connection.label}" + (state.status.temperature?.let { " · ${fmt1(it)} °C" } ?: ""),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (state.isConnected) GoodGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                MachineKind.DEMO -> {
+                    Text(
+                        "The demo machine simulates shots so you can try everything.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                MachineKind.NONE -> {
+                    Text(
+                        "You can connect a machine any time in Settings → Espresso machine.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+
+    if (showDecentSheet) DecentConnectSheet { showDecentSheet = false }
+    if (showLMSheet) LaMarzoccoAccountSheet(machine.laMarzocco, machine) { showLMSheet = false }
+}
+
+@Composable
+private fun DoneStep(
+    brewer: String?,
+    filter: String?,
+    grinder: String?,
+    bean: String?,
+    hasEspresso: Boolean = false,
+) {
     val scale = LocalContainer.current.scale
     val ready by scale.ready.collectAsStateWithLifecycle()
+    val machine = LocalContainer.current.machine
+    val machineState by machine.state.collectAsStateWithLifecycle()
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Spacer(Modifier.height(16.dp))
@@ -484,7 +726,12 @@ private fun DoneStep(brewer: String?, filter: String?, grinder: String?, bean: S
         Text("Change anything later in the Gear and Beans tabs.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         BrewCard {
             SummaryRow("Brewer", Icons.Filled.Coffee, brewer)
-            SummaryRow("Filter", FilterIcon, filter)
+            if (hasEspresso && machineState.kind != MachineKind.NONE) {
+                SummaryRow("Machine", Icons.Filled.Coffee, machine.displayName + (if (machineState.isConnected) " · connected" else ""))
+            }
+            if (filter != null) {
+                SummaryRow("Filter", FilterIcon, filter)
+            }
             SummaryRow("Grinder", Icons.Filled.Tune, grinder)
             SummaryRow("Beans", Icons.Filled.Eco, bean)
             SummaryRow("Scale", Icons.Filled.Scale, if (ready) scale.displayName else "Timer only for now")

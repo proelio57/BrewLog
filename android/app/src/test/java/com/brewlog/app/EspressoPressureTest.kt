@@ -5,8 +5,15 @@ import com.brewlog.app.brewing.BrewSession
 import com.brewlog.app.domain.AppSettings
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.RecipeLibrary
+import com.brewlog.app.machine.MachineCapability
+import com.brewlog.app.machine.MachineConnection
+import com.brewlog.app.machine.MachineKind
+import com.brewlog.app.machine.MachineState
+import com.brewlog.app.machine.MachineStatus
 import com.brewlog.app.scale.ScaleCommands
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -69,5 +76,65 @@ class EspressoPressureTest {
         session.monitorReading(5.0, 100)
         assertEquals(BrewPhase.ARMED, session.phase)
         assertTrue(session.recordedMachineSamples().isEmpty())
+    }
+
+    @Test fun testMachineKindSuggestedFromBrewerName() {
+        assertEquals(MachineKind.GAGGIMATE, MachineKind.suggested("Gaggia Classic (GaggiMate)"))
+        assertEquals(MachineKind.DECENT, MachineKind.suggested("Decent DE1"))
+        assertEquals(MachineKind.LA_MARZOCCO, MachineKind.suggested("La Marzocco Linea Micra"))
+        assertEquals(MachineKind.LA_MARZOCCO, MachineKind.suggested("la marzocco linea mini"))
+        assertNull("a plain Gaggia has no app connection", MachineKind.suggested("Gaggia Classic"))
+        assertNull(MachineKind.suggested("Rancilio Silvia"))
+        assertNull(MachineKind.suggested("Hario V60 02"))
+    }
+
+    @Test fun testMachineCapabilitiesAndControl() {
+        assertEquals(
+            setOf(
+                MachineCapability.PROFILES,
+                MachineCapability.TEMPERATURE_NUDGE,
+                MachineCapability.MACHINE_SCALE,
+                MachineCapability.START_STOP,
+            ),
+            MachineKind.GAGGIMATE.capabilities,
+        )
+        assertEquals(
+            setOf(
+                MachineCapability.PROFILES,
+                MachineCapability.TEMPERATURE_NUDGE,
+                MachineCapability.MACHINE_SCALE,
+                MachineCapability.START_STOP,
+            ),
+            MachineKind.DEMO.capabilities,
+        )
+        assertEquals(setOf(MachineCapability.START_STOP), MachineKind.DECENT.capabilities)
+        assertEquals(
+            setOf(MachineCapability.POWER, MachineCapability.TEMPERATURE_NUDGE),
+            MachineKind.LA_MARZOCCO.capabilities,
+        )
+        assertEquals(emptySet<MachineCapability>(), MachineKind.NONE.capabilities)
+
+        val connectedGaggi = MachineState(kind = MachineKind.GAGGIMATE, connection = MachineConnection.CONNECTED)
+        assertTrue(connectedGaggi.canControl)
+        assertTrue(connectedGaggi.readsPressure)
+
+        val disconnectedGaggi = MachineState(kind = MachineKind.GAGGIMATE, connection = MachineConnection.OFF)
+        assertFalse(disconnectedGaggi.canControl)
+        assertTrue(disconnectedGaggi.readsPressure)
+
+        val lmConnected = MachineState(kind = MachineKind.LA_MARZOCCO, connection = MachineConnection.CONNECTED)
+        assertFalse(lmConnected.canControl)
+        assertFalse(lmConnected.readsPressure)
+
+        val noMachine = MachineState(kind = MachineKind.NONE, connection = MachineConnection.OFF)
+        assertFalse(noMachine.canControl)
+        assertFalse(noMachine.readsPressure)
+
+        val gaggiNoPressure = MachineState(
+            kind = MachineKind.GAGGIMATE,
+            connection = MachineConnection.CONNECTED,
+            status = MachineStatus(hasPressure = false),
+        )
+        assertFalse(gaggiNoPressure.readsPressure)
     }
 }

@@ -7,6 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.brewlog.app.audio.Haptics
 import com.brewlog.app.audio.SoundPlayer
@@ -14,6 +17,7 @@ import com.brewlog.app.brewing.BrewCue
 import com.brewlog.app.brewing.BrewSession
 import com.brewlog.app.data.BrewRepository
 import com.brewlog.app.data.BrewSetupState
+import com.brewlog.app.data.SetupScope
 import com.brewlog.app.data.SettingsRepository
 import com.brewlog.app.domain.Equipment
 import com.brewlog.app.domain.Recipe
@@ -58,11 +62,24 @@ class AppContainer(context: Context) {
     val repository = BrewRepository(context.filesDir, scope)
     val scale = ScaleManager(context.applicationContext, prefs, scope)
     val pressure = com.brewlog.app.scale.PressureManager(context.applicationContext, prefs, scope)
-    val machine = com.brewlog.app.machine.MachineManager(prefs)
+    val secrets = com.brewlog.app.sync.SecretStore(prefs)
+    val machine = com.brewlog.app.machine.MachineManager(prefs, context.applicationContext, { presets }, secrets)
     val sound = SoundPlayer { settings.current }
     val haptics = Haptics(context.applicationContext) { settings.current }
-    val setup = BrewSetupState(prefs, presets).also { it.restoreCustom(repository.data.value.customRecipes) }
-    val secrets = com.brewlog.app.sync.SecretStore(prefs)
+    val setup = BrewSetupState(prefs, presets, SetupScope.POUR_OVER).also { it.restoreCustom(repository.data.value.customRecipes) }
+    val espressoSetup = BrewSetupState(prefs, presets, SetupScope.ESPRESSO).also { it.restoreCustom(repository.data.value.customRecipes) }
+
+    private val _brewMode = mutableStateOf(prefs.getString("brewMode", "filter") ?: "filter")
+    var brewMode: String
+        get() = _brewMode.value
+        set(value) {
+            _brewMode.value = value
+            prefs.edit().putString("brewMode", value).apply()
+        }
+
+    val activeSetup: BrewSetupState
+        get() = if (brewMode == "espresso") espressoSetup else setup
+
     val gitSync = com.brewlog.app.sync.GitSync(prefs, secrets, repository) { presets }
 
     /** Git backup after a brew, when automatic sync is on, and fresh widgets. */
@@ -74,15 +91,30 @@ class AppContainer(context: Context) {
     private val appContext = context.applicationContext
 
     fun updateWidgets() {
-        scope.launch { com.brewlog.app.widget.WidgetSync.update(appContext, repository.data.value, setup.beanId) }
+        val s = activeSetup
+        val setupInfo = com.brewlog.app.domain.WidgetSnapshot.Setup(
+            recipeName = s.recipe.name,
+            dose = s.dose,
+        )
+        scope.launch {
+            com.brewlog.app.widget.WidgetSync.update(appContext, repository.data.value, s.beanId, setupInfo)
+        }
     }
 
     /** A brewlog:// link from a widget, handled by the navigation once it's ready. */
     val pendingLink = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
     init {
+        if (BrewSetupState.moveEspressoRecipe(setup, espressoSetup, presets)) {
+            brewMode = "espresso"
+        }
         pressure.setEnabled(settings.current.espressoPressureEnabled)
         machine.start()
+        scope.launch {
+            repository.data.collect {
+                updateWidgets()
+            }
+        }
     }
 
     /** The live brew survives configuration changes because it lives here, not in the UI. */

@@ -73,9 +73,18 @@ object DataImporter {
                     val backup = BeanconquerorBackup.parseJsonObject(element)
                     return importBeanconqueror(backup, repo)
                 }
+                if (com.brewlog.app.machine.GaggiMateProfileImport.looksLikeProfiles(element)) {
+                    val gaggiRecipes = com.brewlog.app.machine.GaggiMateProfileImport.recipes(element)
+                    return importRecipes(gaggiRecipes, repo, presets)
+                }
                 if (element.containsKey("brews") || element.containsKey("beans") || element.containsKey("equipment")) {
                     val appData = json.decodeFromJsonElement<AppData>(element)
                     return importAppData(appData, repo, presets)
+                }
+            } else if (element is kotlinx.serialization.json.JsonArray) {
+                if (com.brewlog.app.machine.GaggiMateProfileImport.looksLikeProfiles(element)) {
+                    val gaggiRecipes = com.brewlog.app.machine.GaggiMateProfileImport.recipes(element)
+                    return importRecipes(gaggiRecipes, repo, presets)
                 }
             }
         } catch (_: Exception) {}

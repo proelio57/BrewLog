@@ -108,7 +108,7 @@ fun AppRoot() {
         container.pendingLink.value = null
         if (!container.settings.current.onboardingDone || container.activeBrew != null) return@LaunchedEffect
         when (target) {
-            "brew" -> nav.switchTab(Routes.BREW)
+            "brew", "start" -> nav.switchTab(Routes.BREW)
             "journal" -> nav.switchTab(Routes.JOURNAL)
             "beans" -> nav.switchTab(Routes.BEANS)
             "weigh" -> { nav.switchTab(Routes.BREW); nav.navigate(Routes.WEIGH) }

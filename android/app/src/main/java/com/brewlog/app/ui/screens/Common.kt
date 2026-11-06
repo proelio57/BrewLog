@@ -52,17 +52,24 @@ import com.brewlog.app.domain.clamped
 /** Screen with a top app bar (optional back button) on the grouped background. */
 @Composable
 fun BrewScreen(
-    title: String,
+    title: String = "",
     onBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
+    titleContent: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(title, fontWeight = FontWeight.SemiBold) },
+                title = {
+                    if (titleContent != null) {
+                        titleContent()
+                    } else {
+                        Text(title, fontWeight = FontWeight.SemiBold)
+                    }
+                },
                 navigationIcon = {
                     if (onBack != null) {
                         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }

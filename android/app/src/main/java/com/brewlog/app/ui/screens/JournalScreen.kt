@@ -50,6 +50,8 @@ import com.brewlog.app.domain.formatDate
 import com.brewlog.app.domain.mmss
 import com.brewlog.app.ui.Routes
 import com.brewlog.app.ui.components.BrewCard
+import com.brewlog.app.ui.components.CapsuleOption
+import com.brewlog.app.ui.components.CapsuleSwitch
 import com.brewlog.app.ui.components.StarsLabel
 import com.brewlog.app.ui.components.StatView
 import com.brewlog.app.ui.components.icon
@@ -62,6 +64,7 @@ fun JournalScreen(nav: NavHostController) {
     val container = LocalContainer.current
     val data by container.repository.data.collectAsStateWithLifecycle()
     var search by rememberSaveable { mutableStateOf("") }
+    var journalMode by rememberSaveable { mutableStateOf("journal") }
     var toDelete by remember { mutableStateOf<Brew?>(null) }
     val beans = data.beans.associateBy { it.id }
     val brews = data.brews.sortedByDescending { it.date }
@@ -92,7 +95,16 @@ fun JournalScreen(nav: NavHostController) {
     }
 
     BrewScreen(
-        title = "Journal",
+        titleContent = {
+            CapsuleSwitch(
+                options = listOf(
+                    CapsuleOption("journal", "Journal"),
+                    CapsuleOption("stats", "Stats"),
+                ),
+                selection = journalMode,
+                onSelectionChanged = { journalMode = it },
+            )
+        },
         actions = {
             Box {
                 IconButton(onClick = { showMenu = true }) {
@@ -129,6 +141,14 @@ fun JournalScreen(nav: NavHostController) {
             }
         },
     ) { padding ->
+        if (journalMode == "stats") {
+            CardList(padding) {
+                item {
+                    StatsContent(brews = brews, beans = beans, repo = container.repository)
+                }
+            }
+            return@BrewScreen
+        }
         if (brews.isEmpty()) {
             Box(Modifier.padding(padding)) {
                 EmptyState(

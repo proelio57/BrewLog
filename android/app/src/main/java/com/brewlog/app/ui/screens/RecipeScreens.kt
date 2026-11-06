@@ -180,8 +180,14 @@ fun RecipePickerScreen(nav: NavHostController) {
         CardList(padding) {
             item(key = "filter") { MethodFilterBar(data.customRecipes + container.presets, filter, brewerMethod = yours) { filter = it } }
             recipeSections(data.customRecipes, container.presets, filter) { recipe ->
-                RecipeRow(recipe, selected = container.setup.recipe.id == recipe.id) {
-                    container.setup.select(recipe)
+                RecipeRow(recipe, selected = container.activeSetup.recipe.id == recipe.id) {
+                    if (recipe.isEspresso) {
+                        container.brewMode = "espresso"
+                        container.espressoSetup.select(recipe)
+                    } else {
+                        container.brewMode = "filter"
+                        container.setup.select(recipe)
+                    }
                     container.haptics.tap()
                     nav.popBackStack()
                 }
@@ -203,7 +209,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recipeSections(
 /** The type of the brewer selected on the Brew tab. */
 private fun brewerMethod(container: com.brewlog.app.AppContainer): BrewMethod? =
     container.repository.data.value.equipment
-        .firstOrNull { it.id == container.setup.brewerId && it.type == EquipmentType.BREWER }?.method
+        .firstOrNull { it.id == container.activeSetup.brewerId && it.type == EquipmentType.BREWER }?.method
 
 /** "All" plus one chip per brewer type. Tapping the selected chip again shows all recipes. */
 @Composable
@@ -275,7 +281,13 @@ fun RecipeDetailScreen(nav: NavHostController, recipeId: String) {
         bottomBar = {
             Column(Modifier.padding(16.dp)) {
                 PrimaryButton("Brew this", Icons.Filled.WaterDrop) {
-                    container.setup.select(recipe)
+                    if (recipe.isEspresso) {
+                        container.brewMode = "espresso"
+                        container.espressoSetup.select(recipe)
+                    } else {
+                        container.brewMode = "filter"
+                        container.setup.select(recipe)
+                    }
                     nav.switchTab(Routes.BREW)
                 }
             }

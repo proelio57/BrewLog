@@ -271,6 +271,15 @@ data class Brew(
     /** Human readable grind, e.g. "24 clicks" or the free text. */
     val grindDisplay: String
         get() = grindValue?.let { (grinderSpec ?: GrinderSpec()).format(it) } ?: grindSetting
+
+    val isEspresso: Boolean
+        get() = recipe?.method?.isEspresso == true
+
+    val effectiveBeverageWeight: Double
+        get() = beverageWeight ?: Extraction.estimatedBeverage(finalWeight, dose, isEspresso)
+
+    val extractionYield: Double?
+        get() = tds?.let { Extraction.yield(it, effectiveBeverageWeight, dose) }
 }
 
 /** Everything the app stores (except weight curves, which live in one file per brew). */
@@ -315,4 +324,7 @@ data class AppSettings(
     val chartShowsFlow: Boolean = true,
     val onlineRecipes: Boolean = true,
     val espressoPressureEnabled: Boolean = false,
+    val autoStopShot: Boolean = true,
+    val shotStopLag: Double = 1.0,
+    val rinsePaper: Boolean = true,
 )
