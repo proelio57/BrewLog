@@ -390,13 +390,13 @@ export function ScaleCard({ onClick }: { onClick: () => void }) {
     : st.connection === 'connected' ? `Connected${st.battery != null ? ` · ${st.battery}% battery` : ''}`
       : st.connection === 'unsupported'
         ? (insecureAddress() ? 'Bluetooth needs an https:// address (or localhost)' : 'Bluetooth not available here (iPhone: use the Bluefy browser)')
-        : st.connection === 'idle' ? 'Tap to connect your BOOKOO, or brew with the timer only' : CONNECTION_LABELS[st.connection]
+        : st.connection === 'idle' ? 'Tap to connect your scale, or brew with the timer only' : CONNECTION_LABELS[st.connection]
   return (
     <Card onClick={onClick}>
       <div className="row">
         <IconCircle icon={Scale} color={color} size={42} />
         <div className="grow">
-          <div className="title">{ready ? (st.isDemo ? 'Demo scale' : st.name ?? 'BOOKOO') : 'No scale connected'}</div>
+          <div className="title">{ready ? (st.isDemo ? 'Demo scale' : st.name ?? 'Connected scale') : 'No scale connected'}</div>
           <div className="small muted">{subtitle}</div>
         </div>
         {ready ? <span className="title tnum" style={{ fontSize: 20 }}>{grams1(st.weight)}</span> : <span className="link">Connect</span>}
@@ -427,10 +427,10 @@ export function ScaleSheet({ onClose }: { onClose: () => void }) {
         bluetoothSupported() ? (
           <>
             <button className="btn-primary" onClick={() => void scale.connect()} disabled={st.connection === 'connecting'}>
-              <Bluetooth size={20} />{st.connection === 'connecting' ? 'Connecting…' : 'Search for BOOKOO'}
+              <Bluetooth size={20} />{st.connection === 'connecting' ? 'Connecting…' : 'Search for scale'}
             </button>
             {st.error && <div className="small" style={{ color: 'var(--danger)' }}>{st.error}</div>}
-            <div className="small muted">Switch your BOOKOO Themis Mini on, tap Search and pick it in the browser's list.</div>
+            <div className="small muted">Turn on your Bluetooth scale (BOOKOO Themis Mini, Timemore Dot, Decent Scale), tap Search and pick it in the browser's list.</div>
           </>
         ) : insecureAddress() ? (
           <div className="notice">

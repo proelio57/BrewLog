@@ -238,7 +238,7 @@ fun ScaleSheet(onDismiss: () -> Unit) {
                 Switch(checked = isDemo, onCheckedChange = { scale.setDemo(it) })
             }
             Spacer(Modifier.height(4.dp))
-            Text("Turn on your BOOKOO Themis Mini or Timemore Dot (Dot: long-press the button until the white light flashes). BrewLog reconnects to it automatically next time.",
+            Text("Turn on your scale (BOOKOO Themis Mini, Timemore Dot, Decent Scale; Dot: long-press the button until the white light flashes). BrewLog reconnects to it automatically next time.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

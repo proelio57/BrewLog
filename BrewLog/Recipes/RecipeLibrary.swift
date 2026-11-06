@@ -141,12 +141,15 @@ struct EquipmentPreset: Identifiable, Hashable {
         .init(name: "Breville / Sage Barista", type: .brewer, method: .espresso),
         .init(name: "Decent DE1", type: .brewer, method: .espresso),
         .init(name: "Flair 58", type: .brewer, method: .espresso),
+        .init(name: "Cafelat Robot", type: .brewer, method: .espresso),
         // Kettles
         .init(name: "Fellow Stagg EKG", type: .kettle),
         .init(name: "Hario Buono", type: .kettle),
         .init(name: "Brewista Artisan", type: .kettle),
         // Scales
         .init(name: "Bookoo Themis Mini", type: .scale),
+        .init(name: "Timemore Black Mirror Dot", type: .scale),
+        .init(name: "Decent Scale", type: .scale),
         // Water
         .init(name: "Third Wave Water (light roast)", type: .water),
         .init(name: "Filtered tap water", type: .water),

@@ -128,6 +128,18 @@ data class EquipmentPreset(
             EquipmentPreset("April Brewer", EquipmentType.BREWER, method = BrewMethod.KALITA, shape = PaperShape.FLAT),
             EquipmentPreset("Chemex 6-cup", EquipmentType.BREWER, method = BrewMethod.UNIVERSAL, shape = PaperShape.CHEMEX),
             EquipmentPreset("Clever Dripper", EquipmentType.BREWER, method = BrewMethod.HYBRID, shape = PaperShape.CONE),
+            // Espresso machines
+            EquipmentPreset("Gaggia Classic (GaggiMate)", EquipmentType.BREWER, method = BrewMethod.ESPRESSO,
+                notes = "Connect it in Settings → Espresso machine for pressure curves and shot control."),
+            EquipmentPreset("Gaggia Classic", EquipmentType.BREWER, method = BrewMethod.ESPRESSO),
+            EquipmentPreset("Rancilio Silvia", EquipmentType.BREWER, method = BrewMethod.ESPRESSO),
+            EquipmentPreset("Lelit Bianca", EquipmentType.BREWER, method = BrewMethod.ESPRESSO),
+            EquipmentPreset("La Marzocco Linea Micra", EquipmentType.BREWER, method = BrewMethod.ESPRESSO),
+            EquipmentPreset("La Marzocco Linea Mini", EquipmentType.BREWER, method = BrewMethod.ESPRESSO),
+            EquipmentPreset("Breville / Sage Barista", EquipmentType.BREWER, method = BrewMethod.ESPRESSO),
+            EquipmentPreset("Decent DE1", EquipmentType.BREWER, method = BrewMethod.ESPRESSO),
+            EquipmentPreset("Flair 58", EquipmentType.BREWER, method = BrewMethod.ESPRESSO),
+            EquipmentPreset("Cafelat Robot", EquipmentType.BREWER, method = BrewMethod.ESPRESSO),
         )
 
         private val others: List<EquipmentPreset> = listOf(
@@ -135,6 +147,8 @@ data class EquipmentPreset(
             EquipmentPreset("Hario Buono", EquipmentType.KETTLE),
             EquipmentPreset("Brewista Artisan", EquipmentType.KETTLE),
             EquipmentPreset("Bookoo Themis Mini", EquipmentType.SCALE),
+            EquipmentPreset("Timemore Black Mirror Dot", EquipmentType.SCALE),
+            EquipmentPreset("Decent Scale", EquipmentType.SCALE),
             EquipmentPreset("Third Wave Water (light roast)", EquipmentType.WATER),
             EquipmentPreset("Filtered tap water", EquipmentType.WATER),
         )

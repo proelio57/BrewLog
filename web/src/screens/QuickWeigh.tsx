@@ -130,7 +130,7 @@ export function QuickWeigh() {
         <Card style={{ width: '100%' }}>
           <div className="row">
             <Scale className="muted" />
-            <div className="grow"><div className="title">No scale connected</div><div className="small muted">Connect your BOOKOO or turn on the demo scale.</div></div>
+            <div className="grow"><div className="title">No scale connected</div><div className="small muted">Connect your scale (BOOKOO, Timemore Dot, Decent) or turn on the demo scale.</div></div>
             <button className="btn tinted" onClick={() => setShowScale(true)}>Connect</button>
           </div>
         </Card>

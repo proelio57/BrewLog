@@ -249,7 +249,7 @@ export function SettingsScreen() {
         <SectionHeader title="Scale" />
         <Card>
           <button className="row" onClick={() => setShowScale(true)}>
-            <span className="grow" style={{ textAlign: 'left' }}>BOOKOO scale</span>
+            <span className="grow" style={{ textAlign: 'left' }}>Bluetooth scale (BOOKOO, Timemore, Decent)</span>
             <span className="muted">{scaleState.isDemo ? 'Demo' : CONNECTION_LABELS[scaleState.connection]}</span>
           </button>
           <Toggle label="Demo scale (simulated pours)" checked={scaleState.isDemo} onChange={(v) => scale.setDemo(v)} />

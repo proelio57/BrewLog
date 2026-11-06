@@ -78,7 +78,7 @@ struct ScaleConnectSheet: View {
                         Button("Disconnect & forget", role: .destructive) { scale.disconnect(forget: true) }
                     }
                 } footer: {
-                    Text("Turn on your BOOKOO Themis Mini or Timemore Dot (Dot: long-press the button until the white light flashes). BrewLog reconnects to it automatically next time.")
+                    Text("Turn on your scale (BOOKOO Themis Mini, Timemore Dot, Decent Scale; Dot: long-press the button until the white light flashes). BrewLog reconnects to it automatically next time.")
                 }
 
                 if !scale.isDemo && scale.state != .connected {

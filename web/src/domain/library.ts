@@ -105,6 +105,7 @@ export const BREWER_PRESETS: EquipmentPreset[] = [
   { name: 'Breville / Sage Barista', type: 'brewer', method: 'espresso' },
   { name: 'Decent DE1', type: 'brewer', method: 'espresso' },
   { name: 'Flair 58', type: 'brewer', method: 'espresso' },
+  { name: 'Cafelat Robot', type: 'brewer', method: 'espresso' },
 ]
 
 const OTHER_PRESETS: EquipmentPreset[] = [
@@ -112,6 +113,8 @@ const OTHER_PRESETS: EquipmentPreset[] = [
   { name: 'Hario Buono', type: 'kettle' },
   { name: 'Brewista Artisan', type: 'kettle' },
   { name: 'Bookoo Themis Mini', type: 'scale' },
+  { name: 'Timemore Black Mirror Dot', type: 'scale' },
+  { name: 'Decent Scale', type: 'scale' },
   { name: 'Third Wave Water (light roast)', type: 'water' },
   { name: 'Filtered tap water', type: 'water' },
 ]

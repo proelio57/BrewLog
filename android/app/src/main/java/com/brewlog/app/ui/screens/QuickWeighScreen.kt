@@ -185,7 +185,7 @@ fun QuickWeighScreen(onClose: () -> Unit) {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text("No scale connected", fontWeight = FontWeight.SemiBold)
-                        Text("Connect your scale (BOOKOO or Timemore Dot) or turn on the demo scale.", style = MaterialTheme.typography.bodySmall,
+                        Text("Connect your scale (BOOKOO, Timemore Dot, Decent) or turn on the demo scale.", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Button(onClick = { showScale = true }) { Text("Connect") }

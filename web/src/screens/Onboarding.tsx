@@ -258,7 +258,7 @@ function ScaleStep({ onOpen }: { onOpen: () => void }) {
   const st = useStore(scale.state)
   return (
     <>
-      <StepHeader title="Connect your scale" subtitle="BrewLog works with the BOOKOO Themis Mini. Switch it on and tap below. No scale? The timer works on its own." />
+      <StepHeader title="Connect your scale" subtitle="BrewLog works with Bluetooth scales (BOOKOO Themis Mini, Timemore Dot, Decent Scale). Switch it on and tap below. No scale? The timer works on its own." />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <ScaleCard onClick={onOpen} />
         <Card><Toggle label="Demo scale" detail="Simulated pours to try BrewLog without a scale" checked={st.isDemo} onChange={(v) => scale.setDemo(v)} /></Card>
@@ -273,7 +273,7 @@ function DoneStep({ brewer, filter, grinder, bean }: { brewer?: string; filter?:
   const ready = st.isDemo || st.connection === 'connected'
   const rows: [string, LucideIcon, string | undefined][] = [
     ['Brewer', Coffee, brewer], ['Filter', FileText, filter], ['Grinder', SlidersHorizontal, grinder], ['Beans', Leaf, bean],
-    ['Scale', Scale, ready ? (st.isDemo ? 'Demo scale' : st.name ?? 'BOOKOO') : 'Timer only for now'],
+    ['Scale', Scale, ready ? (st.isDemo ? 'Demo scale' : st.name ?? 'Connected scale') : 'Timer only for now'],
   ]
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, paddingTop: 16 }}>
