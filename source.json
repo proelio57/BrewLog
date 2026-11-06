@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "0.1.79",
+          "buildVersion": "79",
+          "date": "2026-11-06T10:42:28Z",
+          "localizedDescription": "• The recipe card moves to the bottom of the Brew screen\n• Smoother pour curve, and the brew's water is where the scale settled, not a spike\n• An espresso machine's gear page shows its connection instead of a pour-over method\n• Timemore Black Mirror Dot checked against Timemore's open protocol, Basic3 Link recognized",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.79/BrewLog.ipa",
+          "size": 3501571,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.73",
           "buildVersion": "73",
           "date": "2026-11-05T22:42:55Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.38/BrewLog.ipa",
           "size": 2916779,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.35",
-          "buildVersion": "35",
-          "date": "2026-11-02T09:26:43Z",
-          "localizedDescription": "Merge pull request #9 from proelio57/feature/widgets-stats\n\niOS widgets: Coffee stats, Beans left, dynamic Quick start, tap to brew",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.35/BrewLog.ipa",
-          "size": 2916132,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.73",
-      "versionDate": "2026-11-05T22:42:55Z",
-      "versionDescription": "• Espresso machines get their own gear section and are connected in the setup assistant",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.73/BrewLog.ipa",
-      "size": 3486119
+      "version": "0.1.79",
+      "versionDate": "2026-11-06T10:42:28Z",
+      "versionDescription": "• The recipe card moves to the bottom of the Brew screen\n• Smoother pour curve, and the brew's water is where the scale settled, not a spike\n• An espresso machine's gear page shows its connection instead of a pour-over method\n• Timemore Black Mirror Dot checked against Timemore's open protocol, Basic3 Link recognized",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.79/BrewLog.ipa",
+      "size": 3501571
     }
   ],
   "news": []
