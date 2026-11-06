@@ -2,7 +2,7 @@
 
 The web version of BrewLog: a **Progressive Web App** with the same features and the same analysis rules as the iOS and Android apps. It runs in the browser, can be added to the home screen, works offline, and can be hosted **for free**. You don't need an Apple or Google developer account.
 
-- BOOKOO Themis Mini over **Web Bluetooth**, or the built-in demo scale
+- Bluetooth scales (BOOKOO Themis Mini, Timemore Black Mirror Dot, Decent Scale) over **Web Bluetooth**, or the built-in demo scale
 - Guided brewing: auto-start on the first pour, a soft ping just before each target, a chime when each step starts, and a countdown ring
 - One chart with weight (left axis) and flow in g/s (right axis) against the recipe curve
 - Setup assistant, Quick weigh, recipes (incl. your own), beans, gear (CAFEC/Hario filters, grinder scales), journal
@@ -67,9 +67,9 @@ Safari's *Add to Home Screen* also works, but only for the timer and demo scale,
 
 **Computer**: in Chrome or Edge, click the install icon at the right of the address bar.
 
-## Using the BOOKOO scale
+## Using a Bluetooth scale
 
-Switch the scale on. Brew tab → tap the scale card → **Search for BOOKOO** → pick it in the browser's list.
+Switch the scale on. Brew tab → tap the scale card → **Search for scale** → pick it in the browser's list.
 
 - If the connection drops while the app is open (e.g. the scale went to sleep), BrewLog reconnects by itself.
 - After reopening the app, tap **Search** again. Browsers don't let websites reconnect to a Bluetooth device silently.

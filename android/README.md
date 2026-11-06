@@ -2,7 +2,7 @@
 
 The Android version of BrewLog: native **Kotlin + Jetpack Compose**, with the same features and the same analysis rules as the iOS app. The folder is self-contained, so you can copy just `android/` to any PC and build it there.
 
-- BOOKOO Themis Mini over Bluetooth LE, or the built-in demo scale
+- Bluetooth scales (BOOKOO Themis Mini, Timemore Black Mirror Dot, Decent Scale) over Bluetooth LE, or the built-in demo scale
 - Guided brewing: auto-start on the first pour, a soft ping just before each target, a chime when each step starts, and a countdown ring
 - One chart with weight (left axis) and flow in g/s (right axis) against the recipe curve
 - Setup assistant, Quick weigh, recipes (incl. your own), beans, gear (CAFEC/Hario filters, grinder scales), journal
