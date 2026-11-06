@@ -96,11 +96,20 @@ struct BrewSessionView: View {
     @ViewBuilder
     private func liveCharts(height: CGFloat) -> some View {
         VStack(spacing: 10) {
-            if session.pressureFocus {
-                // Settings → Pressure view: only the pressure graph, as big as fits, for setting the pressure by hand.
-                // The weight curve is in the full-screen chart.
+            if session.pressureFocus && session.pressureFromSensor {
+                // Settings → Pressure view with the sensor: only the pressure graph, as big as fits, for setting the
+                // pressure by hand. The weight curve is in the full-screen chart.
                 MachineChart(samples: session.machineSamples, targetPressure: session.recipe.pressure,
                              currentTime: session.elapsed, height: max(height - Self.chartChrome, 60), emphasis: true)
+                    .padding(.horizontal, 4)
+            } else if session.pressureFocus {
+                // The machine's own pressure: the pressure graph with its target band first, the weight below.
+                let plots = max(height - 2 * Self.chartChrome - 10, 100)
+                MachineChart(samples: session.machineSamples, targetPressure: session.recipe.pressure,
+                             currentTime: session.elapsed, height: plots * 0.55, emphasis: true)
+                    .padding(.horizontal, 4)
+                BrewChart(samples: session.samples, recipe: session.recipe, currentTime: session.elapsed,
+                          height: plots * 0.45)
                     .padding(.horizontal, 4)
             } else if session.hasPressure {
                 let plots = max(height - 2 * Self.chartChrome - 10, 100)

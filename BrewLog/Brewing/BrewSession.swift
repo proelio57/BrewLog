@@ -240,6 +240,9 @@ final class BrewSession {
     /// The BOOKOO Espresso Monitor gives the pressure: only when the machine doesn't measure it itself.
     private var usesSensor: Bool { monitor.isReady && !machine.readsPressure }
 
+    /// The pressure comes from the sensor (set by hand on the machine), not from the machine itself.
+    var pressureFromSensor: Bool { usesSensor }
+
     /// The live screen is about the pressure (big number, big graph): Settings → Pressure view. Fixed once the shot runs.
     var pressureFocus: Bool { focusLatch.value(live: livePressureFocus) }
 

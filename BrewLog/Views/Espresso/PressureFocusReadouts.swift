@@ -31,33 +31,52 @@ struct PressureFocusReadouts: View {
         let target = session.recipe.pressure
         let zone = PressureFocus.zone(pressure: pressure, target: target)
         VStack(spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                compact("TIME", session.elapsed.mmss,
-                        color: session.isPastTargetTime && session.phase == .brewing ? .orange : .primary)
-                Spacer()
-                compact("WEIGHT", session.usesScale ? max(session.weight, 0).scaleReadout + " g" : "–", alignment: .trailing)
-            }
-            VStack(spacing: 0) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(pressure.map { String(format: "%.1f", max($0, 0)) } ?? "–")
-                        .font(.system(size: 76, weight: .bold, design: .rounded))
-                        .minimumScaleFactor(0.5)
-                        .lineLimit(1)
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
-                    Text("bar").font(.title2.weight(.semibold))
+            if session.pressureFromSensor {
+                // Pressure set by hand (sensor): the pressure is what matters, big in the middle.
+                HStack(alignment: .firstTextBaseline) {
+                    compact("TIME", session.elapsed.mmss,
+                            color: session.isPastTargetTime && session.phase == .brewing ? .orange : .primary)
+                    Spacer()
+                    compact("WEIGHT", session.usesScale ? max(session.weight, 0).scaleReadout + " g" : "–", alignment: .trailing)
                 }
-                .foregroundStyle(zone.color)
-                Text(caption(pressure: pressure, target: target, zone: zone))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(zone == .noTarget ? Color.secondary : zone.color)
-                    .monospacedDigit()
+                VStack(spacing: 0) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(pressure.map { String(format: "%.1f", max($0, 0)) } ?? "–")
+                            .font(.system(size: 76, weight: .bold, design: .rounded))
+                            .minimumScaleFactor(0.5)
+                            .lineLimit(1)
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                        Text("bar").font(.title2.weight(.semibold))
+                    }
+                    .foregroundStyle(zone.color)
+                    Text(caption(pressure: pressure, target: target, zone: zone))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(zone == .noTarget ? Color.secondary : zone.color)
+                        .monospacedDigit()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+                .background(zone.color.opacity(0.1), in: RoundedRectangle(cornerRadius: 18))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibility(pressure: pressure, zone: zone))
+            } else {
+                // The machine measures (and controls) the pressure: weight and pressure side by side.
+                HStack(alignment: .firstTextBaseline) {
+                    compact("TIME", session.elapsed.mmss,
+                            color: session.isPastTargetTime && session.phase == .brewing ? .orange : .primary)
+                    Spacer()
+                    Text("target \(session.recipe.targetTime.mmss)").font(.caption).foregroundStyle(.secondary)
+                }
+                HStack(spacing: 8) {
+                    half("WEIGHT", session.usesScale ? max(session.weight, 0).scaleReadout : "–", unit: "g",
+                         detail: session.usesScale ? "of \(session.recipe.water.grams)" : "no scale", color: .primary)
+                    half("PRESSURE", pressure.map { String(format: "%.1f", max($0, 0)) } ?? "–", unit: "bar",
+                         detail: shortCaption(pressure: pressure, target: target, zone: zone), color: zone.color)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(accessibility(pressure: pressure, zone: zone))
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-            .background(zone.color.opacity(0.1), in: RoundedRectangle(cornerRadius: 18))
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(accessibility(pressure: pressure, zone: zone))
             HStack(spacing: 8) {
                 if session.usesScale {
                     tile("Flow", String(format: "%.1f g/s", max(session.flowRate, 0)), color: .teal)
@@ -81,6 +100,41 @@ struct PressureFocusReadouts: View {
         case .high: return String(format: "target %.1f bar · %.1f high", target, delta)
         case .onTarget, .noTarget: return String(format: "target %.1f bar · on target", target)
         }
+    }
+
+    private func shortCaption(pressure: Double?, target: Double?, zone: PressureZone) -> String {
+        guard let target, let pressure else {
+            return session.peakPressure > 0 ? String(format: "peak %.1f", session.peakPressure) : " "
+        }
+        switch zone {
+        case .low: return String(format: "target %.1f · %.1f low", target, target - pressure)
+        case .high: return String(format: "target %.1f · %.1f high", target, pressure - target)
+        case .onTarget, .noTarget: return String(format: "target %.1f · on target", target)
+        }
+    }
+
+    /// One of the two big numbers side by side (weight | pressure), on a tinted card.
+    private func half(_ title: String, _ value: String, unit: String, detail: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                Text(unit).font(.headline)
+            }
+            .foregroundStyle(color)
+            Text(detail).font(.caption.weight(.semibold)).foregroundStyle(color == .primary ? Color.secondary : color)
+                .lineLimit(1).minimumScaleFactor(0.7).monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background((color == .primary ? Color(.secondarySystemGroupedBackground) : color.opacity(0.1)),
+                    in: RoundedRectangle(cornerRadius: 16))
     }
 
     private func accessibility(pressure: Double?, zone: PressureZone) -> String {

@@ -202,7 +202,8 @@ Port to the shared Compose UI (Android + web). iOS reference: `BrewLog/Brewing/P
   - on target → green;
   - above → red;
   - no target → accent colour.
-- **Focus layout:**
+- **Focus layout with the machine's own pressure** (GaggiMate, DE1; Pressure view "Always"): no giant number. Under a compact TIME row, WEIGHT and PRESSURE sit side by side as two cards, 48 sp each; the pressure card is tinted in the zone colour with "target 9.0 · 0.4 low". Charts: the pressure chart with the target band (55 %), then the weight chart (45 %).
+- **Focus layout with the pressure sensor:**
   - TIME and WEIGHT compact at 26 sp.
   - The pressure number at 76 sp bold, in the zone colour, on a 10 % zone-colour background.
   - Caption under the number: "target 9.0 bar · 0.4 low" / "· on target" / "· 0.6 high", or "peak 9.3 bar" without a target.

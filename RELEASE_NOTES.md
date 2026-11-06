@@ -3,6 +3,7 @@
 iOS
 • Fix the live espresso screen running past the screen edges with the pressure view: the pressure chart now fills the space that is left
 • The landscape chart turns straight to landscape instead of showing upright for a moment
+• Pressure view with a machine that measures the pressure itself (GaggiMate, Decent): weight and pressure side by side instead of one giant pressure number, with both charts
 • Switching between Filter and Espresso is instant, with a cross-fade
 
 Android
