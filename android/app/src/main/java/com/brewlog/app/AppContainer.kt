@@ -91,7 +91,14 @@ class AppContainer(context: Context) {
     private val appContext = context.applicationContext
 
     fun updateWidgets() {
-        scope.launch { com.brewlog.app.widget.WidgetSync.update(appContext, repository.data.value, activeSetup.beanId) }
+        val s = activeSetup
+        val setupInfo = com.brewlog.app.domain.WidgetSnapshot.Setup(
+            recipeName = s.recipe.name,
+            dose = s.dose,
+        )
+        scope.launch {
+            com.brewlog.app.widget.WidgetSync.update(appContext, repository.data.value, s.beanId, setupInfo)
+        }
     }
 
     /** A brewlog:// link from a widget, handled by the navigation once it's ready. */
@@ -103,6 +110,11 @@ class AppContainer(context: Context) {
         }
         pressure.setEnabled(settings.current.espressoPressureEnabled)
         machine.start()
+        scope.launch {
+            repository.data.collect {
+                updateWidgets()
+            }
+        }
     }
 
     /** The live brew survives configuration changes because it lives here, not in the UI. */

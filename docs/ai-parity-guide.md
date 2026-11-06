@@ -5,9 +5,6 @@
 
 ---
 
-> **Android is behind iOS** on the glance widgets (Next brew, Coffee stats, Beans left). The step-by-step port list is in
-> [`docs/gemini-android-parity.md`](gemini-android-parity.md).
-
 ## 1. Core Philosophy & Non-Negotiable Invariants
 
 Before writing or modifying any code in this repository, Claude and Gemini must respect these core invariants:
@@ -58,7 +55,7 @@ Use this reference table to find the corresponding implementation files across p
 | **Grind Converter** | `Tools/GrindConverter.swift`, `Views/Tools/ToolViews.swift` (`GrindConverterView`) | `domain/GrindConverter.kt`, `ui/screens/ToolsScreens.kt` (`GrindConverterScreen`) | – |
 | **Recipe Filter by Brewer** | `Recipes/RecipeFilter.swift`, `MethodFilterBar` in `Views/Recipes/RecipeViews.swift` | `domain/RecipeFilter.kt` (matching + clearer alternative only) | `domain/recipeFilter.ts` (matching + clearer alternative only) |
 | **Weigh the Beans** | `Brewing/BeanDosing.swift`, `BrewSession` (`.dosing`), `DoseCard` in `Views/Brew/BrewSessionView.swift` | `brewing/BeanDosing.kt`, `BrewSession.kt`, `DoseCard` in `ui/screens/LiveBrewScreen.kt` | `brewing/dosing.ts`, `brewSession.ts`, `DoseCard` in `screens/LiveBrew.tsx` |
-| **Home & Lock Screen Widgets** | `ActivityShared/WidgetSnapshot.swift` (shared), `App/WidgetSync.swift`, `BrewLogWidgets/HomeWidgets.swift` | `domain/WidgetSnapshot.kt`, `widget/Widgets.kt` (Glance) | – Android: Jetpack Glance, Home Screen only (`widget/Widgets.kt`). |
+| **Home & Lock Screen Widgets** | `ActivityShared/WidgetSnapshot.swift` (shared), `App/WidgetSync.swift`, `BrewLogWidgets/HomeWidgets.swift`, `StatsWidgets.swift` | `domain/WidgetSnapshot.kt`, `widget/Widgets.kt` (Glance) | – Android: Jetpack Glance ("Next brew", "Quick start", "Coffee stats", "Beans left"). |
 | **Git Backup** | `Import/GitRemote.swift` (requests), `Import/GitSync.swift` (sync, Keychain), `Views/Gear/GitBackupView.swift` | `sync/GitRemote.kt`, `sync/GitSync.kt`, `sync/SecretStore.kt`, `ui/screens/GitBackupScreen.kt` | – Android: token encrypted with an Android Keystore key (`sync/SecretStore.kt`), no photos in the sync. |
 | **Ask Claude (bean advice)** | `Tools/BeanAdvisor.swift`, `Views/Beans/BeanAdviceView.swift` | `ai/BeanAdvisor.kt`, `ui/screens/AskClaudeScreens.kt` | – Android: official Java SDK (`anthropic-java`), key in `SecretStore`; sources only from citations. |
 | **Bean Photos & Label Scan** | `Tools/LabelParser.swift`, `Tools/LabelScanner.swift` (Vision, `BeanPhoto`), `Views/Beans/BeanPhotoViews.swift` | `domain/LabelParser.kt`, `tools/LabelScanner.kt` (Tesseract), `tools/BeanPhoto.kt`, `ui/components/BeanPhotoViews.kt` | – |
@@ -95,7 +92,7 @@ Use this reference table to find the corresponding implementation files across p
 | **BOOKOO Scale** | Yes | Yes | Yes | Web: Web Bluetooth (Chromium browsers, not iOS Safari). |
 | **Live Activity / Timer** | Yes | Yes | No | iOS: ActivityKit / Dynamic Island. Android: ongoing notification. |
 | **Valve Countdown (Hario Switch)** | Yes | Yes | No | 3-2-1 ticks with haptics before every step that opens or closes the valve (`Recipe.valveChange(at:)`), on by default, independent of the ticks before every step. |
-| **Home & Lock Screen Widgets** | Yes | Partial | No | iOS: "Next brew", "Coffee stats" (today, week, 7-day bars, streak, avg rating; computed at render time from `activity` in the snapshot; also systemLarge), "Beans left" (cups left from the last dose, freshness: resting < 5 d, prime 5–30 d, past peak after), "Quick start" (today's cups / the Brew tab's recipe). `brewlog://start` opens Brew and starts the brew. Data via App Group (`ALTAppGroups`, entitlement added with `ldid` in `scripts/build-ipa.sh`), links `brewlog://brew|start|weigh|journal|beans`. Android: Glance "Beans & last brew" and "Quick start" (stats and beans left not yet, Android paused). |
+| **Home & Lock Screen Widgets** | Yes | Yes | No | iOS: "Next brew", "Coffee stats" (today, week, 7-day bars, streak, avg rating; computed at render time from `activity` in the snapshot; also systemLarge), "Beans left" (cups left from the last dose, freshness: resting < 5 d, prime 5–30 d, past peak after), "Quick start" (today's cups / the Brew tab's recipe). `brewlog://start` opens Brew and starts the brew. Data via App Group (`ALTAppGroups`, entitlement added with `ldid` in `scripts/build-ipa.sh`), links `brewlog://brew|start|weigh|journal|beans`. Android: Jetpack Glance widgets matching iOS: "Next brew", "Quick start", "Coffee stats", "Beans left". |
 | **Brew Analysis & Grind Suggestions** | Yes | Yes | Yes | Pour-over analysis and history-based grind recommendation. "Flat" suggests a clearer recipe for the same brewer via `RecipeFilter.clearerAlternative` (never the brewed recipe, a same-name copy, a template or espresso; clarity ≥ max(current, 4), then sweetness), plus a fast paper unless one was used. The analysis input gets the preset list as `alternatives`. |
 | **TDS & Extraction Yield** | Yes | Yes | No | TDS (and optional drink weight) on a brew, EY %, verdict and control chart; standalone calculator under Gear → Tools. Beanconqueror `tds` is imported on iOS. |
 | **Water Recipes & Profiles** | Yes | Yes | No | Calculator for distilled water + Epsom salt / calcium chloride / baking soda (dry or Barista Hustle concentrates), presets, saved as gear of type water with GH/KH; water chosen per brew. |
