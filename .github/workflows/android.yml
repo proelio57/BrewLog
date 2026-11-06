@@ -63,11 +63,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # One version for iOS and Android: the highest release + 1 (scripts/next-version.sh).
+          # One version for iOS and Android: semantic versioning from the merged commits (scripts/next-version.sh).
           # The version is shared with iOS; versionCode is this workflow's run number, which only goes up
           # (Android refuses an update with a lower versionCode).
           version="${{ inputs.version }}"
-          if [ -z "$version" ]; then read -r version _ < <(scripts/next-version.sh); fi
+          if [ -z "$version" ]; then version=$(scripts/next-version.sh); fi
           build=$GITHUB_RUN_NUMBER
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "build=$build" >> "$GITHUB_OUTPUT"
