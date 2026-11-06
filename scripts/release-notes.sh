@@ -10,8 +10,21 @@ set -euo pipefail
 rev=${1:-HEAD}
 if git rev-parse -q --verify "$rev^2" >/dev/null; then
   range=("$rev^1..$rev")
+  changed="$rev^1..$rev"
 else
   range=(-1 "$rev")
+  changed="$rev~1..$rev"
+fi
+
+# Notes written by hand: a release whose commits change RELEASE_NOTES.md (repo root) uses that file, e.g. grouped
+# by platform ("iOS", "Android", "Web" with "• " lines under each). HTML comments in it are left out.
+if git diff --name-only "$changed" -- RELEASE_NOTES.md 2>/dev/null | grep -q .; then
+  git show "$rev:RELEASE_NOTES.md" | python3 -c '
+import re, sys
+text = re.sub(r"<!--.*?-->", "", sys.stdin.read(), flags=re.S).strip()
+print((text or "Bug fixes and improvements.")[:2000].rstrip())
+'
+  exit 0
 fi
 
 git log --no-merges --reverse --format='%x1e%s' "${range[@]}" | python3 -c '

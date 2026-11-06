@@ -59,5 +59,26 @@ git checkout -q main
 git merge -q --no-ff docs-only -m "Merge docs"
 check docs-only "Bug fixes and improvements."
 
+# A release that brings RELEASE_NOTES.md: its text (grouped by platform) instead of the commit subjects.
+git checkout -q -b curated
+printf '<!-- notes for the next release -->\niOS\n• Pressure view\n\nAndroid\n• Dark mode\n' > RELEASE_NOTES.md
+git add RELEASE_NOTES.md
+git commit -q -m "docs: release notes"
+git commit -q --allow-empty -m "feat: something else"
+git checkout -q main
+git merge -q --no-ff curated -m "Merge curated"
+check curated-file "iOS
+• Pressure view
+
+Android
+• Dark mode"
+
+# The next release doesn't touch the file: back to commit subjects.
+git checkout -q -b after
+git commit -q --allow-empty -m "fix: later fix"
+git checkout -q main
+git merge -q --no-ff after -m "Merge after"
+check after-curated "• Later fix"
+
 if [ "$fail" -ne 0 ]; then exit 1; fi
 echo "release notes OK"
