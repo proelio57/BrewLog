@@ -202,12 +202,13 @@ Port to the shared Compose UI (Android + web). iOS reference: `BrewLog/Brewing/P
   - on target → green;
   - above → red;
   - no target → accent colour.
-- **Focus layout:**
-  - TIME and WEIGHT compact at 28 sp.
-  - The pressure number at 96 sp bold, in the zone colour, on a 10 % zone-colour background.
+- **Focus layout with the machine's own pressure** (GaggiMate, DE1; Pressure view "Always"): no giant number. Under a compact TIME row, WEIGHT and PRESSURE sit side by side as two cards, 48 sp each; the pressure card is tinted in the zone colour with "target 9.0 · 0.4 low". Charts: the pressure chart with the target band (55 %), then the weight chart (45 %).
+- **Focus layout with the pressure sensor:**
+  - TIME and WEIGHT compact at 26 sp.
+  - The pressure number at 76 sp bold, in the zone colour, on a 10 % zone-colour background.
   - Caption under the number: "target 9.0 bar · 0.4 low" / "· on target" / "· 0.6 high", or "peak 9.3 bar" without a target.
   - Tiles: Flow (teal), Ratio, Temp, First drops.
-  - Charts: the pressure chart first, 240 dp, with a 3 dp line, a green ±0.5 bar band with a solid target line, y labels every bar and gridlines every 3 bar, and the latest point as a dot in the zone colour. The weight chart follows at 90 dp.
+  - Charts: only the pressure chart, filling the height that is left (the live screen must never run past the screen edges; the weight chart is in the landscape view), with a 3 dp line, a green ±0.5 bar band with a solid target line, y labels every bar and gridlines every 3 bar, and the latest point as a dot in the zone colour.
 - **Normal espresso layout:**
   - Flow becomes a 34 sp teal "FLOW" readout with "target a–b g/s" under TIME/WEIGHT.
   - The pressure tile value is in the zone colour.
@@ -217,4 +218,6 @@ Port to the shared Compose UI (Android + web). iOS reference: `BrewLog/Brewing/P
   - A button on the live charts and turning the phone to landscape (brewing or finished) open the charts full screen in landscape.
   - The numbers sit in the left column: time, weight, flow, and pressure in the zone colour.
   - Turning the phone back, or the close button, ends it.
+  - Rotate first, then show the view without a slide animation (and the reverse on close), so it never appears sideways for a moment.
+- **Brew tab Filter | Espresso:** both mode screens stay built and cross-fade (0.25 s, slight horizontal offset) instead of rebuilding after the switch.
   - With the setting off, there's no button and turning the phone does nothing.
