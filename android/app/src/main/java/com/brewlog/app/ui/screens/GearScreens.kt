@@ -116,10 +116,24 @@ fun GearScreen(nav: NavHostController) {
                     LinkRow("Grind converter", Icons.Filled.SwapHoriz) { nav.navigate(Routes.TOOLS_GRIND) }
                 }
             }
-            EquipmentType.entries.forEach { type ->
-                val items = data.equipment.filter { it.type == type }.sortedBy { it.name }
+            data class GearSection(
+                val title: String,
+                val icon: ImageVector,
+                val filter: (Equipment) -> Boolean,
+            )
+            val sections = listOf(
+                GearSection("Brewers", Icons.Filled.Coffee) { it.type == EquipmentType.BREWER && it.method != BrewMethod.ESPRESSO },
+                GearSection("Espresso machines", Icons.Filled.Coffee) { it.type == EquipmentType.BREWER && it.method == BrewMethod.ESPRESSO },
+                GearSection("Filters", FilterIcon) { it.type == EquipmentType.FILTER },
+                GearSection("Grinders", Icons.Filled.Tune) { it.type == EquipmentType.GRINDER },
+                GearSection("Kettles", Icons.Filled.LocalFireDepartment) { it.type == EquipmentType.KETTLE },
+                GearSection("Scales", Icons.Filled.Scale) { it.type == EquipmentType.SCALE },
+                GearSection("Water", Icons.Filled.WaterDrop) { it.type == EquipmentType.WATER },
+            )
+            sections.forEach { section ->
+                val items = data.equipment.filter(section.filter).sortedBy { it.name }
                 if (items.isNotEmpty()) {
-                    item { SectionHeader(type.displayName) }
+                    item { SectionHeader(section.title) }
                     items(items, key = { it.id }) { item ->
                         BrewCard {
                             Row(
@@ -129,7 +143,7 @@ fun GearScreen(nav: NavHostController) {
                                 ),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(type.icon(), null, tint = MaterialTheme.colorScheme.primary)
+                                Icon(section.icon, null, tint = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(item.name, fontWeight = FontWeight.Medium)
@@ -182,7 +196,15 @@ fun PresetPickerScreen(nav: NavHostController) {
     val container = LocalContainer.current
     val data by container.repository.data.collectAsStateWithLifecycle()
     var search by rememberSaveable { mutableStateOf("") }
-    val order = listOf(EquipmentType.BREWER, EquipmentType.FILTER, EquipmentType.GRINDER, EquipmentType.KETTLE, EquipmentType.SCALE, EquipmentType.WATER)
+    val presetSections = listOf(
+        Pair("Brewers") { p: EquipmentPreset -> p.type == EquipmentType.BREWER && p.method != BrewMethod.ESPRESSO },
+        Pair("Espresso machines") { p: EquipmentPreset -> p.type == EquipmentType.BREWER && p.method == BrewMethod.ESPRESSO },
+        Pair("Filters") { p: EquipmentPreset -> p.type == EquipmentType.FILTER },
+        Pair("Grinders") { p: EquipmentPreset -> p.type == EquipmentType.GRINDER },
+        Pair("Kettles") { p: EquipmentPreset -> p.type == EquipmentType.KETTLE },
+        Pair("Scales") { p: EquipmentPreset -> p.type == EquipmentType.SCALE },
+        Pair("Water") { p: EquipmentPreset -> p.type == EquipmentType.WATER },
+    )
 
     BrewScreen(title = "Add gear", onBack = { nav.popBackStack() }, actions = { TextButton(onClick = { nav.popBackStack() }) { Text("Done") } }) { padding ->
         CardList(padding) {
@@ -190,10 +212,10 @@ fun PresetPickerScreen(nav: NavHostController) {
                 OutlinedTextField(search, { search = it.take(60) }, Modifier.fillMaxWidth(), singleLine = true,
                     placeholder = { Text("Search") }, leadingIcon = { Icon(Icons.Filled.Search, null) })
             }
-            order.forEach { type ->
-                val presets = EquipmentPreset.all.filter { it.type == type && (search.isBlank() || it.name.contains(search, ignoreCase = true)) }
+            presetSections.forEach { (sectionTitle, filter) ->
+                val presets = EquipmentPreset.all.filter { filter(it) && (search.isBlank() || it.name.contains(search, ignoreCase = true)) }
                 if (presets.isNotEmpty()) {
-                    item { SectionHeader(type.displayName) }
+                    item { SectionHeader(sectionTitle) }
                     items(presets, key = { it.name }) { preset ->
                         val added = data.equipment.any { it.name == preset.name }
                         BrewCard(onClick = {

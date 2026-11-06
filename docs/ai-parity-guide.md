@@ -5,7 +5,7 @@
 
 ---
 
-> **Android is behind iOS** on the gear/setup-assistant changes. The step-by-step port list is in
+> **Android is behind iOS** on the glance widgets (Next brew, Coffee stats, Beans left). The step-by-step port list is in
 > [`docs/gemini-android-parity.md`](gemini-android-parity.md).
 
 ## 1. Core Philosophy & Non-Negotiable Invariants
