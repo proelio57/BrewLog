@@ -1,9 +1,9 @@
 import { ChartLine, Check, ChevronLeft, Circle, CircleCheck, Coffee, Droplet, FileText, Gauge, Leaf, Scale, SlidersHorizontal, Sparkles, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
-import { navigate, repository, scale, settings, setup } from '../app'
+import { espressoSetup, machine, navigate, repository, scale, settings, setup } from '../app'
 import { useStore } from '../data/store'
 import { BREWER_PRESETS, FILTER_PRESETS, GRINDER_PRESETS, makeEquipment, specFor, type EquipmentPreset } from '../domain/library'
-import { FLOW_NAMES, GRIND_UNIT_NAMES, ROAST_LEVELS, ROAST_NAMES, formatGrind, newBean, type Equipment, type GrindUnit, type RoastLevel } from '../domain/models'
+import { FLOW_NAMES, GRIND_UNIT_NAMES, ROAST_LEVELS, ROAST_NAMES, formatGrind, newBean, suggestMachineKind, type Equipment, type GrindUnit, type RoastLevel } from '../domain/models'
 import { METHOD_NAMES } from '../domain/recipe'
 import { LIMITS, sanitized } from '../domain/validation'
 import { Card, Chip, SectionHeader, TextInput, Toggle } from '../ui/components'
@@ -45,7 +45,17 @@ export function Onboarding() {
       return item
     }
     const brewer = brewers.map((n) => BREWER_PRESETS.find((p) => p.name === n)).filter((p): p is EquipmentPreset => !!p).map(ensure)[0]
-    if (brewer) setup.patch({ brewerId: brewer.id })
+    if (brewer) {
+      if (brewer.method === 'espresso') {
+        espressoSetup.patch({ brewerId: brewer.id })
+        const suggestedKind = suggestMachineKind(brewer.name)
+        if (suggestedKind) {
+          machine.configure(suggestedKind, machine.state.get().host)
+        }
+      } else {
+        setup.patch({ brewerId: brewer.id })
+      }
+    }
     const filter = filters.map((n) => FILTER_PRESETS.find((p) => p.name === n)).filter((p): p is EquipmentPreset => !!p).map(ensure)[0]
     if (filter) setup.patch({ filterId: filter.id })
     let grinderItem: Equipment | undefined
@@ -110,7 +120,8 @@ export function Onboarding() {
         {step === 'brewer' && (
           <TileStep title="What do you brew with?" subtitle="Pick one or more. The first one becomes your default."
             presets={BREWER_PRESETS} selection={brewers} onToggle={(n) => toggle(brewers, setBrewers, n)}
-            describe={(p) => [p.method ? METHOD_NAMES[p.method] : '', Coffee]} />
+            describe={(p) => [p.method ? METHOD_NAMES[p.method] : '', Coffee]}
+            sectionTitle={(index) => index === 0 ? 'Pour-over brewers' : BREWER_PRESETS[index].method === 'espresso' && BREWER_PRESETS[index - 1]?.method !== 'espresso' ? 'Espresso machines' : null} />
         )}
         {step === 'filter' && <FilterStep brewers={brewers} filters={filters} onToggle={(n) => toggle(filters, setFilters, n)} />}
         {step === 'grinder' && (

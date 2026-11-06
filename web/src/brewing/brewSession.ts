@@ -1,13 +1,15 @@
 import { Store } from '../data/store'
 import { roundHalfAway } from '../domain/format'
 import type { AppSettings, MachineSample, WeightSample } from '../domain/models'
-import { isPour, type Recipe } from '../domain/recipe'
+import { isPour, valveChange, type Recipe } from '../domain/recipe'
 import { LIMITS } from '../domain/validation'
 import { acceptedDose, doseStatus, recipeForDose, stableWeight, type DoseStatus } from './dosing'
 import { type GaggiMateStatus, hasWeight, isBrewing } from '../machine/gaggimate'
 import type { MachineManager } from '../machine/machineManager'
 import type { PressureMonitor } from '../scale/pressure'
 import { type ScaleCommands, monotonicMillis } from '../scale/scaleManager'
+import { StepAnnouncement } from '../audio/voicePrompter'
+import { ShotMonitor } from './shotMonitor'
 
 // 1:1 port of BrewSession.swift / BrewSession.kt.
 
@@ -37,6 +39,9 @@ export interface BrewSnapshot {
   /** The bean dose read from the scale, null when the beans weren't weighed. */
   weighedDose: number | null
   doseStatus: DoseStatus
+  firstDropsTime: number | null
+  liveRatio: number | null
+  stopRequested: boolean
 }
 
 /** Hard limits so a forgotten brew or a misbehaving device can't grow memory without bound. */
@@ -93,6 +98,10 @@ export class BrewSession {
   private weighedDose: number | null = null
   private dosePinged = false
   private prepared = false
+  private shotMonitor: ShotMonitor | null = null
+  private previewed = new Set<number>()
+  stopRequested = false
+  private stopRequestedAt: number | null = null
   readonly state: Store<BrewSnapshot>
 
   /** The recipe brewed: the planned one, or scaled to the weighed dose when that is at least 0.5 g off. */
@@ -109,11 +118,20 @@ export class BrewSession {
     private readonly clock: () => number = monotonicMillis,
     private readonly machine: MachineManager | null = null,
     private readonly monitor: PressureMonitor | null = null,
+    private readonly onSpeak?: ((text: string) => void) | null,
   ) {
     this.recipe = plannedRecipe
     this.usesScale = scale.isReady || (this.isEspresso && !!machine?.isConnected && hasWeight(machine.status))
     this.pourIndices = plannedRecipe.steps.map((s, i) => (isPour(s.kind) && s.target != null ? i : -1)).filter((i) => i >= 0)
     this.state = new Store(this.snapshot())
+  }
+
+  get firstDropsTime(): number | null {
+    return this.shotMonitor?.firstDropsTime ?? null
+  }
+
+  get liveRatio(): number | null {
+    return this.shotMonitor?.liveRatio ?? null
   }
 
   /** Water poured: the max weight seen, so lifting the dripper at the end doesn't distort it. */
@@ -360,6 +378,28 @@ export class BrewSession {
       this.maxWeight = Math.max(this.maxWeight, grams)
       this.appendSample((atMs - this.startMs) / 1000, grams, false)
       this.checkTargetPing()
+      if (this.isEspresso) {
+        this.checkShot(grams, (atMs - this.startMs) / 1000)
+      }
+    }
+  }
+
+  private checkShot(grams: number, t: number): void {
+    const shot = this.shotMonitor
+    if (!shot) return
+    const action = shot.ingest(grams, this.flowRate, t)
+    if (action === 'stop') {
+      if (this.followsMachine && this.machine?.canControl && isBrewing(this.machine.status)) {
+        this.machine.stopShot()
+      } else {
+        this.stopRequested = true
+        this.stopRequestedAt = this.clock()
+      }
+      this.fire('target')
+    } else if (action === 'finish') {
+      if (!this.followsMachine) {
+        this.onAutoFinish?.()
+      }
     }
   }
 
@@ -368,11 +408,14 @@ export class BrewSession {
     if (this.flash && now >= this.flashUntil) this.flash = null
     if (this.phase === 'brewing' && this.startMs != null) {
       this.elapsed = (now - this.startMs) / 1000
-      if (this.elapsed >= LIMITS.maxBrewSeconds) {
+      const stop = this.stopRequestedAt
+      if (this.elapsed >= LIMITS.maxBrewSeconds || (stop != null && now - stop >= 3_000)) {
+        this.stopRequestedAt = null
         this.onAutoFinish?.()
         return
       }
       this.checkStepStarts()
+      this.checkStepPreview()
       this.checkCountdownTicks()
       this.checkFinishPing()
     }
@@ -387,11 +430,24 @@ export class BrewSession {
     this.lastSampleT = 0
     this.machineSamples = []
     this.lastMachineSampleT = -1
+    this.stopRequested = false
+    this.stopRequestedAt = null
+    this.previewed.clear()
+    if (this.isEspresso) {
+      const s = this.settings()
+      this.shotMonitor = this.usesScale
+        ? new ShotMonitor(this.recipe.water, this.dose, s.shotStopLag, s.autoStopShot)
+        : null
+    } else {
+      this.shotMonitor = null
+    }
     if (this.usesScale && !this.weighsViaMachine) this.scale.brewStarted()
     // The first step at 0:00 is silent; just mark it as started.
     this.recipe.steps.forEach((step, index) => {
       if (step.time <= 0) this.startPinged.add(index)
     })
+    const firstStep = this.recipe.steps.find((s) => s.time <= 0)
+    if (firstStep) this.speak(StepAnnouncement.text(firstStep))
     this.publish()
   }
 
@@ -400,13 +456,38 @@ export class BrewSession {
       if (step.time > 0 && step.time <= this.elapsed && !this.startPinged.has(index)) {
         this.startPinged.add(index)
         // Don't replay cues that were missed (e.g. tab was in the background)
-        if (this.elapsed - step.time < 2) this.fire('nextStep')
+        if (this.elapsed - step.time < 2) {
+          this.fire('nextStep')
+          this.speak(StepAnnouncement.text(step))
+        }
       }
     })
   }
 
+  private checkStepPreview(): void {
+    const s = this.settings()
+    if (!s.voicePrompts || !s.voiceAnnounceAhead) return
+    const next = this.nextStepIndex()
+    if (next == null) return
+    const remaining = this.timeToNextStep()
+    if (remaining == null || this.previewed.has(next) || remaining > StepAnnouncement.LEAD_TIME) return
+    this.previewed.add(next)
+    const prevStart = this.currentStepIndex() != null ? this.recipe.steps[this.currentStepIndex()!].time : 0
+    const gap = this.recipe.steps[next].time - prevStart
+    if (remaining > StepAnnouncement.LEAD_TIME - 1 && gap >= StepAnnouncement.LEAD_TIME + 6) {
+      this.speak(StepAnnouncement.preview(this.recipe.steps[next]))
+    }
+  }
+
+  private speak(text: string): void {
+    if (this.settings().voicePrompts) this.onSpeak?.(text)
+  }
+
   private checkCountdownTicks(): void {
-    if (!this.settings().countdownTicks) return
+    const next = this.nextStepIndex()
+    if (next == null) return
+    const valve = this.settings().valveCountdown && valveChange(this.recipe, next) != null
+    if (!this.settings().countdownTicks && !valve) return
     const remaining = this.timeToNextStep()
     if (remaining == null) return
     const second = Math.ceil(remaining)
@@ -421,7 +502,10 @@ export class BrewSession {
     this.finishPinged = true
     // Skip if a recipe step already chimes at this moment (e.g. "remove dripper")
     if (this.recipe.steps.some((s) => Math.abs(s.time - this.recipe.targetTime) < 1.5)) return
-    if (this.elapsed - this.recipe.targetTime < 2) this.fire('finish')
+    if (this.elapsed - this.recipe.targetTime < 2) {
+      this.fire('finish')
+      this.speak(StepAnnouncement.FINISHED)
+    }
   }
 
   private checkTargetPing(): void {
@@ -533,6 +617,9 @@ export class BrewSession {
       machineSamples: this.machineSamples.slice(),
       weighedDose: this.weighedDose,
       doseStatus: doseStatus(this.weight, this.plannedDose),
+      firstDropsTime: this.firstDropsTime,
+      liveRatio: this.liveRatio,
+      stopRequested: this.stopRequested,
     }
   }
 

@@ -1,17 +1,21 @@
-import { ChartLine, Coffee, FileText, Leaf, Pencil, PlusCircle, RotateCcw, Sparkles, Thermometer, Timer, Droplet, SlidersHorizontal, Wrench } from 'lucide-react'
+import {
+  CheckCircle2, Coffee, Droplet, FileText, Leaf, Pencil, PlusCircle, RotateCcw, Sparkles, Thermometer, Timer, SlidersHorizontal, TriangleAlert, Wrench,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { allRecipes, goBack, navigate, presetRecipes, repository, setup } from '../app'
-import { LEAN_TITLES, weightDelta, type BrewAnalysis } from '../analysis/analyzer'
+import { weightDelta, type BrewAnalysis } from '../analysis/analyzer'
 import { analyzeBrew } from '../analysis/recommender'
 import { useStore } from '../data/store'
+import { Extraction } from '../domain/extraction'
 import { fmt1, formatDate, grams, grams1, mmss, roundHalfAway } from '../domain/format'
 import { FEEDBACK_INFO, TASTE_FEEDBACK, type Brew, type MachineSample, type TasteFeedback, type WeightSample, beanDisplayName, brewRatio, formatGrind, grindDisplay } from '../domain/models'
 import { METHOD_NAMES } from '../domain/recipe'
 import { sanitized } from '../domain/validation'
 import { BrewChart, MachineChart } from '../ui/chart'
 import {
-  Card, Chip, FEEDBACK_ICONS, FINDING_STYLE, IconCircle, NumberInput, SectionHeader, SelectRow, StarRating, Stat, TopBar, suggestionIcon,
+  Card, Chip, FEEDBACK_ICONS, FINDING_STYLE, NumberInput, SectionHeader, SelectRow, StarRating, Stat, TopBar,
 } from '../ui/components'
+import { ExtractionChart } from './Tools'
 
 /** Post-brew review (rating, taste, analysis, suggestions). Also the journal detail screen. */
 export function BrewDetail({ brewId, isNew }: { brewId: string; isNew: boolean }) {
@@ -91,6 +95,7 @@ export function BrewDetail({ brewId, isNew }: { brewId: string; isNew: boolean }
         {analysis && <Suggestions brew={brew} analysis={analysis} />}
         {analysis && <Findings analysis={analysis} />}
         {analysis && analysis.pours.length > 0 && <Pours analysis={analysis} />}
+        <BrewExtractionCard brew={brew} espresso={espresso} />
         <Details brew={brew} />
 
         {!isNew && (
@@ -104,6 +109,69 @@ export function BrewDetail({ brewId, isNew }: { brewId: string; isNew: boolean }
   )
 }
 
+function BrewExtractionCard({ brew, espresso }: { brew: Brew; espresso: boolean }) {
+  const effectiveBeverage = brew.drinkWeight ?? Extraction.estimatedBeverage(brew.finalWeight, brew.dose, espresso)
+  const reading = brew.tds != null && brew.tds > 0
+    ? Extraction.evaluate(brew.tds, effectiveBeverage, brew.dose, espresso)
+    : null
+
+  return (
+    <>
+      <SectionHeader title="Extraction" />
+      <Card>
+        <div className="row">
+          <span className="grow muted">TDS (%)</span>
+          <NumberInput
+            label="TDS"
+            value={brew.tds ?? null}
+            onChange={(v) => repository.updateBrew(brew.id, (b) => ({ ...b, tds: v }))}
+            max={30}
+            decimals={2}
+            placeholder={espresso ? 'e.g. 9.5' : 'e.g. 1.35'}
+            style={{ width: 100, textAlign: 'right' }}
+          />
+        </div>
+        <div className="row">
+          <span className="grow muted">{espresso ? 'Shot weight (g)' : 'Drink weight (g)'}</span>
+          <NumberInput
+            label="Drink weight"
+            value={brew.drinkWeight ?? null}
+            onChange={(v) => repository.updateBrew(brew.id, (b) => ({ ...b, drinkWeight: v }))}
+            max={2000}
+            decimals={1}
+            placeholder={`≈ ${Math.round(effectiveBeverage)}`}
+            style={{ width: 100, textAlign: 'right' }}
+          />
+        </div>
+        {reading ? (
+          <>
+            <div className="divider" />
+            <div className="row">
+              <span className="grow muted">Extraction yield</span>
+              <span style={{ fontWeight: 600, fontSize: 16 }}>{fmt1(reading.yield)} %</span>
+            </div>
+            <div className="row">
+              <span className="grow muted">Strength</span>
+              <span style={{ fontWeight: 600 }}>{fmt1(reading.tds)} % TDS · {reading.strength}</span>
+            </div>
+            <div className="row" style={{ color: reading.verdict === 'ideal' ? 'var(--good)' : 'var(--warn)' }}>
+              {reading.verdict === 'ideal' ? <CheckCircle2 size={18} /> : <TriangleAlert size={18} />}
+              <span style={{ fontWeight: 600 }}>{reading.verdict === 'ideal' ? 'Ideal extraction' : reading.verdict === 'under' ? 'Under-extracted' : 'Over-extracted'}</span>
+            </div>
+            <div className="small muted">{reading.advice}</div>
+            <div className="divider" />
+            <ExtractionChart readings={[reading]} espresso={espresso} height={180} />
+          </>
+        ) : (
+          <div className="small muted">
+            Have a refractometer? Enter the TDS to see the extraction yield and whether your brew was under- or over-extracted.
+          </div>
+        )}
+      </Card>
+    </>
+  )
+}
+
 function toggleFeedback(brew: Brew, item: TasteFeedback): Brew {
   let set = new Set(brew.feedback)
   let rating = brew.rating
@@ -114,7 +182,6 @@ function toggleFeedback(brew: Brew, item: TasteFeedback): Brew {
   } else {
     set.delete('perfect')
     set.add(item)
-    // Sour vs bitter can coexist (uneven extraction). Weak vs strong can't.
     if (item === 'weak') set.delete('strong')
     if (item === 'strong') set.delete('weak')
   }
@@ -139,25 +206,19 @@ function brewAgain(brew: Brew): void {
 function Suggestions({ brew, analysis }: { brew: Brew; analysis: BrewAnalysis }) {
   const [showAll, setShowAll] = useState(false)
   const visible = showAll ? analysis.suggestions : analysis.suggestions.slice(0, 3)
+  if (!analysis.suggestions.length) return null
   const next = analysis.suggestedGrind
   return (
     <>
-      <SectionHeader title={brew.feedback.length ? 'What to try next' : 'Analysis'} trailing={LEAN_TITLES[analysis.lean]} />
+      <SectionHeader title="Suggestions for next time" />
       <Card>
-        <div className="title">{analysis.headline}</div>
-        {!brew.feedback.length && <div className="small muted">Choose how it tasted above. BrewLog compares your taste with the pour data and suggests what to change.</div>}
         {visible.map((s, i) => (
-          <div key={s.key}>
-            {i > 0 && <div className="divider" style={{ margin: '4px 0 12px' }} />}
-            <div className="row top" style={{ gap: 12 }}>
-              <IconCircle icon={suggestionIcon(s.key)} color="var(--accent)" size={36} strong={i === 0} />
-              <div className="grow">
-                <div style={{ fontWeight: 600 }}>{s.title}</div>
-                <div className="small muted">{s.detail}</div>
-                {s.evidence.map((e) => (
-                  <div key={e} className="row small accent" style={{ gap: 4, marginTop: 3, fontWeight: 500 }}><ChartLine size={14} />{e}</div>
-                ))}
-              </div>
+          <div key={i} className="row top">
+            <Sparkles size={20} className="accent" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div className="grow">
+              <div style={{ fontWeight: 600 }}>{s.title}</div>
+              <div className="small muted">{s.detail}</div>
+              {s.evidence.length > 0 && <div className="tiny muted">{s.evidence.join(' · ')}</div>}
             </div>
           </div>
         ))}
@@ -252,6 +313,8 @@ function Details({ brew }: { brew: Brew }) {
         <div className="divider" />
         <DetailRow icon={Coffee} label="Brewer" value={brew.brewerName} />
         {(brew.recipe?.method !== 'espresso' || brew.filterName) && <DetailRow icon={FileText} label="Filter" value={brew.filterName} />}
+        {brew.waterName && <DetailRow icon={Droplet} label="Water" value={brew.waterName} />}
+        {brew.profileName && <DetailRow icon={SlidersHorizontal} label="Profile" value={brew.profileName} />}
         <DetailRow icon={Droplet} label="Dose" value={grams1(brew.dose)} />
         <DetailRow icon={Thermometer} label="Water temp" value={`${Math.round(brew.waterTemp)} °C`} />
         <textarea className="input" aria-label="Notes" placeholder="Notes: aroma, flavours, what you changed…" value={notes}

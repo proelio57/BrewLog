@@ -1,6 +1,6 @@
 import {
-  CircleCheck, CirclePlus, Coffee, Download, FileText, Flame, LayoutGrid, Scale, Search, Settings, SlidersHorizontal, Sparkles, Trash2,
-  Droplet, type LucideIcon,
+  ArrowLeftRight, CircleCheck, CirclePlus, Coffee, Download, Droplet, Droplets, FileText, Flame, LayoutGrid, Scale, Search, Settings, SlidersHorizontal, Sparkles, Trash2,
+  type LucideIcon,
 } from 'lucide-react'
 import { useState } from 'react'
 import { cue, goBack, navigate, recipeFeed, repository, scale, settings } from '../app'
@@ -26,6 +26,34 @@ export const EQUIPMENT_ICONS: Record<EquipmentType, LucideIcon> = {
 
 export function GearScreen() {
   const data = useStore(repository.data)
+
+  const filterBrewers = data.equipment.filter((e) => e.type === 'brewer' && e.method !== 'espresso').sort((a, b) => a.name.localeCompare(b.name))
+  const espressoMachines = data.equipment.filter((e) => e.type === 'brewer' && e.method === 'espresso').sort((a, b) => a.name.localeCompare(b.name))
+  const grinders = data.equipment.filter((e) => e.type === 'grinder').sort((a, b) => a.name.localeCompare(b.name))
+  const filters = data.equipment.filter((e) => e.type === 'filter').sort((a, b) => a.name.localeCompare(b.name))
+  const waters = data.equipment.filter((e) => e.type === 'water').sort((a, b) => a.name.localeCompare(b.name))
+  const others = data.equipment.filter((e) => e.type !== 'brewer' && e.type !== 'grinder' && e.type !== 'filter' && e.type !== 'water').sort((a, b) => a.name.localeCompare(b.name))
+
+  const renderSection = (title: string, items: Equipment[], Icon: LucideIcon) => {
+    if (!items.length) return null
+    return (
+      <div key={title} style={{ display: 'contents' }}>
+        <SectionHeader title={title} />
+        {items.map((item) => (
+          <Card key={item.id} onClick={() => navigate(`/equipment/${item.id}`)}>
+            <div className="row">
+              <Icon size={20} className="accent" />
+              <div className="grow">
+                <div style={{ fontWeight: 500 }}>{item.name}</div>
+                {equipmentSubtitle(item) && <div className="small muted">{equipmentSubtitle(item)}</div>}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="screen with-tabs">
       <TopBar title="Gear" />
@@ -35,24 +63,41 @@ export function GearScreen() {
           <div className="divider" />
           <button className="row" onClick={() => navigate('/settings')}><Settings size={20} className="accent" /><span style={{ fontWeight: 500 }}>Settings & backup</span></button>
         </Card>
-        {EQUIPMENT_TYPES.map((type) => {
-          const items = data.equipment.filter((e) => e.type === type).sort((a, b) => a.name.localeCompare(b.name))
-          if (!items.length) return null
-          const Icon = EQUIPMENT_ICONS[type]
-          return (
-            <div key={type} style={{ display: 'contents' }}>
-              <SectionHeader title={EQUIPMENT_NAMES[type]} />
-              {items.map((item) => (
-                <Card key={item.id} onClick={() => navigate(`/equipment/${item.id}`)}>
-                  <div className="row">
-                    <Icon size={20} className="accent" />
-                    <div className="grow"><div style={{ fontWeight: 500 }}>{item.name}</div>{equipmentSubtitle(item) && <div className="small muted">{equipmentSubtitle(item)}</div>}</div>
-                  </div>
-                </Card>
-              ))}
+
+        {renderSection('Brewers', filterBrewers, Coffee)}
+        {renderSection('Espresso machines', espressoMachines, Coffee)}
+        {renderSection('Grinders', grinders, SlidersHorizontal)}
+        {renderSection('Filters', filters, FileText)}
+        {renderSection('Water profiles', waters, Droplet)}
+        {others.length > 0 && renderSection('Other gear', others, Scale)}
+
+        <SectionHeader title="Tools" />
+        <Card>
+          <button className="row" onClick={() => navigate('/tools/extraction')}>
+            <Droplet size={20} className="accent" />
+            <div className="grow" style={{ textAlign: 'left' }}>
+              <div style={{ fontWeight: 500 }}>Extraction calculator</div>
+              <div className="small muted">TDS & extraction yield on the SCA control chart</div>
             </div>
-          )
-        })}
+          </button>
+          <div className="divider" />
+          <button className="row" onClick={() => navigate('/tools/water')}>
+            <Droplets size={20} className="accent" />
+            <div className="grow" style={{ textAlign: 'left' }}>
+              <div style={{ fontWeight: 500 }}>Water recipes</div>
+              <div className="small muted">GH & KH remineralization with dry salts or concentrates</div>
+            </div>
+          </button>
+          <div className="divider" />
+          <button className="row" onClick={() => navigate('/tools/grind')}>
+            <ArrowLeftRight size={20} className="accent" />
+            <div className="grow" style={{ textAlign: 'left' }}>
+              <div style={{ fontWeight: 500 }}>Grind converter</div>
+              <div className="small muted">Translate grind clicks and numbers across grinders</div>
+            </div>
+          </button>
+        </Card>
+
         <Card>
           <button className="row" onClick={() => navigate('/presets')}><LayoutGrid size={20} className="accent" /><span style={{ fontWeight: 500 }}>Add from presets</span></button>
           <div className="divider" />
@@ -212,6 +257,24 @@ export function SettingsScreen() {
 
         <EspressoSettings />
 
+        <SectionHeader title="Espresso shot control" />
+        <Card>
+          <Toggle
+            label="Auto-stop at target yield"
+            checked={s.autoStopShot}
+            onChange={(v) => change({ autoStopShot: v })}
+            detail="Sends a stop command to supported machines (GaggiMate, Decent) when predicted yield is reached."
+          />
+          {s.autoStopShot && (
+            <Stepper
+              label="Stop lead time"
+              value={`${fmt1(s.shotStopLag)} s`}
+              onMinus={() => change({ shotStopLag: Math.max(0, s.shotStopLag - 0.1) })}
+              onPlus={() => change({ shotStopLag: Math.min(2.0, s.shotStopLag + 0.1) })}
+            />
+          )}
+        </Card>
+
         <SectionHeader title="Brew assistant" />
         <Card>
           <div>Auto-start at {fmt1(s.autoStartThreshold)} g</div>
@@ -236,6 +299,31 @@ export function SettingsScreen() {
           <Toggle label="Chime at target brew time" checked={s.finishPing} onChange={(v) => change({ finishPing: v })} />
           <Toggle label="Keep screen on while brewing" checked={s.keepAwake} onChange={(v) => change({ keepAwake: v })} />
           <div className="small muted">Automatic buffer = your pour rate × reaction time + 1 g, so you hear the ping early enough to stop right on target. Increase the reaction time if you often overpour. With a scale connected, a brew starts by weighing the beans (you can skip it).</div>
+        </Card>
+
+        <SectionHeader title="Voice prompts" />
+        <Card>
+          <Toggle
+            label="Spoken step announcements"
+            checked={s.voicePrompts}
+            onChange={(v) => change({ voicePrompts: v })}
+            detail="Reads aloud step instructions and pour targets so you don't need to look at the screen."
+          />
+          {s.voicePrompts && (
+            <>
+              <Toggle
+                label="Preview next step 5 s ahead"
+                checked={s.voiceAnnounceAhead}
+                onChange={(v) => change({ voiceAnnounceAhead: v })}
+              />
+              <Toggle
+                label="Countdown before valve changes"
+                checked={s.valveCountdown}
+                onChange={(v) => change({ valveCountdown: v })}
+                detail="Speaks '3, 2, 1, open valve' for immersion drippers."
+              />
+            </>
+          )}
         </Card>
 
         <SectionHeader title="Sound & vibration" />

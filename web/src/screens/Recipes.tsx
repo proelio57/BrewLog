@@ -1,6 +1,6 @@
 import { CircleCheck, Copy, Droplet, Lightbulb, Pencil, Plus, Share2, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { allRecipes, goBack, navigate, recipeFeed, repository, setup } from '../app'
+import { activeSetup, allRecipes, goBack, navigate, recipeFeed, repository, settings, setup } from '../app'
 import { useStore } from '../data/store'
 import { grams, mmss, newId } from '../domain/format'
 import { blankRecipe } from '../domain/library'
@@ -12,13 +12,16 @@ import {
 import { validatedRecipe } from '../domain/validation'
 import { Card, Chip, Field, NumberInput, STEP_ICONS, SectionHeader, Stat, Stepper, TasteBars, TextInput, TopBar } from '../ui/components'
 
-function RecipeSections({ custom, onPick, selectedId }: { custom: Recipe[]; onPick: (r: Recipe) => void; selectedId?: string }) {
+function RecipeSections({ custom, onPick, selectedId, filterMethod = 'all' }: { custom: Recipe[]; onPick: (r: Recipe) => void; selectedId?: string; filterMethod?: BrewMethod | 'all' }) {
   const presets = useStore(recipeFeed.presets)
+  const filteredCustom = filterMethod === 'all' ? custom : custom.filter((r) => r.method === filterMethod)
+  const methods = filterMethod === 'all' ? BREW_METHODS : [filterMethod]
+
   return (
     <>
-      {custom.length > 0 && <SectionHeader title="My recipes" />}
-      {custom.map((r) => <RecipeRow key={'c' + r.id} recipe={r} onClick={() => onPick(r)} selected={r.id === selectedId} />)}
-      {BREW_METHODS.map((method) => {
+      {filteredCustom.length > 0 && <SectionHeader title="My recipes" />}
+      {filteredCustom.map((r) => <RecipeRow key={'c' + r.id} recipe={r} onClick={() => onPick(r)} selected={r.id === selectedId} />)}
+      {methods.map((method) => {
         const recipes = presets.filter((r) => r.method === method)
         if (!recipes.length) return null
         return (
@@ -49,6 +52,8 @@ function RecipeRow({ recipe, onClick, selected }: { recipe: Recipe; onClick: () 
 
 export function RecipeList() {
   const data = useStore(repository.data)
+  const [filterMethod, setFilterMethod] = useState<BrewMethod | 'all'>('all')
+
   return (
     <div className="screen with-tabs">
       <TopBar title="Recipes" actions={<>
@@ -59,19 +64,45 @@ export function RecipeList() {
         )}
         <button className="icon-btn" aria-label="New recipe" onClick={() => navigate('/recipe-edit/new')}><Plus size={24} /></button>
       </>} />
-      <div className="content"><RecipeSections custom={data.customRecipes} onPick={(r) => navigate(`/recipe/${encodeURIComponent(r.id)}`)} /></div>
+      <div className="content">
+        <div className="chips" style={{ marginBottom: 12 }}>
+          <Chip title="All" selected={filterMethod === 'all'} onClick={() => setFilterMethod('all')} />
+          {BREW_METHODS.map((m) => (
+            <Chip key={m} title={METHOD_NAMES[m]} selected={filterMethod === m} onClick={() => setFilterMethod(m)} />
+          ))}
+        </div>
+        <RecipeSections custom={data.customRecipes} filterMethod={filterMethod} onPick={(r) => navigate(`/recipe/${encodeURIComponent(r.id)}`)} />
+      </div>
     </div>
   )
 }
 
 export function RecipePicker() {
   const data = useStore(repository.data)
-  const s = useStore(setup.state)
+  const curSetup = activeSetup()
+  const s = useStore(curSetup.state)
+  const isEsp = settings.get().brewMode === 'espresso'
+  const [filterMethod, setFilterMethod] = useState<BrewMethod | 'all'>(isEsp ? 'espresso' : 'all')
+
   return (
     <div className="screen">
       <TopBar title="Choose recipe" onBack={() => goBack()} />
       <div className="content">
-        <RecipeSections custom={data.customRecipes} selectedId={s.recipe.id} onPick={(r) => { setup.select(r); goBack() }} />
+        <div className="chips" style={{ marginBottom: 12 }}>
+          <Chip title="All" selected={filterMethod === 'all'} onClick={() => setFilterMethod('all')} />
+          {BREW_METHODS.map((m) => (
+            <Chip key={m} title={METHOD_NAMES[m]} selected={filterMethod === m} onClick={() => setFilterMethod(m)} />
+          ))}
+        </div>
+        <RecipeSections
+          custom={data.customRecipes}
+          filterMethod={filterMethod}
+          selectedId={s.recipe.id}
+          onPick={(r) => {
+            curSetup.select(r)
+            goBack()
+          }}
+        />
       </div>
     </div>
   )

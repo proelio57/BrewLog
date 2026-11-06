@@ -1,12 +1,25 @@
 import { Store } from '../data/store'
 import type { Recipe } from '../domain/recipe'
-import { type GaggiMateStatus, emptyStatus, gaggiMateUrl, isBrewing, isTelemetry, makeProfile, mergeStatus, statusFrame } from './gaggimate'
+import {
+  type MachineKind,
+  MACHINE_TITLES,
+  machineReadsPressure,
+  machineCanControl,
+} from '../domain/models'
+import {
+  type GaggiMateStatus,
+  emptyStatus,
+  gaggiMateUrl,
+  isBrewing,
+  isTelemetry,
+  makeProfile,
+  mergeStatus,
+  statusFrame,
+} from './gaggimate'
+import { GaggiMateProfileImport, type MachineProfileSummary } from './gaggimateProfileImport'
+import { DecentConnection } from './decent'
 
-// Port of MachineManager.swift. GaggiMate over its local WebSocket, or a demo machine.
-// Browsers only allow ws:// (unencrypted) from pages that aren't https themselves: GaggiMate works when BrewLog
-// runs locally (npm start, http://localhost or the LAN address), not from the https hosting.
-
-export type MachineKind = 'none' | 'gaggimate' | 'demo'
+export type { MachineKind }
 export type MachineConnection = 'off' | 'connecting' | 'connected' | 'unreachable'
 
 export interface MachineState {
@@ -18,6 +31,8 @@ export interface MachineState {
   notice: string | null
   /** The machine refused to start because of a warning (e.g. low water). */
   startBlockedBy: string[]
+  profiles: MachineProfileSummary[]
+  profilesLoading: boolean
 }
 
 export type ShotListener = (started: boolean, timeMs: number) => void
@@ -28,6 +43,7 @@ export const machineBlockedByHttps = (): boolean => typeof window !== 'undefined
 
 export class MachineManager {
   readonly state: Store<MachineState>
+  readonly decent = new DecentConnection()
   private socket: WebSocket | null = null
   private lastMessage = 0
   private watchdog: ReturnType<typeof setInterval> | null = null
@@ -38,16 +54,51 @@ export class MachineManager {
   private nextRequest = 0
   private readonly demo = new DemoMachine((status, telemetry) => this.apply(status, telemetry))
 
-  constructor(kind: MachineKind, host: string, private readonly persist: (kind: MachineKind, host: string) => void,
-    private readonly clock: () => number = () => performance.now()) {
-    this.state = new Store<MachineState>({ kind, host, connection: 'off', status: emptyStatus(), notice: null, startBlockedBy: [] })
+  constructor(
+    kind: MachineKind,
+    host: string,
+    private readonly persist: (kind: MachineKind, host: string) => void,
+    private readonly clock: () => number = () => performance.now(),
+  ) {
+    this.state = new Store<MachineState>({
+      kind,
+      host,
+      connection: 'off',
+      status: emptyStatus(),
+      notice: null,
+      startBlockedBy: [],
+      profiles: [],
+      profilesLoading: false,
+    })
+
+    this.decent.onStatus = (status, telemetry) => {
+      if (this.state.get().kind === 'decent') {
+        this.apply(status as unknown as GaggiMateStatus, telemetry)
+      }
+    }
+    this.decent.onDisconnect = () => {
+      if (this.state.get().kind === 'decent') {
+        this.connectionLost()
+      }
+    }
   }
 
-  get isConnected(): boolean { return this.state.get().connection === 'connected' }
-  get status(): GaggiMateStatus { return this.state.get().status }
+  get isConnected(): boolean {
+    if (this.state.get().kind === 'decent') return this.decent.isConnected
+    return this.state.get().connection === 'connected'
+  }
+  get status(): GaggiMateStatus {
+    return this.state.get().status
+  }
   get displayName(): string {
     const kind = this.state.get().kind
-    return kind === 'gaggimate' ? 'GaggiMate' : kind === 'demo' ? 'Demo machine' : 'No machine'
+    return MACHINE_TITLES[kind] ?? 'No machine'
+  }
+  get canControl(): boolean {
+    return machineCanControl(this.state.get().kind, this.isConnected)
+  }
+  get readsPressure(): boolean {
+    return machineReadsPressure(this.state.get().kind, this.status)
   }
 
   onShot(listener: ShotListener): () => void {
@@ -60,7 +111,9 @@ export class MachineManager {
     return () => this.readingListeners.delete(listener)
   }
 
-  start(): void { this.restart() }
+  start(): void {
+    this.restart()
+  }
 
   configure(kind: MachineKind, host: string): void {
     this.state.set({ ...this.state.get(), kind, host })
@@ -81,23 +134,32 @@ export class MachineManager {
 
   setMode(mode: number): void {
     if (this.state.get().kind === 'demo') return this.demo.setMode(mode)
+    if (this.state.get().kind === 'decent') return
     this.send({ tp: 'req:change-mode', mode })
   }
 
   startShot(ignoreWarnings = false): void {
     this.patch({ startBlockedBy: [] })
     if (this.state.get().kind === 'demo') return this.demo.startShotNow()
+    if (this.state.get().kind === 'decent') {
+      void this.decent.startShot()
+      return
+    }
     if (this.status.mode !== 1) this.send({ tp: 'req:change-mode', mode: 1 })
     this.send({ tp: 'req:process:activate', ignoreWarnings })
   }
 
   stopShot(): void {
     if (this.state.get().kind === 'demo') return this.demo.stopShot()
+    if (this.state.get().kind === 'decent') {
+      void this.decent.stopShot()
+      return
+    }
     this.send({ tp: 'req:process:deactivate' })
   }
 
   tareScale(): void {
-    if (this.state.get().kind !== 'demo') this.send({ tp: 'req:scale:tare' })
+    if (this.state.get().kind === 'gaggimate') this.send({ tp: 'req:scale:tare' })
   }
 
   dismissStartWarning(): void {
@@ -107,7 +169,13 @@ export class MachineManager {
 
   nudgeTemperature(up: boolean): void {
     if (this.state.get().kind === 'demo') return this.demo.nudgeTemperature(up)
-    this.send({ tp: up ? 'req:raise-temp' : 'req:lower-temp' })
+    if (this.state.get().kind === 'gaggimate') {
+      this.send({ tp: up ? 'req:raise-temp' : 'req:lower-temp' })
+    }
+  }
+
+  setTargetTemperature(value: number): void {
+    if (this.state.get().kind === 'demo') return this.demo.setTargetTemperature(value)
   }
 
   /** Saves the recipe as a GaggiMate profile (updating the one sent before) and selects it. */
@@ -117,6 +185,8 @@ export class MachineManager {
       this.patch({ notice: `Demo machine: ${recipe.name} selected` })
       return
     }
+    if (this.state.get().kind !== 'gaggimate') return
+
     const status = this.status
     const profile = makeProfile(recipe, dose, temperature, status.hasPressure ?? true, status.scaleConnected)
     const key = `brewlog.machineProfile.${recipe.id}`
@@ -124,40 +194,115 @@ export class MachineManager {
     if (savedId) profile.id = savedId
     this.patch({ notice: `Sending ${recipe.name}…` })
     this.send({ tp: 'req:profiles:save', profile }, (response) => {
-      const saved = response && !response.error && typeof response.profile === 'object' && response.profile
-        ? (response.profile as Record<string, unknown>).id : null
+      const saved =
+        response && !response.error && typeof response.profile === 'object' && response.profile
+          ? (response.profile as Record<string, unknown>).id
+          : null
       if (typeof saved !== 'string') {
         if (savedId) {
           localStorage.removeItem(key)
           this.sendProfile(recipe, dose, temperature)
         } else {
-          this.patch({ notice: `The machine didn't accept the profile${typeof response?.error === 'string' ? `: ${response.error}` : '.'}` })
+          this.patch({
+            notice: `The machine didn't accept the profile${typeof response?.error === 'string' ? `: ${response.error}` : '.'}`,
+          })
         }
         return
       }
       localStorage.setItem(key, saved)
-      this.send({ tp: 'req:profiles:select', id: saved }, () => this.patch({ notice: `${recipe.name} is selected on the machine` }))
+      this.send({ tp: 'req:profiles:select', id: saved }, () =>
+        this.patch({ notice: `${recipe.name} is selected on the machine` }),
+      )
     })
   }
 
-  // MARK: Connection
+  refreshProfiles(): void {
+    const kind = this.state.get().kind
+    if (kind === 'demo') {
+      this.patch({
+        profiles: [
+          {
+            id: 'demo-1',
+            label: 'Classic 9 Bar',
+            isSelected: true,
+            isFavorite: true,
+            isBrewLogs: false,
+            recipe: null,
+          },
+          {
+            id: 'demo-2',
+            label: 'Blooming Shot',
+            isSelected: false,
+            isFavorite: true,
+            isBrewLogs: false,
+            recipe: null,
+          },
+          {
+            id: 'demo-3',
+            label: 'Turbo Shot',
+            isSelected: false,
+            isFavorite: false,
+            isBrewLogs: false,
+            recipe: null,
+          },
+        ],
+      })
+      return
+    }
+    if (kind !== 'gaggimate' || !this.isConnected) return
+
+    this.patch({ profilesLoading: true })
+    this.send({ tp: 'req:profiles:list' }, (response) => {
+      this.patch({ profilesLoading: false })
+      if (!response) return
+      const summaries = GaggiMateProfileImport.summaries(response)
+      this.patch({ profiles: summaries })
+    })
+  }
+
+  selectProfile(id: string): void {
+    const kind = this.state.get().kind
+    if (kind === 'demo') {
+      const updated = this.state.get().profiles.map((p) => ({ ...p, isSelected: p.id === id }))
+      this.patch({ profiles: updated })
+      return
+    }
+    if (kind === 'gaggimate' && this.isConnected) {
+      this.send({ tp: 'req:profiles:select', id }, () => {
+        this.refreshProfiles()
+      })
+    }
+  }
+
+  // MARK: Connection lifecycle
 
   private restart(): void {
     this.disconnect()
     this.demo.stop()
     const { kind } = this.state.get()
-    this.patch({ status: emptyStatus(), connection: kind === 'none' ? 'off' : kind === 'demo' ? 'connected' : 'connecting' })
-    if (kind === 'demo') this.demo.start()
-    if (kind === 'gaggimate') this.connect()
+    if (kind === 'demo') {
+      this.patch({ connection: 'connected' })
+      this.demo.start()
+      this.refreshProfiles()
+    } else if (kind === 'gaggimate') {
+      this.connect()
+    } else if (kind === 'decent') {
+      this.patch({ connection: this.decent.isConnected ? 'connected' : 'off' })
+    } else {
+      this.patch({ connection: 'off', status: emptyStatus(), profiles: [] })
+    }
   }
 
   private connect(): void {
-    if (this.retry) clearTimeout(this.retry)
-    const url = gaggiMateUrl(this.state.get().host)
-    if (!url || typeof WebSocket === 'undefined' || machineBlockedByHttps()) {
-      this.patch({ connection: 'unreachable' })
+    if (this.socket) return
+    const { kind, host } = this.state.get()
+    if (kind !== 'gaggimate') return
+    const url = gaggiMateUrl(host)
+    if (!url) {
+      this.patch({ connection: 'unreachable', status: emptyStatus() })
       return
     }
+
     this.patch({ connection: 'connecting' })
     let socket: WebSocket
     try {
@@ -167,25 +312,42 @@ export class MachineManager {
       return
     }
     this.socket = socket
-    this.lastMessage = Date.now()
+
+    socket.onopen = () => {
+      if (this.socket !== socket) return
+      this.lastMessage = this.clock()
+      this.patch({ connection: 'connected' })
+      this.watchdog = setInterval(() => {
+        if (this.clock() - this.lastMessage > 12_000) this.connectionLost()
+      }, 3_000)
+      this.refreshProfiles()
+    }
+
     socket.onmessage = (event) => {
-      if (this.socket !== socket || typeof event.data !== 'string') return
-      this.lastMessage = Date.now()
+      if (this.socket !== socket) return
+      this.lastMessage = this.clock()
+      if (typeof event.data !== 'string') return
       const frame = statusFrame(event.data)
       if (frame) {
-        this.apply(mergeStatus(this.status, frame), isTelemetry(frame))
+        const next = mergeStatus(this.status, frame)
+        this.apply(next, isTelemetry(frame))
       } else {
         try {
-          this.handleOther(JSON.parse(event.data) as Record<string, unknown>)
+          const raw = JSON.parse(event.data) as Record<string, unknown>
+          if (raw && typeof raw === 'object' && !Array.isArray(raw)) this.handleOther(raw)
         } catch {
-          // Not JSON: ignore.
+          // ignore
         }
       }
     }
-    socket.onclose = () => { if (this.socket === socket) this.connectionLost() }
-    socket.onerror = () => { if (this.socket === socket) this.connectionLost() }
-    // GaggiMate sends telemetry every 500 ms, so a few silent seconds mean the connection is gone.
-    this.watchdog = setInterval(() => { if (Date.now() - this.lastMessage > 6_000) this.connectionLost() }, 2_000)
+
+    socket.onerror = () => {
+      if (this.socket === socket) this.connectionLost()
+    }
+
+    socket.onclose = () => {
+      if (this.socket === socket) this.connectionLost()
+    }
   }
 
   private disconnect(): void {
@@ -205,7 +367,9 @@ export class MachineManager {
     this.disconnect()
     this.patch({ connection: 'unreachable', status: emptyStatus() })
     if (wasBrewing) this.shotListeners.forEach((l) => l(false, this.clock()))
-    this.retry = setTimeout(() => { if (this.state.get().kind === 'gaggimate') this.connect() }, 5_000)
+    this.retry = setTimeout(() => {
+      if (this.state.get().kind === 'gaggimate') this.connect()
+    }, 5_000)
   }
 
   private apply(status: GaggiMateStatus, telemetry: boolean): void {
@@ -220,7 +384,11 @@ export class MachineManager {
     const type = message.tp
     if (type === 'evt:brew:confirm') {
       const warn = Array.isArray(message.warn) ? message.warn : []
-      this.patch({ startBlockedBy: warn.map((w) => (typeof w === 'object' && w && typeof (w as { k?: unknown }).k === 'string' ? (w as { k: string }).k : '')).filter(Boolean) })
+      this.patch({
+        startBlockedBy: warn
+          .map((w) => (typeof w === 'object' && w && typeof (w as { k?: unknown }).k === 'string' ? (w as { k: string }).k : ''))
+          .filter(Boolean),
+      })
     } else if (type === 'evt:brew:confirm:cancel') {
       this.patch({ startBlockedBy: [] })
     } else if (typeof type === 'string' && type.startsWith('res:') && typeof message.rid === 'string') {
@@ -268,7 +436,16 @@ class DemoMachine {
   constructor(private readonly emit: (status: GaggiMateStatus, telemetry: boolean) => void) {}
 
   start(): void {
-    this.status = { ...emptyStatus(), mode: 1, profile: 'Demo', hasPressure: true, targetTemperature: 93, temperature: 93, pressure: 0, flow: 0 }
+    this.status = {
+      ...emptyStatus(),
+      mode: 1,
+      profile: 'Demo',
+      hasPressure: true,
+      targetTemperature: 93,
+      temperature: 93,
+      pressure: 0,
+      flow: 0,
+    }
     if (!this.timer) this.timer = setInterval(() => this.tick(), 500)
     this.emit(this.status, false)
   }
@@ -288,7 +465,9 @@ class DemoMachine {
     this.shotStart = Date.now() + 2_500
   }
 
-  startShotNow(): void { if (this.shotStart == null) this.shotStart = Date.now() }
+  startShotNow(): void {
+    if (this.shotStart == null) this.shotStart = Date.now()
+  }
 
   stopShot(): void {
     this.shotStart = null
@@ -300,7 +479,9 @@ class DemoMachine {
     this.emit(this.status, false)
   }
 
-  nudgeTemperature(up: boolean): void { this.setTargetTemperature((this.status.targetTemperature ?? 93) + (up ? 1 : -1)) }
+  nudgeTemperature(up: boolean): void {
+    this.setTargetTemperature((this.status.targetTemperature ?? 93) + (up ? 1 : -1))
+  }
 
   setTargetTemperature(value: number): void {
     this.status = { ...this.status, targetTemperature: value }
@@ -319,9 +500,13 @@ class DemoMachine {
         let pressure: number
         if (t < this.preinfusion) pressure = Math.min(t / 1.5, 1) * 3
         else if (t < this.preinfusion + 2.5) pressure = 3 + ((this.peak - 3) * (t - this.preinfusion)) / 2.5
-        else pressure = this.peak * (1 - 0.18 * ((t - this.preinfusion - 2.5) / Math.max(this.duration - this.preinfusion - 2.5, 1)))
+        else
+          pressure =
+            this.peak * (1 - 0.18 * ((t - this.preinfusion - 2.5) / Math.max(this.duration - this.preinfusion - 2.5, 1)))
         this.status = {
-          ...this.status, processActive: true, processKind: t < this.preinfusion ? 'infusion' : 'brew',
+          ...this.status,
+          processActive: true,
+          processKind: t < this.preinfusion ? 'infusion' : 'brew',
           processLabel: t < this.preinfusion ? 'Pre-infusion' : 'Extraction',
           pressure: Math.max(pressure + noise(0.15), 0),
           flow: t < this.preinfusion ? 3.5 - (t / this.preinfusion) * 1.5 : 1.8 + noise(0.2),

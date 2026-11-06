@@ -17,6 +17,10 @@ export function loadSettings(): AppSettings {
   const bool = (key: keyof AppSettings) => (typeof raw[key] === 'boolean' ? (raw[key] as boolean) : (d[key] as boolean))
   const num = (key: keyof AppSettings, lo: number, hi: number) =>
     typeof raw[key] === 'number' ? clamped(raw[key] as number, lo, hi) : (d[key] as number)
+  const str = (key: keyof AppSettings, maxLen = 200) =>
+    typeof raw[key] === 'string' ? (raw[key] as string).slice(0, maxLen) : (d[key] as string)
+  const validKinds: AppSettings['machineKind'][] = ['none', 'gaggimate', 'decent', 'laMarzocco', 'demo']
+  const parsedKind = typeof raw.machineKind === 'string' ? (raw.machineKind as AppSettings['machineKind']) : 'none'
   return {
     autoStartThreshold: num('autoStartThreshold', 0.5, 5),
     pingLeadMode: raw.pingLeadMode === 'fixed' ? 'fixed' : 'auto',
@@ -37,10 +41,20 @@ export function loadSettings(): AppSettings {
     chartShowsFlow: bool('chartShowsFlow'),
     demoScale: bool('demoScale'),
     onlineRecipes: bool('onlineRecipes'),
-    machineKind: raw.machineKind === 'gaggimate' || raw.machineKind === 'demo' ? raw.machineKind : 'none',
+    machineKind: validKinds.includes(parsedKind) ? parsedKind : 'none',
     machineHost: typeof raw.machineHost === 'string' && raw.machineHost.length <= 253 ? raw.machineHost : d.machineHost,
     pressureEnabled: bool('pressureEnabled'),
     pressureDemo: bool('pressureDemo'),
+    brewMode: raw.brewMode === 'espresso' ? 'espresso' : 'filter',
+    autoStopShot: bool('autoStopShot'),
+    shotStopLag: num('shotStopLag', 0.5, 2.5),
+    voicePrompts: bool('voicePrompts'),
+    voiceAnnounceAhead: bool('voiceAnnounceAhead'),
+    valveCountdown: bool('valveCountdown'),
+    decentDeviceId: str('decentDeviceId', 100),
+    laMarzoccoUser: str('laMarzoccoUser', 200),
+    laMarzoccoPassword: str('laMarzoccoPassword', 200),
+    laMarzoccoSerial: str('laMarzoccoSerial', 100),
   }
 }
 

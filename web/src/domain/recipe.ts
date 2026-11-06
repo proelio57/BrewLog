@@ -31,6 +31,22 @@ export const isEspresso = (recipe: { method: BrewMethod } | null | undefined): b
 
 export type ValveState = 'open' | 'closed'
 
+/** Whether a step changes the valve position compared to the last set position. */
+export function valveChange(recipe: Recipe, stepIndex: number): ValveState | null {
+  if (stepIndex <= 0 || stepIndex >= recipe.steps.length) return null
+  const current = recipe.steps[stepIndex].valve
+  if (!current) return null
+  let previous: ValveState | null = null
+  for (let i = stepIndex - 1; i >= 0; i--) {
+    if (recipe.steps[i].valve) {
+      previous = recipe.steps[i].valve ?? null
+      break
+    }
+  }
+  if (!previous) return null
+  return current !== previous ? current : null
+}
+
 export interface RecipeStep {
   kind: StepKind
   /** Start time in seconds from brew start. */
