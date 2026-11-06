@@ -97,3 +97,19 @@ In unit tests, `Recipe` and `RecipeStep` objects were instantiated with an older
 
 ### Resolution
 Introduced a typed `testRecipe(...)` test factory with sensible defaults that conforms to the domain model contracts, and added explicit assertions verifying full domain model parameter construction and serialization stability.
+
+## 2026-11-06: Cloudflare branch build fails at deploy (`wrangler preview` needs `previews`)
+
+### Symptoms
+Build succeeded, then the deploy step of a non-production branch failed:
+```
+Executing user deploy command: npx wrangler preview
+✘ [ERROR] Your Wrangler configuration is missing a `previews` block to run this command.
+Failed: error occurred while running deploy command
+```
+
+### Root Cause
+The Cloudflare worker was switched from the GitLab mirror to the GitHub repository. Workers Builds deploys branches other than `main` with `npx wrangler preview` (open beta), which requires a `previews` block in the Wrangler configuration. Production (`main`) uses `npx wrangler deploy` and wasn't affected.
+
+### Resolution
+Added `"previews": {}` to `wrangler.json` and `web/wrangler.json` (assets and compatibility settings stay top-level). Regression test in `web/tests/deployment-config.test.ts` ("both wrangler.json files allow branch previews").
