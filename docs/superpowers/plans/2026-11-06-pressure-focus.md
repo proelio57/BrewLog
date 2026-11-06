@@ -180,3 +180,13 @@ func testUnknownStoredModeFallsBackToAutomatic() {
 - **Types:**
   - `PressureFocusMode`, `PressureZone`, `PressureFocus.isActive(mode:sensorIsSource:hasPressure:)`, `PressureFocus.zone(pressure:target:)` and `BrewSession.pressureFocus` are used with the same names in every task.
   - `MachineChart(emphasis:)` defaults to false, so `BrewDetailView` stays unchanged.
+
+### Task 5 (added after review): Landscape full-screen chart
+
+User request: "wenn man das handy dreht ist horizontal fullscreen, das sollte man per button möglich machen aber in den settings auch ausstellen können".
+
+**Files:** `BrewLog/App/Orientation.swift` (`OrientationLock`, `AppDelegate`), `BrewLog/Views/Brew/LandscapeChartView.swift`, `BrewLog/Views/Brew/BrewSessionView.swift`, `project.yml` (portrait + both landscape orientations), `SettingsKey.landscapeChart = "chart.landscape"` (default true).
+
+- [x] A button (arrow.up.left.and.arrow.down.right) on the live charts opens `LandscapeChartView` as a full-screen cover; it locks the screen to landscape while open and back to portrait on close.
+- [x] Turning the phone to landscape while brewing (or on the finished screen) opens it too; turning back to portrait closes it.
+- [x] Settings → Espresso machine → "Landscape chart" off hides the button and ignores turning the phone.
