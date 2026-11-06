@@ -25,10 +25,12 @@ private struct BrewChartModel {
     let factor: Double
 
     init(samples: [WeightSample], recipe: Recipe?, currentTime: Double?) {
-        let flows = BrewAnalyzer.centeredFlows(samples)
-        let lastT = samples.last?.t ?? 0
+        // Lone spikes (a bump on the scale) are taken out, and the flow is smoothed, so the curve shows the pour.
+        let flows = WeightCleanup.smoothedFlows(samples)
+        let cleaned = WeightCleanup.despiked(samples)
+        let lastT = cleaned.last?.t ?? 0
         let maxT = max((recipe?.targetTime ?? 0) + 15, lastT + 5, currentTime ?? 0, 30)
-        let maxW = max((recipe?.water ?? 0) * 1.08, (samples.map(\.w).max() ?? 0) * 1.05, 10)
+        let maxW = max((recipe?.water ?? 0) * 1.08, (cleaned.map(\.w).max() ?? 0) * 1.05, 10)
 
         // Flow axis: room for the recipe's range, scaled to the 98th percentile so one bump doesn't squash the graph.
         let sortedFlows = flows.sorted()
@@ -41,11 +43,11 @@ private struct BrewChartModel {
         // Downsample for drawing (≤ ~400 points), keeping the last sample.
         var weightPoints: [ChartPoint] = []
         var flowPoints: [ChartPoint] = []
-        let stride = max(samples.count / 400, 1)
-        var indices = Array(Swift.stride(from: 0, to: samples.count, by: stride))
-        if let last = samples.indices.last, indices.last != last { indices.append(last) }
+        let stride = max(cleaned.count / 400, 1)
+        var indices = Array(Swift.stride(from: 0, to: cleaned.count, by: stride))
+        if let last = cleaned.indices.last, indices.last != last { indices.append(last) }
         for index in indices {
-            let sample = samples[index]
+            let sample = cleaned[index]
             weightPoints.append(ChartPoint(id: index, t: sample.t, value: max(sample.w, 0)))
             flowPoints.append(ChartPoint(id: index, t: sample.t, value: min(max(flows[index], 0), maxFlow) * factor))
         }

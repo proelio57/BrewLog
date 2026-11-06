@@ -1,5 +1,6 @@
 package com.brewlog.app.brewing
 
+import com.brewlog.app.analysis.WeightCleanup
 import com.brewlog.app.domain.AppSettings
 import com.brewlog.app.domain.InputLimits
 import com.brewlog.app.domain.MachineSample
@@ -156,8 +157,11 @@ class BrewSession(
     private val _state = MutableStateFlow(BrewSnapshot(usesScale = usesScale))
     val state: StateFlow<BrewSnapshot> = _state.asStateFlow()
 
-    /** Water poured: the max weight seen, so lifting the dripper at the end doesn't distort it. */
-    val finalWeight: Double get() = if (usesScale) maxWeight else recipe.water
+    /**
+     * Water poured (or the shot's yield): the weight the scale stayed on longest at the end, so neither a spike nor
+     * lifting the dripper afterwards distorts it (see [WeightCleanup.settledFinalWeight]).
+     */
+    val finalWeight: Double get() = if (usesScale) WeightCleanup.settledFinalWeight(samples) ?: maxWeight else recipe.water
 
     fun recordedSamples(): List<WeightSample> = samples.toList()
 

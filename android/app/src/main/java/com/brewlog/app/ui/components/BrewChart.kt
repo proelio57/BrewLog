@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brewlog.app.LocalContainer
-import com.brewlog.app.analysis.BrewAnalyzer
+import com.brewlog.app.analysis.WeightCleanup
 import com.brewlog.app.domain.PressureSample
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.WeightSample
@@ -78,10 +78,12 @@ private class ChartModel(
     val pressureTicks: List<Double> = listOf(3.0, 6.0, 9.0, 12.0)
 
     init {
-        val flows = BrewAnalyzer.centeredFlows(samples)
-        val lastT = maxOf(samples.lastOrNull()?.t ?: 0.0, pressureSamples.lastOrNull()?.t ?: 0.0)
+        // Lone spikes (a bump on the scale) are taken out, and the flow is smoothed, so the curve shows the pour.
+        val flows = WeightCleanup.smoothedFlows(samples)
+        val cleaned = WeightCleanup.despiked(samples)
+        val lastT = maxOf(cleaned.lastOrNull()?.t ?: 0.0, pressureSamples.lastOrNull()?.t ?: 0.0)
         maxT = maxOf((recipe?.targetTime ?: 0.0) + 15, lastT + 5, currentTime ?: 0.0, 30.0)
-        maxW = maxOf((recipe?.water ?: 0.0) * 1.08, (samples.maxOfOrNull { it.w } ?: 0.0) * 1.05, 10.0)
+        maxW = maxOf((recipe?.water ?: 0.0) * 1.08, (cleaned.maxOfOrNull { it.w } ?: 0.0) * 1.05, 10.0)
 
         // Flow axis: room for the recipe's range, scaled to the 98th percentile so one bump doesn't squash the graph.
         val sorted = flows.sorted()
@@ -95,11 +97,11 @@ private class ChartModel(
         weightTicks = generateSequence(0.0) { it + weightStep }.takeWhile { it <= maxW }.toList()
 
         // Downsample for drawing (≤ ~400 points), keeping the last sample.
-        val stride = max(samples.size / 400, 1)
-        val indices = (samples.indices step stride).toMutableList()
-        if (samples.isNotEmpty() && indices.lastOrNull() != samples.lastIndex) indices.add(samples.lastIndex)
-        weight = indices.map { samples[it].t to max(samples[it].w, 0.0) }
-        flow = indices.map { samples[it].t to flows[it].coerceIn(0.0, maxFlow) }
+        val stride = max(cleaned.size / 400, 1)
+        val indices = (cleaned.indices step stride).toMutableList()
+        if (cleaned.isNotEmpty() && indices.lastOrNull() != cleaned.lastIndex) indices.add(cleaned.lastIndex)
+        weight = indices.map { cleaned[it].t to max(cleaned[it].w, 0.0) }
+        flow = indices.map { cleaned[it].t to flows[it].coerceIn(0.0, maxFlow) }
 
         val pStride = max(pressureSamples.size / 400, 1)
         val pIndices = (pressureSamples.indices step pStride).toMutableList()
