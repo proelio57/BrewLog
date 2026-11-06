@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.0.0",
+          "buildVersion": "91",
+          "date": "2026-11-06T16:45:29Z",
+          "localizedDescription": "iOS\n• Pressure view: big colour-coded pressure number and pressure graph with a target band while a pressure sensor is connected (Settings: Automatic, Always, Off)\n• Landscape full-screen chart with a button or by turning the phone (can be turned off in Settings)\n• Bigger, coloured flow (g/s) readout\n• Weight cleanup now runs on the shared Kotlin Multiplatform core\n\nAndroid\n• Add Dark Mode toggle in Settings (Appearance: System, Light, Dark)\n• Fix capsule switch thumb width across Filter/Espresso and Journal toggles\n• Fix Journal top header layout when no brews have been recorded yet\n• Fix espresso machine chip wrap and eliminate empty space in machine settings\n• Fix in-app APK installer closing unexpectedly after Google Play Protect scan\n• Migrate core domain, brew analytics and Compose theme to Kotlin Multiplatform\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.0/BrewLog.ipa",
+          "size": 12587918,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.80",
           "buildVersion": "80",
           "date": "2026-11-06T13:23:33Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.47/BrewLog.ipa",
           "size": 3137881,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.40",
-          "buildVersion": "40",
-          "date": "2026-11-02T12:50:57Z",
-          "localizedDescription": "• Release notes say what changed, not \"Merge pull request\"\nscripts/release-notes.sh builds the notes from the commits a merge brings\nin (or the commit itself), without merge lines, Co-Authored-By trailers or\n\"feat(ios):\" prefixes. Used for the SideStore source, the iOS release and the\nAndroid release; the workflows now check out enough history for it.",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.40/BrewLog.ipa",
-          "size": 2916777,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "0.1.80",
-      "versionDate": "2026-11-06T13:23:33Z",
-      "versionDescription": "• Add Cafelat Robot espresso preset and expand scale support",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.80/BrewLog.ipa",
-      "size": 3501692
+      "version": "2.0.0",
+      "versionDate": "2026-11-06T16:45:29Z",
+      "versionDescription": "iOS\n• Pressure view: big colour-coded pressure number and pressure graph with a target band while a pressure sensor is connected (Settings: Automatic, Always, Off)\n• Landscape full-screen chart with a button or by turning the phone (can be turned off in Settings)\n• Bigger, coloured flow (g/s) readout\n• Weight cleanup now runs on the shared Kotlin Multiplatform core\n\nAndroid\n• Add Dark Mode toggle in Settings (Appearance: System, Light, Dark)\n• Fix capsule switch thumb width across Filter/Espresso and Journal toggles\n• Fix Journal top header layout when no brews have been recorded yet\n• Fix espresso machine chip wrap and eliminate empty space in machine settings\n• Fix in-app APK installer closing unexpectedly after Google Play Protect scan\n• Migrate core domain, brew analytics and Compose theme to Kotlin Multiplatform\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.0/BrewLog.ipa",
+      "size": 12587918
     }
   ],
   "news": []
