@@ -13,11 +13,6 @@ import kotlin.math.max
 import kotlin.math.min
 
 // Port of EspressoAnalyzer.swift (rule-based, no AI) — keep keys, thresholds and priorities identical.
-//  • Shot time is mostly grind: fast + sour → grind finer, slow + bitter → grind coarser.
-//  • At a good shot time the ratio does the fine-tuning: sour → let it run longer, bitter → stop earlier.
-//  • Temperature is the third lever: hotter for sour or light roasts, cooler for bitter or dark roasts.
-//  • Sour and bitter together, very early first drops or a sudden pressure drop → channeling → puck prep.
-//  • Weak / strong is the ratio or the dose.
 
 object EspressoAnalyzer {
     const val TIME_TOLERANCE = 3.0
@@ -231,7 +226,6 @@ object EspressoAnalyzer {
             }
             add("temp-up", "Brew 1–2 °C hotter", "A little more heat brings back sweetness and aroma.", 70)
         }
-        // Without a taste yet, the shot time alone already says which way to go.
         if (feedback.isEmpty()) {
             if (timeShort) grindSuggestion(false, 60, listOf(timeEvidence))
             if (timeLong) grindSuggestion(true, 60, listOf(timeEvidence))

@@ -121,4 +121,3 @@ object RecipeFile {
         return (if (cleaned.isEmpty()) "Recipe" else cleaned) + ".json"
     }
 }
-

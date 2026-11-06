@@ -22,7 +22,7 @@ object InputLimits {
 /** Removes control/format characters (keeps newlines), trims whitespace and limits the length. */
 fun String.sanitized(maxLength: Int): String {
     val cleaned = filter { c ->
-        c == '\n' || !(Character.isISOControl(c) || Character.getType(c) == Character.FORMAT.toInt())
+        c == '\n' || !(c.isISOControl() || c.category == CharCategory.FORMAT)
     }.trim()
     return if (cleaned.length > maxLength) cleaned.take(maxLength) else cleaned
 }

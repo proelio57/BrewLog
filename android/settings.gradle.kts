@@ -26,3 +26,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "BrewLog"
 include(":app")
+include(":shared")

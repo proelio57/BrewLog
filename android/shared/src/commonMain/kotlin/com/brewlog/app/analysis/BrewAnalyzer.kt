@@ -18,13 +18,6 @@ import kotlin.math.abs
 import kotlin.math.max
 
 // Rule-based (no AI) brew analysis. 1:1 port of BrewAnalyzer.swift — keep keys, thresholds and priorities identical.
-//
-//  • Under-extraction → sour, salty, thin. Causes: coarse grind, cool water, short contact time, little agitation,
-//    small/short bloom, very fresh beans (CO₂), fast filter paper.
-//  • Over-extraction → bitter, harsh, dry. Causes: fine grind, hot water (esp. dark roasts), long contact time /
-//    slow drawdown (fines, clogging, slow paper), excessive agitation.
-//  • Uneven extraction (channeling) → sour AND bitter/astringent at the same time.
-//  • Strength (weak/strong) is mostly brew ratio; extraction (sour/bitter) is grind, temperature and time.
 
 data class GrinderContext(val name: String, val spec: GrinderSpec, val currentValue: Double?)
 
@@ -264,7 +257,6 @@ object BrewAnalyzer {
         var pourCounter = 0
         return pourIndices.map { index ->
             val step = recipe.steps[index]
-            // The bloom is "B"; pours after it are numbered 1, 2, 3…
             val number = if (step.kind == StepKind.BLOOM) 0 else ++pourCounter
             val base = PourResult(number, index, step, step.target ?: 0.0)
             val segs = assigned[index]
@@ -312,7 +304,6 @@ object BrewAnalyzer {
         val valveRecipe = recipe.steps.any { it.kind == StepKind.OPEN_VALVE || it.valve == ValveState.CLOSED }
         var drawdown: Double? = null
         var expectedDrawdown: Double? = null
-        // Finish was tapped (almost) right after the last pour, so the total time doesn't include the drawdown.
         var drawdownMissing = false
         val lastSegment = segments.lastOrNull()
         if (valveRecipe) {
@@ -355,7 +346,6 @@ object BrewAnalyzer {
         val bloomRatioValue = bloomRatio
         val bloomDurationValue = bloomDuration
 
-        // Signals (total time is only trusted when the drawdown was recorded)
         val timeLong = !drawdownMissing && timeDelta > tolerance
         val timeShort = !drawdownMissing && timeDelta < -tolerance
         val timeVeryOff = !drawdownMissing && abs(timeDelta) > tolerance * 2
@@ -383,7 +373,6 @@ object BrewAnalyzer {
             flowSlow, ratio, roastIndex, tooFresh, stale,
         )
 
-        // MARK: Extraction lean (data only)
         var overScore = 0.0
         var underScore = 0.0
         if (timeLong) overScore += 1
@@ -410,7 +399,6 @@ object BrewAnalyzer {
         val astringent = TasteFeedback.ASTRINGENT in feedback
         if (sour && (bitter || astringent)) lean = ExtractionLean.UNEVEN
 
-        // MARK: Suggestions
         val suggestions = LinkedHashMap<String, Suggestion>()
         fun add(key: String, title: String, detail: String, priority: Int, evidence: List<String> = emptyList(), grind: Double? = null) {
             val existing = suggestions[key]
@@ -628,7 +616,6 @@ object BrewAnalyzer {
             clarityAdvice(recipe, input)?.let { (title, detail) -> add("clarity", title, detail, 45) }
         }
 
-        // History hint: point to the best-rated brew of this bean
         val negative = feedback.isNotEmpty() && TasteFeedback.PERFECT !in feedback
         val grinderContext = input.grinder
         if (negative && grinderContext != null) {
@@ -818,10 +805,6 @@ object BrewAnalyzer {
         return findings
     }
 
-    /**
-     * If an earlier brew at a setting in the requested direction went too far the other way,
-     * split the difference instead of jumping a full step.
-     */
     fun bracketed(coarser: Boolean, current: Double, grinder: GrinderContext, history: List<PastBrew>): Double? {
         val spec = grinder.spec
         fun isCoarser(a: Double, than: Double) = if (spec.finerIsLower) a > than else a < than
@@ -840,7 +823,6 @@ object BrewAnalyzer {
         return if (mid == current || mid == nearest) null else mid
     }
 
-    /** "Flat" cup: point to a clearer recipe for the same brewer (never the one just brewed) and/or a fast paper. */
     fun clarityAdvice(recipe: Recipe, input: AnalysisInput): Pair<String, String>? {
         val alternative = RecipeFilter.clearerAlternative(recipe, input.alternatives)
         val paper = if (input.filterFlow == FilterFlow.FAST) null

@@ -3,7 +3,6 @@ package com.brewlog.app.domain
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -79,12 +78,12 @@ data class GrinderSpec(
     private val decimals: Int get() = if (step < 1) (if (step < 0.1) 2 else 1) else 0
 
     fun format(value: Double): String {
-        val number = String.format(Locale.US, "%.${decimals}f", value)
+        val number = fmtDecimals(value, decimals)
         return if (unit.suffix.isEmpty()) number else "$number ${unit.suffix}"
     }
 
     fun formatDelta(delta: Double): String {
-        val number = String.format(Locale.US, "%.${decimals}f", abs(delta))
+        val number = fmtDecimals(abs(delta), decimals)
         return when (unit) {
             GrindUnit.CLICKS -> "$number click" + if (abs(delta) == 1.0) "" else "s"
             GrindUnit.MICRONS -> "$number µm"
@@ -177,11 +176,11 @@ data class Bean(
     val remaining: Double = 250.0,
     val isArchived: Boolean = false,
     val externalId: String? = null,
-    val createdAt: Long = System.currentTimeMillis(),
+    val createdAt: Long = currentTimeMillis(),
 ) {
     val displayName: String get() = if (roaster.isEmpty()) name else "$name · $roaster"
 
-    fun daysOffRoast(now: Long = System.currentTimeMillis()): Int? =
+    fun daysOffRoast(now: Long = currentTimeMillis()): Int? =
         roastDate?.let { ((now - it) / 86_400_000L).toInt() }
 }
 
@@ -203,7 +202,7 @@ data class Equipment(
     /** Grinders only: adjustment scale. */
     val grinder: GrinderSpec = GrinderSpec(),
     val externalId: String? = null,
-    val createdAt: Long = System.currentTimeMillis(),
+    val createdAt: Long = currentTimeMillis(),
 ) {
     val subtitle: String
         get() = when (type) {
@@ -221,7 +220,7 @@ data class Equipment(
 @Serializable
 data class Brew(
     val id: String = newId(),
-    val date: Long = System.currentTimeMillis(),
+    val date: Long = currentTimeMillis(),
     val recipeId: String = "",
     val recipeName: String = "",
     /** Snapshot of the (scaled) recipe used. */

@@ -1,6 +1,5 @@
 package com.brewlog.app.domain
 
-
 /**
  * Rough translation of grind settings between grinders. A calibrated grinder has a medium-fine filter setting
  * ([GrinderSpec.defaultGrind]) pinned at [REFERENCE_MICRONS] on a shared scale and [GrinderSpec.micronsPerStep].
@@ -66,4 +65,3 @@ object GrindConverter {
         return "≈ $lowText–${spec.format(high)}"
     }
 }
-
