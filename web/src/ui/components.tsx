@@ -29,12 +29,12 @@ export function SectionHeader({ title, trailing }: { title: string; trailing?: s
   )
 }
 
-export function TopBar({ title, onBack, actions, center }: { title: string; onBack?: () => void; actions?: ReactNode; center?: boolean }) {
+export function TopBar({ title, onBack, actions, center }: { title: ReactNode; onBack?: () => void; actions?: ReactNode; center?: boolean }) {
   return (
     <header className={`topbar ${center ? 'center' : ''}`}>
       {onBack && <button className="icon-btn" onClick={onBack} aria-label="Back"><ChevronLeft size={26} /></button>}
-      <h1>{title}</h1>
-      {actions}
+      <div className="topbar-title">{typeof title === 'string' ? <h1>{title}</h1> : title}</div>
+      {actions && <div className="topbar-actions">{actions}</div>}
     </header>
   )
 }
@@ -248,6 +248,7 @@ export interface CapsuleOption<T extends string = string> {
   id?: T
   label?: string
   title?: string
+  icon?: LucideIcon
 }
 
 export function CapsuleSwitch<T extends string>({
@@ -255,45 +256,53 @@ export function CapsuleSwitch<T extends string>({
   selected,
   onChange,
   onSelect,
+  className = '',
+  fullWidth = false,
 }: {
   options: CapsuleOption<T>[]
   selected: T
   onChange?: (value: T) => void
   onSelect?: (value: T) => void
+  className?: string
+  fullWidth?: boolean
 }) {
   const normalized = options.map((o) => ({
     value: (o.value ?? o.id) as T,
     label: (o.label ?? o.title) as string,
+    icon: o.icon,
   }))
+  const count = Math.max(1, normalized.length)
   const selectedIndex = Math.max(0, normalized.findIndex((o) => o.value === selected))
-  const widthPercent = 100 / normalized.length
   const trigger = (val: T) => {
     onChange?.(val)
     onSelect?.(val)
   }
 
   return (
-    <div className="capsule-switch" role="tablist">
+    <div className={`capsule-switch ${fullWidth ? 'full-width' : ''} ${className}`} role="tablist">
       <div
         className="thumb"
         style={{
-          width: `calc(${widthPercent}% - 6px)`,
-          left: '3px',
-          transform: `translateX(calc(${selectedIndex * 100}% + ${selectedIndex * 6}px))`,
+          width: `calc((100% - 6px) / ${count})`,
+          transform: `translateX(${selectedIndex * 100}%)`,
         }}
       />
-      {normalized.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          role="tab"
-          aria-selected={opt.value === selected}
-          className={opt.value === selected ? 'active' : ''}
-          onClick={() => trigger(opt.value)}
-        >
-          {opt.label}
-        </button>
-      ))}
+      {normalized.map((opt) => {
+        const Icon = opt.icon
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="tab"
+            aria-selected={opt.value === selected}
+            className={opt.value === selected ? 'active' : ''}
+            onClick={() => trigger(opt.value)}
+          >
+            {Icon && <Icon size={14} />}
+            <span>{opt.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }

@@ -29,19 +29,19 @@ export function Journal() {
   return (
     <div className="screen with-tabs">
       <TopBar
-        title="Journal"
+        title={
+          <CapsuleSwitch
+            options={[
+              { id: 'journal', title: 'Journal' },
+              { id: 'stats', title: 'Stats' },
+            ]}
+            selected={tab}
+            onSelect={(id) => setTab(id as 'journal' | 'stats')}
+          />
+        }
         actions={<ImportButton className="icon-btn" label="Import a Beanconqueror or BrewLog backup" />}
       />
       <div className="content">
-        <CapsuleSwitch
-          options={[
-            { id: 'journal', title: 'Journal' },
-            { id: 'stats', title: 'Stats' },
-          ]}
-          selected={tab}
-          onSelect={(id) => setTab(id as 'journal' | 'stats')}
-        />
-
         {tab === 'stats' ? (
           <StatsScreen />
         ) : brews.length === 0 ? (

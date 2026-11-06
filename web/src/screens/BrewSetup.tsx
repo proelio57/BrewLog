@@ -100,22 +100,25 @@ export function BrewSetupScreen() {
 
   return (
     <div className="screen with-tabs">
-      <TopBar title="Brew" actions={<>
-        <button className="icon-btn" aria-label="Quick weigh" onClick={() => navigate('/weigh')}><Scale size={22} /></button>
-        <button className="icon-btn" aria-label="Settings" onClick={() => navigate('/settings')}><Settings size={22} /></button>
-      </>} />
+      <TopBar
+        title={
+          <CapsuleSwitch
+            options={[
+              { id: 'filter', title: 'Filter', icon: Droplet },
+              { id: 'espresso', title: 'Espresso', icon: Coffee },
+            ]}
+            selected={appSettings.brewMode}
+            onSelect={(id) => {
+              settings.change((s) => ({ ...s, brewMode: id as 'filter' | 'espresso' }))
+            }}
+          />
+        }
+        actions={<>
+          <button className="icon-btn" aria-label="Quick weigh" onClick={() => navigate('/weigh')}><Scale size={22} /></button>
+          <button className="icon-btn" aria-label="Settings" onClick={() => navigate('/settings')}><Settings size={22} /></button>
+        </>}
+      />
       <div className="content">
-        <CapsuleSwitch
-          options={[
-            { id: 'filter', title: 'Filter' },
-            { id: 'espresso', title: 'Espresso' },
-          ]}
-          selected={appSettings.brewMode}
-          onSelect={(id) => {
-            settings.change((s) => ({ ...s, brewMode: id as 'filter' | 'espresso' }))
-          }}
-        />
-
         {data.equipment.length === 0 && !appSettings.setupBannerDismissed && (
           <Card>
             <div className="row top">

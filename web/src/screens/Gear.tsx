@@ -370,7 +370,7 @@ export function SettingsScreen() {
 
         <SectionHeader title="About" />
         <Card>
-          <div className="row"><span className="grow">Version</span><span className="muted">{__APP_VERSION__}</span></div>
+          <div className="row"><span className="grow">Version</span> <span className="muted">{__APP_VERSION__}</span></div>
           <div className="small muted">BrewLog has no account, no analytics and no server. The only network access is downloading the public recipe list (can be turned off) and, if you set one up, your espresso machine in your Wi-Fi. Everything else stays in this browser on this device.</div>
         </Card>
       </div>
