@@ -114,7 +114,8 @@ fun BrewEditorScreen(nav: NavHostController, brewId: String) {
                     updatedRecipeName = chosenRecipe.name
                     updatedTargetWater = scaled.water
                 } else if (newDose != oldDose && newDose > 0 && brew.recipe != null) {
-                    val scaled = brew.recipe.scaled(newDose)
+                    val r = brew.recipe!!
+                    val scaled = r.scaled(newDose)
                     updatedRecipe = scaled
                     updatedRecipeId = brew.recipeId
                     updatedRecipeName = brew.recipeName

@@ -113,3 +113,15 @@ The Cloudflare worker was switched from the GitLab mirror to the GitHub reposito
 
 ### Resolution
 Added `"previews": {}` to `wrangler.json` and `web/wrangler.json` (assets and compatibility settings stay top-level). Regression test in `web/tests/deployment-config.test.ts` ("both wrangler.json files allow branch previews").
+
+## 2026-11-06: Kotlin Multiplatform (KMP) & Compose Multiplatform (CMP) Migration (Phase 1 & 2)
+
+### Context & Implementation
+Migrated core domain models, business logic, calculations, and pure Compose components into a shared KMP module (`:shared` at `android/shared`):
+1. Configured modern AGP 9.5 KMP DSL with `com.android.kotlin.multiplatform.library`, `org.jetbrains.kotlin.multiplatform` (Kotlin 2.4.21), and `org.jetbrains.compose` (1.12.2).
+2. Set up native iOS targets (`iosArm64`, `iosSimulatorArm64`) exporting a static framework (`Shared`).
+3. Migrated `domain/` (`Models`, `Recipe`, `Extraction`, `WaterChemistry`, `GrindConverter`, `Validation`, `RecipeFilter`, `StepAnnouncement`, `RecipeFile`, `Library`) and `analysis/` (`BrewAnalyzer`, `EspressoAnalyzer`, `GrindRecommender`, `WeightCleanup`) to `commonMain`.
+4. Extracted multiplatform expect/actual for date and number formatting (`fmt0`, `fmt1`, `fmtDecimals`, `newId`, `formatDate`, `currentTimeMillis`).
+5. Migrated `ui/theme/Theme.kt` and `PureBrewChart` (`BrewChart.kt`) to Compose Multiplatform in `commonMain`, with `MainViewController` entry point in `iosMain`.
+6. Verified with 183/183 passing unit tests and clean `assembleDebug`. Documented integration steps in `docs/kmp-ios-integration.md`.
+

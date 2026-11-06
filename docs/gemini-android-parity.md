@@ -187,3 +187,34 @@ Bring the Glance widgets to the iOS set ("Next brew", "Coffee stats", "Beans lef
 - Manual run list on a phone: Filter | Espresso switch; demo machine shot with auto stop; GaggiMate profile picker
   (demo profiles); DE1 pairing screen lists nothing without a DE1 and doesn't crash; La Marzocco sign-in with a wrong
   password shows "Wrong La Marzocco login."; setup assistant with "La Marzocco Linea Micra" preselects La Marzocco.
+
+## Pressure view, landscape chart, bigger flow (iOS 2026-11-06)
+
+Port to the shared Compose UI (Android + web). iOS reference: `BrewLog/Brewing/PressureFocus.swift`, `BrewLog/Views/Espresso/PressureFocusReadouts.swift`, `BrewLog/Views/Components/MachineChart.swift` (`emphasis`), `BrewLog/Views/Brew/LandscapeChartView.swift`.
+
+- **Setting "Pressure view"** (`pressure.focus`): Automatic (default) / Always / Off.
+  - Automatic: active while the BOOKOO pressure sensor is the pressure source.
+  - Always: active whenever the shot has pressure (machine or sensor).
+  - Off: never.
+  - The decision is fixed when the shot starts, so a sensor dropping out mid-shot doesn't change the layout.
+- **Zones** with target = `recipe.pressure`, tolerance ±0.5 bar (boundaries count as on target):
+  - below → blue;
+  - on target → green;
+  - above → red;
+  - no target → accent colour.
+- **Focus layout:**
+  - TIME and WEIGHT compact at 28 sp.
+  - The pressure number at 96 sp bold, in the zone colour, on a 10 % zone-colour background.
+  - Caption under the number: "target 9.0 bar · 0.4 low" / "· on target" / "· 0.6 high", or "peak 9.3 bar" without a target.
+  - Tiles: Flow (teal), Ratio, Temp, First drops.
+  - Charts: the pressure chart first, 240 dp, with a 3 dp line, a green ±0.5 bar band with a solid target line, y labels every bar and gridlines every 3 bar, and the latest point as a dot in the zone colour. The weight chart follows at 90 dp.
+- **Normal espresso layout:**
+  - Flow becomes a 34 sp teal "FLOW" readout with "target a–b g/s" under TIME/WEIGHT.
+  - The pressure tile value is in the zone colour.
+  - The pressure chart's target line is solid at 60 % opacity.
+  - Filter brews: the g/s under the weight is title size and teal.
+- **Setting "Landscape chart"** (`chart.landscape`, default on):
+  - A button on the live charts and turning the phone to landscape (brewing or finished) open the charts full screen in landscape.
+  - The numbers sit in the left column: time, weight, flow, and pressure in the zone colour.
+  - Turning the phone back, or the close button, ends it.
+  - With the setting off, there's no button and turning the phone does nothing.

@@ -12,6 +12,10 @@ on:
       - "ActivityShared/**"
       - "BrewLogTests/**"
       - "Shared/**"
+      - "android/shared/**"
+      - "android/gradle/**"
+      - "android/*.kts"
+      - "android/gradle.properties"
       - "Config/**"
       - "project.yml"
       - "scripts/build-ipa.sh"
@@ -19,6 +23,7 @@ on:
       - "scripts/sidestore*"
       - "scripts/release-notes.sh"
       - "scripts/test-release-notes.sh"
+      - "scripts/*next-version.sh"
       - ".github/workflows/ios.yml"
   pull_request:
     paths:
@@ -27,6 +32,10 @@ on:
       - "ActivityShared/**"
       - "BrewLogTests/**"
       - "Shared/**"
+      - "android/shared/**"
+      - "android/gradle/**"
+      - "android/*.kts"
+      - "android/gradle.properties"
       - "Config/**"
       - "project.yml"
       - "scripts/build-ipa.sh"
@@ -34,6 +43,7 @@ on:
       - "scripts/sidestore*"
       - "scripts/release-notes.sh"
       - "scripts/test-release-notes.sh"
+      - "scripts/*next-version.sh"
       - ".github/workflows/ios.yml"
   workflow_dispatch:
 
@@ -62,15 +72,35 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      # Gradle builds the Kotlin Shared framework (android/shared) in an Xcode build phase.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Kotlin Native cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml') }}
+
       - name: Install XcodeGen
         run: brew install xcodegen ldid
 
       - name: Version
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          base=$(sed -n 's/^ *MARKETING_VERSION: *"\{0,1\}\([0-9.]*\)"\{0,1\} *$/\1/p' project.yml | head -1)
-          echo "version=${base:-1.0}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-          echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          # One version for iOS and Android: the highest release + 1 (scripts/next-version.sh).
+          read -r version build < <(scripts/next-version.sh)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "Version $version ($build)"
           xcodebuild -version
 
       - name: Generate Xcode project
@@ -91,8 +121,10 @@ jobs:
           if [ "$status" -ne 0 ]; then scripts/ci-annotate.sh test.log; fi
           exit $status
 
-      - name: Release notes test
-        run: bash scripts/test-release-notes.sh
+      - name: Release notes and version tests
+        run: |
+          bash scripts/test-release-notes.sh
+          bash scripts/test-next-version.sh
 
       - name: Build unsigned IPA
         run: |

@@ -11,6 +11,8 @@ struct BrewSessionView: View {
     @State private var session: BrewSession
     @State private var savedBrew: Brew?
     @State private var confirmDiscard = false
+    @State private var showLandscapeChart = false
+    @AppStorage(SettingsKey.landscapeChart) private var landscapeChart = true
 
     init(config: BrewConfig) {
         self.config = config
@@ -31,8 +33,20 @@ struct BrewSessionView: View {
         .onAppear {
             session.onAutoFinish = { finish() }
             session.activate()
+            UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         }
-        .onDisappear { session.deactivate() }
+        .onDisappear {
+            session.deactivate()
+            UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        }
+        .fullScreenCover(isPresented: $showLandscapeChart) { LandscapeChartView(session: session) }
+        // Turning the phone during a brew opens the charts full screen (Settings → Landscape chart).
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            guard landscapeChart, !showLandscapeChart, savedBrew == nil,
+                  session.phase == .brewing || session.phase == .finished,
+                  UIDevice.current.orientation.isLandscape else { return }
+            showLandscapeChart = true
+        }
     }
 
     // MARK: Live
@@ -41,7 +55,11 @@ struct BrewSessionView: View {
         VStack(spacing: 14) {
             header
             if session.isEspresso && [.armed, .brewing, .finished].contains(session.phase) {
-                ShotReadouts(session: session)
+                if session.pressureFocus {
+                    PressureFocusReadouts(session: session)
+                } else {
+                    ShotReadouts(session: session)
+                }
             } else {
                 readouts
                 if session.hasPressure || (session.isEspresso && machine.isConnected) { MachineReadout() }
@@ -71,14 +89,37 @@ struct BrewSessionView: View {
 
     @ViewBuilder
     private var liveCharts: some View {
-        let withMachine = session.hasPressure
-        BrewChart(samples: session.samples, recipe: session.recipe, currentTime: session.elapsed,
-                  height: withMachine ? 120 : 160)
-            .padding(.horizontal, 4)
-        if withMachine {
-            MachineChart(samples: session.machineSamples, targetPressure: session.recipe.pressure,
-                         currentTime: session.elapsed, height: 90)
-                .padding(.horizontal, 4)
+        VStack(spacing: 14) {
+            if session.pressureFocus {
+                // Settings → Pressure view: the pressure graph big and first, for setting the pressure by hand.
+                MachineChart(samples: session.machineSamples, targetPressure: session.recipe.pressure,
+                             currentTime: session.elapsed, height: 240, emphasis: true)
+                    .padding(.horizontal, 4)
+                BrewChart(samples: session.samples, recipe: session.recipe, currentTime: session.elapsed, height: 90)
+                    .padding(.horizontal, 4)
+            } else {
+                let withMachine = session.hasPressure
+                BrewChart(samples: session.samples, recipe: session.recipe, currentTime: session.elapsed,
+                          height: withMachine ? 120 : 160)
+                    .padding(.horizontal, 4)
+                if withMachine {
+                    MachineChart(samples: session.machineSamples, targetPressure: session.recipe.pressure,
+                                 currentTime: session.elapsed, height: 90)
+                        .padding(.horizontal, 4)
+                }
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if landscapeChart {
+                Button { showLandscapeChart = true } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.caption.weight(.semibold))
+                        .frame(width: 28, height: 28)
+                        .background(.thinMaterial, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Chart full screen")
+            }
         }
     }
 
@@ -128,10 +169,12 @@ struct BrewSessionView: View {
                     Text((session.phase == .preparing || session.phase == .dosing || session.phase == .rinsing ? session.weight : max(session.weight, 0)).scaleReadout)
                         .font(.system(size: 54, weight: .semibold, design: .rounded))
                         .monospacedDigit()
+                    // The flow in the chart's flow colour, big enough to read while pouring.
                     Text(String(format: "%.1f g/s", max(session.flowRate, 0)))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.teal)
                         .monospacedDigit()
+                        .contentTransition(.numericText())
                 } else {
                     Text(session.activeTarget.map { "→\(Int($0))" } ?? "–")
                         .font(.system(size: 54, weight: .semibold, design: .rounded))

@@ -3,6 +3,7 @@ import SwiftData
 
 @main
 struct BrewLogApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     let container: ModelContainer
     @State private var setup = BrewSetup()
     @State private var espressoSetup = BrewSetup(scope: .espresso)

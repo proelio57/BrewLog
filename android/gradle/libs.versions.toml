@@ -7,6 +7,8 @@ activityCompose = "1.13.0"
 composeBom = "2026.09.00"
 navigationCompose = "2.10.2"
 kotlinxSerialization = "1.11.0"
+composeMultiplatform = "1.12.2"
+coroutines = "1.10.1"
 junit = "4.13.2"
 okhttp = "4.12.0"
 anthropic = "2.34.0"
@@ -27,6 +29,7 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 anthropic-java = { group = "com.anthropic", name = "anthropic-java", version.ref = "anthropic" }
@@ -36,5 +39,8 @@ tesseract4android = { group = "cz.adaptech.tesseract4android", name = "tesseract
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }

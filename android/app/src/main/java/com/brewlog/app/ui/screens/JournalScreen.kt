@@ -96,17 +96,20 @@ fun JournalScreen(nav: NavHostController) {
     }
 
     BrewScreen(
-        titleContent = {
-            CapsuleSwitch(
-                options = listOf(
-                    CapsuleOption("journal", "Journal"),
-                    CapsuleOption("stats", "Stats"),
-                ),
-                selection = journalMode,
-                onSelectionChanged = { journalMode = it },
-                modifier = Modifier.widthIn(max = 220.dp),
-            )
-        },
+        title = if (brews.isEmpty()) "Journal" else "",
+        titleContent = if (brews.isNotEmpty()) {
+            {
+                CapsuleSwitch(
+                    options = listOf(
+                        CapsuleOption("journal", "Journal"),
+                        CapsuleOption("stats", "Stats"),
+                    ),
+                    selection = journalMode,
+                    onSelectionChanged = { journalMode = it },
+                    modifier = Modifier.widthIn(max = 240.dp),
+                )
+            }
+        } else null,
         actions = {
             Box {
                 IconButton(onClick = { showMenu = true }) {

@@ -173,8 +173,9 @@ data class WidgetSnapshot(
             val beanLastBrew = beanBrews.maxByOrNull { it.date }
 
             val next = beanLastBrew?.let { b ->
-                val grind = if (b.suggestedGrind != null) {
-                    (b.grinderSpec ?: GrinderSpec()).format(b.suggestedGrind)
+                val suggested = b.suggestedGrind
+                val grind = if (suggested != null) {
+                    (b.grinderSpec ?: GrinderSpec()).format(suggested)
                 } else {
                     b.grindDisplay
                 }

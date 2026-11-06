@@ -594,7 +594,7 @@ private fun ActiveStepCard(snapshot: BrewSnapshot, session: BrewSession) {
                     progress = snapshot.countdownProgress.toFloat(),
                     remaining = snapshot.timeToNextStep,
                     overtime = if (next == null) snapshot.elapsed - recipe.targetTime else null,
-                    label = next?.let { if (it.kind.isPour && it.target != null) "→ ${it.target.toInt()} g" else it.kind.title } ?: "Drawdown",
+                    label = next?.let { step -> val t = step.target; if (step.kind.isPour && t != null) "→ ${t.toInt()} g" else step.kind.title } ?: "Drawdown",
                 )
             }
         }

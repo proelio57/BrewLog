@@ -72,12 +72,13 @@ case "${1:-}" in
     checkout_branch
     # Make sure the branch exists, so the release tag can point at it (the release repo may be empty).
     push_branch "Set up SideStore branch" copy_recipes
-    if gh release view "v$version" --repo "$RELEASE_REPO" >/dev/null 2>&1; then
-      gh release upload "v$version" "$ipa" --repo "$RELEASE_REPO" --clobber   # re-run of the same build
-    else
-      gh release create "v$version" "$ipa" --repo "$RELEASE_REPO" --target "$BRANCH" \
-        --title "BrewLog $version" --notes "$notes"
+    # Android publishes the same version into the same release: create it unless it exists (or the other
+    # workflow just created it), then upload. Re-runs replace the .ipa.
+    if ! gh release view "v$version" --repo "$RELEASE_REPO" >/dev/null 2>&1; then
+      gh release create "v$version" --repo "$RELEASE_REPO" --target "$BRANCH" \
+        --title "BrewLog $version" --notes "$notes" || true
     fi
+    gh release upload "v$version" "$ipa" --repo "$RELEASE_REPO" --clobber
     update_source() {
       copy_recipes
       cp "$ROOT/BrewLog/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png" "$WORK/icon.png"
