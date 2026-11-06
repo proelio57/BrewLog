@@ -6,11 +6,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.brewlog.app.domain.DarkMode
 import com.brewlog.app.audio.Haptics
 import com.brewlog.app.audio.SoundPlayer
 import com.brewlog.app.brewing.BrewCue
@@ -166,8 +169,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         if (savedInstanceState == null) handleLink(intent)
         setContent {
+            val settings by container.settings.settings.collectAsStateWithLifecycle()
+            val isDark = when (settings.darkMode) {
+                DarkMode.SYSTEM -> isSystemInDarkTheme()
+                DarkMode.LIGHT -> false
+                DarkMode.DARK -> true
+            }
             CompositionLocalProvider(LocalContainer provides container) {
-                BrewLogTheme {
+                BrewLogTheme(darkTheme = isDark) {
                     AppRoot()
                 }
             }

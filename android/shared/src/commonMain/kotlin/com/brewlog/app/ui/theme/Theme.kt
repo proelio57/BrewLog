@@ -53,6 +53,9 @@ private val DarkColors = darkColorScheme(
 )
 
 @Composable
-fun BrewLogTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors, content = content)
+fun BrewLogTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
+    MaterialTheme(colorScheme = if (darkTheme) DarkColors else LightColors, content = content)
 }

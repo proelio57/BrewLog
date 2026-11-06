@@ -296,6 +296,12 @@ enum class PingLeadMode(val raw: String, val title: String) {
     FIXED("fixed", "Fixed grams"),
 }
 
+enum class DarkMode(val raw: String, val title: String) {
+    SYSTEM("system", "System"),
+    LIGHT("light", "Light"),
+    DARK("dark", "Dark"),
+}
+
 data class AppSettings(
     val autoStartThreshold: Double = 1.5,
     val pingLeadMode: PingLeadMode = PingLeadMode.AUTO,
@@ -326,4 +332,5 @@ data class AppSettings(
     val autoStopShot: Boolean = true,
     val shotStopLag: Double = 1.0,
     val rinsePaper: Boolean = true,
+    val darkMode: DarkMode = DarkMode.SYSTEM,
 )

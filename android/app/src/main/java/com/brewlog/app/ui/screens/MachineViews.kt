@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -162,7 +163,10 @@ fun EspressoMachineSettingsCard() {
     SectionHeader("Espresso machine")
     Spacer(Modifier.height(8.dp))
     BrewCard {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             MachineKind.entries.forEach { kind ->
                 PillChip(kind.title, state.kind == kind) { machine.configure(kind, if (valid) host else state.host) }
             }

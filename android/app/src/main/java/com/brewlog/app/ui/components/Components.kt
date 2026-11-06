@@ -70,6 +70,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -80,6 +81,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -209,8 +211,14 @@ fun PillChip(title: String, selected: Boolean, icon: ImageVector? = null, tint: 
             Icon(icon, null, Modifier.size(16.dp), tint = if (selected) tint else MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.width(6.dp))
         }
-        Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
-            color = if (selected) tint else MaterialTheme.colorScheme.onSurface)
+        Text(
+            title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false,
+            color = if (selected) tint else MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
@@ -411,12 +419,14 @@ fun <T : Any> CapsuleSwitch(
             label = "capsule_thumb",
         )
 
+        var rowHeightPx by remember { mutableIntStateOf(0) }
+
         // Thumb background
         Box(
             modifier = Modifier
                 .offset { IntOffset(animatedThumbX.roundToInt(), 0) }
                 .width(segmentWidthDp)
-                .matchParentSize() // ✅ Übernimmt exakt die gemessene Text-/Icon-Zeilenhöhe
+                .then(if (rowHeightPx > 0) Modifier.height(with(density) { rowHeightPx.toDp() }) else Modifier.height(36.dp))
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary),
         )
@@ -425,6 +435,7 @@ fun <T : Any> CapsuleSwitch(
         var accumulatedDrag by remember { mutableFloatStateOf(0f) }
         Row(
             modifier = Modifier
+                .onSizeChanged { if (it.height > 0) rowHeightPx = it.height }
                 .pointerInput(options, segmentWidthPx) {
                     detectHorizontalDragGestures(
                         onDragStart = { accumulatedDrag = 0f },

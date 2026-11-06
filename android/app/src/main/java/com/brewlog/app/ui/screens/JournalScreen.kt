@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -95,16 +96,20 @@ fun JournalScreen(nav: NavHostController) {
     }
 
     BrewScreen(
-        titleContent = {
-            CapsuleSwitch(
-                options = listOf(
-                    CapsuleOption("journal", "Journal"),
-                    CapsuleOption("stats", "Stats"),
-                ),
-                selection = journalMode,
-                onSelectionChanged = { journalMode = it },
-            )
-        },
+        title = if (brews.isEmpty()) "Journal" else "",
+        titleContent = if (brews.isNotEmpty()) {
+            {
+                CapsuleSwitch(
+                    options = listOf(
+                        CapsuleOption("journal", "Journal"),
+                        CapsuleOption("stats", "Stats"),
+                    ),
+                    selection = journalMode,
+                    onSelectionChanged = { journalMode = it },
+                    modifier = Modifier.widthIn(max = 240.dp),
+                )
+            }
+        } else null,
         actions = {
             Box {
                 IconButton(onClick = { showMenu = true }) {
