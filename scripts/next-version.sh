@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The version of the next release: the highest release version of $RELEASE_REPO with the last number + 1
 # (v0.1.80 and v0.1.75-web → 0.1.81). iOS and Android use it for the same merge, so both land in one release
-# and the numbers only go up, whichever platform built last. Prints "<version> <build>"; build is the last number.
+# and the numbers only go up, whichever platform built last. Prints "<version> <last number>"; the workflows use their own run number as build number, which only goes up.
 # The release tags come from `gh release list`, or from $RELEASE_TAGS (one per line, for scripts/test-next-version.sh).
 set -euo pipefail
 
