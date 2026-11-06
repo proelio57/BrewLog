@@ -20,10 +20,13 @@ object TimemoreDotProtocol {
     const val MAX_PAYLOAD = 64
     private val PLAUSIBLE_WEIGHT = -3_000.0..5_000.0
 
-    /** The Dot advertises "...Dot..." or its model number; outside pairing mode it can advertise FFF0 without a name. */
+    /**
+     * The Dot advertises "...Dot..." (e.g. "TIMEMORE Black Mirror Dot Coffee") or its model number; the Basic3 Link
+     * (TES016) uses the same protocol. Outside pairing mode a Dot can advertise FFF0 without a name.
+     */
     fun isDot(name: String?): Boolean {
         val lower = name?.lowercase() ?: return false
-        return lower.contains("dot") || lower.contains("tes017")
+        return lower.contains("dot") || lower.contains("tes017") || lower.contains("tes016") || lower.contains("timemore")
     }
 
     fun crc16(bytes: ByteArray): Int {
@@ -99,7 +102,9 @@ object TimemoreDotProtocol {
                 if (payload.size < 8) return null
                 val raw = (payload[0] shl 24) or (payload[1] shl 16) or (payload[2] shl 8) or payload[3] // signed Int
                 val grams = raw / 10.0
-                if (grams !in PLAUSIBLE_WEIGHT) null else Event.Weight(grams, payload[6] shl 8 or payload[7])
+                // Byte 8: overload flag (positive or negative limit exceeded), per Timemore's protocol v1.0.3.
+                if (grams !in PLAUSIBLE_WEIGHT || (payload.size >= 9 && payload[8] == 1)) null
+                else Event.Weight(grams, payload[6] shl 8 or payload[7])
             }
             0x05 -> {
                 val raw = (if (payload.size >= 2) payload[1] else payload.firstOrNull()) ?: return null

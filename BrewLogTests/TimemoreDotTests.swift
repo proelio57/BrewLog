@@ -46,6 +46,10 @@ final class TimemoreDotTests: XCTestCase {
         XCTAssertEqual(parser.feed(Data([0x00, 0xFF, 0x12] + weightFrame(3))), [.weight(grams: 3, timerSeconds: 0)])
         // A length field over 64 resyncs instead of waiting forever.
         XCTAssertEqual(parser.feed(Data([0xA5, 0x5A, 0x01, 0x01, 0xFF, 0xFF] + weightFrame(4))), [.weight(grams: 4, timerSeconds: 0)])
+        // Overload flag set (scale over its limit): the reading is not a weight.
+        var overload = weightFrame(5_000)
+        overload[overload.count - 3] = 1
+        XCTAssertEqual(parser.feed(Data(overload)), [])
         // Implausible weight is dropped.
         XCTAssertEqual(parser.feed(Data(weightFrame(99_999))), [])
     }
@@ -53,6 +57,11 @@ final class TimemoreDotTests: XCTestCase {
     func testRecognizesTheDot() {
         XCTAssertTrue(TimemoreDotProtocol.isDot(name: "TIMEMORE Dot"))
         XCTAssertTrue(TimemoreDotProtocol.isDot(name: "TES017-1A2B"))
+        // The name the Dot shows in the iPhone's Bluetooth list.
+        XCTAssertTrue(TimemoreDotProtocol.isDot(name: "TIMEMORE Black Mirror Dot Coffee"))
+        // Basic3 Link (TES016) speaks the same protocol (Timemore's open-scale-protocol v1.0.3).
+        XCTAssertTrue(TimemoreDotProtocol.isDot(name: "TES016-9F00"))
+        XCTAssertTrue(TimemoreDotProtocol.isDot(name: "TIMEMORE Basic3 Link"))
         XCTAssertFalse(TimemoreDotProtocol.isDot(name: "BOOKOO_SC"))
         XCTAssertFalse(TimemoreDotProtocol.isDot(name: nil))
     }

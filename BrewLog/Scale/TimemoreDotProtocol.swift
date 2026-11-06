@@ -1,8 +1,9 @@
 import Foundation
 import CoreBluetooth
 
-/// Timemore Black Mirror Dot (TES017) over Bluetooth LE. Community-documented protocol (decentespresso/decaid #739,
-/// Sofronio/dot-scale-mate), not an official Timemore spec.
+/// Timemore Black Mirror Dot (TES017) and Basic3 Link (TES016) over Bluetooth LE. Matches Timemore's own
+/// open-scale-protocol v1.0.3 (github.com/TIMEMORE-COFFEE/open-scale-protocol); the command bytes were first verified
+/// against a physical Dot in decentespresso/decaid #739.
 ///
 /// Frames: `A5 5A | opcode | cmd | length (2, big-endian) | payload | 2-byte tail`. Commands carry a CRC-16/MODBUS
 /// tail (init 0xFFFF, reflected poly 0xA001, big-endian). The Dot's notifications leave the tail at `00 00`, so
@@ -18,10 +19,11 @@ enum TimemoreDotProtocol {
     static let maxPayload = 64
     static let plausibleWeightRange: ClosedRange<Double> = -3_000...5_000
 
-    /// The Dot advertises "...Dot..." or its model number; outside pairing mode it can advertise FFF0 without a name.
+    /// The Dot advertises "...Dot..." (e.g. "TIMEMORE Black Mirror Dot Coffee") or its model number; the Basic3 Link
+    /// (TES016) uses the same protocol. Outside pairing mode a Dot can advertise FFF0 without a name.
     static func isDot(name: String?) -> Bool {
         guard let name = name?.lowercased() else { return false }
-        return name.contains("dot") || name.contains("tes017")
+        return name.contains("dot") || name.contains("tes017") || name.contains("tes016") || name.contains("timemore")
     }
 
     static func crc16(_ bytes: [UInt8]) -> UInt16 {
@@ -97,6 +99,8 @@ enum TimemoreDotProtocol {
                 let raw = Int32(bitPattern: UInt32(payload[0]) << 24 | UInt32(payload[1]) << 16 | UInt32(payload[2]) << 8 | UInt32(payload[3]))
                 let grams = Double(raw) / 10
                 guard plausibleWeightRange.contains(grams) else { return nil }
+                // Byte 8: overload flag (positive or negative limit exceeded), per Timemore's protocol v1.0.3.
+                if payload.count >= 9, payload[8] == 1 { return nil }
                 return .weight(grams: grams, timerSeconds: Int(payload[6]) << 8 | Int(payload[7]))
             case 0x05:
                 guard let raw = payload.count >= 2 ? payload[1] : payload.first, raw <= 100 else { return nil }

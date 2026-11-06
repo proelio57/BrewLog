@@ -315,8 +315,12 @@ final class BrewSession {
         Haptics.tap()
     }
 
-    /// Water poured: the max weight seen, so lifting the dripper at the end doesn't distort it.
-    var finalWeight: Double { usesScale ? maxWeight : recipe.water }
+    /// Water poured (or the shot's yield): the weight the scale stayed on longest at the end, so neither a spike
+    /// nor lifting the dripper afterwards distorts it (see `WeightCleanup.settledFinalWeight`).
+    var finalWeight: Double {
+        guard usesScale else { return recipe.water }
+        return WeightCleanup.settledFinalWeight(samples) ?? maxWeight
+    }
 
     // MARK: Derived state for the UI
 
