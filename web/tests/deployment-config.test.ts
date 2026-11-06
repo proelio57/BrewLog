@@ -35,4 +35,12 @@ describe('deployment configuration', () => {
     const wrangler = JSON.parse(fs.readFileSync(rootWranglerPath, 'utf8'))
     expect(wrangler.assets?.directory).toBe('./web/dist')
   })
+
+  // Cloudflare Workers Builds deploys non-production branches with `wrangler preview`, which needs a `previews` block.
+  it('both wrangler.json files allow branch previews', () => {
+    for (const file of [path.join(rootDir, 'wrangler.json'), path.join(webDir, 'wrangler.json')]) {
+      const wrangler = JSON.parse(fs.readFileSync(file, 'utf8'))
+      expect(wrangler.previews).toBeTypeOf('object')
+    }
+  })
 })
