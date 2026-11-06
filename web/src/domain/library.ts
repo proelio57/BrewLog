@@ -44,24 +44,24 @@ export function makeEquipment(preset: EquipmentPreset): Equipment {
   }
 }
 
-const grinder = (name: string, unit: GrindUnit, step: number, adjust: number, range = '', notes = ''): EquipmentPreset =>
-  ({ name, type: 'grinder', grinder: { unit, step, adjustStep: adjust, finerIsLower: true, rangeNote: range }, notes })
+const grinder = (name: string, unit: GrindUnit, step: number, adjust: number, range = '', notes = '', start?: number): EquipmentPreset =>
+  ({ name, type: 'grinder', grinder: { unit, step, adjustStep: adjust, finerIsLower: true, rangeNote: range, defaultGrind: start }, notes })
 
 /** Grinder scales. Ranges are typical starting points only, so they're editable. */
 export const GRINDER_PRESETS: EquipmentPreset[] = [
-  grinder('Comandante C40', 'clicks', 1, 2, '20–30 clicks', 'Clicks counted from fully closed. About 30 µm per click.'),
-  grinder('1Zpresso K-Ultra', 'numbers', 0.1, 0.2, '', 'Read the dial as rotation.number, e.g. 7.5.'),
-  grinder('1Zpresso ZP6 Special', 'numbers', 0.1, 0.2, '', 'Read the dial as rotation.number, e.g. 4.5.'),
-  grinder('1Zpresso J-Max', 'clicks', 1, 5, '', 'Very fine steps, so adjust in bigger jumps for filter.'),
-  grinder('Timemore C3', 'clicks', 1, 1, 'about 14–20 clicks'),
-  grinder('Kingrinder K6', 'clicks', 1, 5, '', 'Fine steps, so adjust in bigger jumps for filter.'),
-  grinder('Fellow Ode Gen 2', 'dial', 1, 1, '', 'Dial 1–11 in steps of 1/3. Track whole numbers or enter thirds as decimals.'),
-  grinder('Baratza Encore ESP', 'numbers', 1, 2),
-  grinder('Niche Zero', 'dial', 1, 3),
-  grinder('Wilfa Uniform', 'numbers', 1, 1),
-  grinder('Lagom P64', 'dial', 0.1, 0.2),
-  grinder('Mazzer Philos', 'dial', 1, 2),
-  grinder('DF64 / DF83', 'dial', 1, 3),
+  grinder('Comandante C40', 'clicks', 1, 2, '20–30 clicks', 'Clicks counted from fully closed. About 30 µm per click.', 24),
+  grinder('1Zpresso K-Ultra', 'numbers', 0.1, 0.2, '', 'Read the dial as rotation.number, e.g. 7.5.', 7.5),
+  grinder('1Zpresso ZP6 Special', 'numbers', 0.1, 0.2, '', 'Read the dial as rotation.number, e.g. 4.5.', 4.5),
+  grinder('1Zpresso J-Max', 'clicks', 1, 5, '', 'Very fine steps, so adjust in bigger jumps for filter.', 120),
+  grinder('Timemore C3', 'clicks', 1, 1, 'about 14–20 clicks', '', 16),
+  grinder('Kingrinder K6', 'clicks', 1, 5, '', 'Fine steps, so adjust in bigger jumps for filter.', 90),
+  grinder('Fellow Ode Gen 2', 'dial', 1, 1, '', 'Dial 1–11 in steps of 1/3. Track whole numbers or enter thirds as decimals.', 5),
+  grinder('Baratza Encore ESP', 'numbers', 1, 2, '', '', 22),
+  grinder('Niche Zero', 'dial', 1, 3, '', '', 35),
+  grinder('Wilfa Uniform', 'numbers', 1, 1, '', '', 24),
+  grinder('Lagom P64', 'dial', 0.1, 0.2, '', '', 5),
+  grinder('Mazzer Philos', 'dial', 1, 2, '', '', 15),
+  grinder('DF64 / DF83', 'dial', 1, 3, '', '', 45),
 ]
 
 /** CAFEC roast-specific papers are named after their recommended brew temperature. */

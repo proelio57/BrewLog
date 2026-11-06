@@ -1,5 +1,5 @@
 import { roundHalfAway } from './format'
-import { formatGrind, grindSuffix, type GrinderSpec } from './models'
+import { defaultStartingValue, formatGrind, grindSuffix, type GrinderSpec } from './models'
 
 /**
  * Rough translation of grind settings between grinders. A calibrated grinder has a medium-fine filter setting
@@ -20,9 +20,9 @@ export const GrindConverter = {
 
   /** The spec with the preset calibration filled in when the grinder has none of its own. */
   calibrated(spec: GrinderSpec, name: string): GrinderSpec {
-    if (spec.micronsPerStep != null) return spec
-    const presetMicrons = spec.unit === 'microns' ? spec.step : GrindConverter.knownMicronsPerStep[name] ?? null
-    return { ...spec, micronsPerStep: presetMicrons }
+    const presetMicrons = spec.micronsPerStep != null ? spec.micronsPerStep : spec.unit === 'microns' ? spec.step : GrindConverter.knownMicronsPerStep[name] ?? null
+    const defaultGrind = spec.defaultGrind ?? defaultStartingValue(spec)
+    return { ...spec, defaultGrind, micronsPerStep: presetMicrons }
   },
 
   canConvert(spec: GrinderSpec): boolean {

@@ -258,6 +258,7 @@ export function CapsuleSwitch<T extends string>({
   onSelect,
   className = '',
   fullWidth = false,
+  style,
 }: {
   options: CapsuleOption<T>[]
   selected: T
@@ -265,6 +266,7 @@ export function CapsuleSwitch<T extends string>({
   onSelect?: (value: T) => void
   className?: string
   fullWidth?: boolean
+  style?: React.CSSProperties
 }) {
   const normalized = options.map((o) => ({
     value: (o.value ?? o.id) as T,
@@ -279,7 +281,7 @@ export function CapsuleSwitch<T extends string>({
   }
 
   return (
-    <div className={`capsule-switch ${fullWidth ? 'full-width' : ''} ${className}`} role="tablist">
+    <div className={`capsule-switch ${fullWidth ? 'full-width' : ''} ${className}`} role="tablist" style={style}>
       <div
         className="thumb"
         style={{

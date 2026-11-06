@@ -53,6 +53,8 @@ input, select, textarea { font: inherit; color: var(--text); }
 .topbar.center .topbar-title h1 { text-align: center; font-size: 17px; font-weight: 600; }
 .topbar-actions { display: flex; align-items: center; gap: 4px; }
 .content { padding: 4px 16px 24px; display: flex; flex-direction: column; gap: 14px; }
+.stats-screen { display: flex; flex-direction: column; gap: 14px; }
+.stats-filters { display: flex; flex-direction: column; gap: 8px; }
 .bottom-action { position: sticky; bottom: calc(var(--tabbar) + env(safe-area-inset-bottom)); padding: 8px 16px 10px; background: linear-gradient(transparent, var(--bg) 30%); }
 .screen:not(.with-tabs) .bottom-action { bottom: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
 
