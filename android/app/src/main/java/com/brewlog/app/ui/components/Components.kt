@@ -341,7 +341,7 @@ val FilterIcon: ImageVector get() = Icons.Filled.Description
 data class CapsuleOption<T>(
     val value: T,
     val title: String,
-    val icon: ImageVector,
+    val icon: ImageVector? = null,
 )
 
 /**
@@ -479,13 +479,15 @@ fun <T : Any> CapsuleSwitch(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center,
                     ) {
-                        Icon(
-                            imageVector = option.icon,
-                            contentDescription = null,
-                            tint = contentColor,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(Modifier.width(6.dp))
+                        if (option.icon != null) {
+                            Icon(
+                                imageVector = option.icon,
+                                contentDescription = null,
+                                tint = contentColor,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
                         Text(
                             text = option.title,
                             style = MaterialTheme.typography.labelLarge,
