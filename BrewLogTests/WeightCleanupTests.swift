@@ -53,6 +53,29 @@ final class WeightCleanupTests: XCTestCase {
         XCTAssertEqual(WeightCleanup.settledFinalWeight(samples(values)) ?? 0, 36.4, accuracy: 0.001)
     }
 
+    /// A real brew at 10 readings a second: the scale sent a knock as several readings (0.4 s to 326 g mid-pour,
+    /// 0.5 s to 265 g at the end). Neither may count as the final weight or survive the cleanup.
+    func testSpikeOverSeveralReadingsIsRemoved() {
+        var values: [Double] = []
+        for i in 0..<116 { values.append(Double(i) * 2) }
+        values += [Double](repeating: 230, count: 200)
+        for i in 60..<64 { values[i] = 326 }
+        for i in 250..<255 { values[i] = 265 }
+        let raw = samples(values, step: 0.1)
+        let cleaned = WeightCleanup.despiked(raw)
+        XCTAssertEqual(cleaned.map(\.w).max(), 230)
+        XCTAssertEqual(cleaned[62].w, 132)
+        XCTAssertEqual(WeightCleanup.settledFinalWeight(raw), 230)
+    }
+
+    func testFastPourAt10HzIsKept() {
+        var values = [Double](repeating: 100, count: 30)
+        for i in 0..<20 { values.append(100 + Double(i) * 5) }
+        values += [Double](repeating: 200, count: 30)
+        let cleaned = WeightCleanup.despiked(samples(values, step: 0.1))
+        XCTAssertEqual(cleaned.map(\.w), values)
+    }
+
     func testFinalWeightWithoutSamples() {
         XCTAssertNil(WeightCleanup.settledFinalWeight([]))
         XCTAssertNil(WeightCleanup.settledFinalWeight(samples([0, 0, 0])))

@@ -16,7 +16,8 @@ extension Brew {
             PastBrew(date: $0.date, recipeID: $0.recipeID, grindValue: $0.grindValue,
                      rating: $0.rating, feedback: $0.feedback, totalTime: $0.totalTime)
         }
-        return AnalysisInput(recipe: recipe, samples: samples, usedScale: usedScale, totalTime: totalTime,
+        // Without the scale's spikes, so a knock doesn't count as an overpour or a fast pour.
+        return AnalysisInput(recipe: recipe, samples: WeightCleanup.despiked(samples), usedScale: usedScale, totalTime: totalTime,
                              finalWeight: finalWeight, dose: dose, waterTemp: waterTemp,
                              roastLevel: bean?.roastLevel, daysOffRoast: daysOffRoast,
                              filterName: filterName, filterFlow: filterFlow, filterIdealRoast: filterIdealRoast,
