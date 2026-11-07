@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.0.2",
+          "buildVersion": "96",
+          "date": "2026-11-07T12:22:50Z",
+          "localizedDescription": "iOS\n• A knock on the scale no longer spoils a brew: short spikes are removed even when the scale sends several readings of them, so the final weight, the pour analysis (\"overpoured\") and the flow chart ignore them\n\nAndroid\n• A knock on the scale no longer spoils a brew: short spikes are removed even when the scale sends several readings of them, so the final weight, the pour analysis (\"overpoured\") and the flow chart ignore them\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.2/BrewLog.ipa",
+          "size": 12612291,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.0.1",
           "buildVersion": "94",
           "date": "2026-11-06T18:25:18Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.55/BrewLog.ipa",
           "size": 3166440,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.52",
-          "buildVersion": "52",
-          "date": "2026-11-02T18:18:21Z",
-          "localizedDescription": "• Compact Filter | Espresso and Journal | Stats switch in the top bar, the Brew title no longer slides under it\n\n• Espresso lists only espresso machines, filter only pour-over brewers\n\n• Remove leftover of the old mode picker",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.52/BrewLog.ipa",
-          "size": 3148204,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.0.1",
-      "versionDate": "2026-11-06T18:25:18Z",
-      "versionDescription": "iOS\n• Fix the live espresso screen running past the screen edges with the pressure view: the pressure chart now fills the space that is left\n• The landscape chart turns straight to landscape instead of showing upright for a moment\n• Pressure view with a machine that measures the pressure itself (GaggiMate, Decent): weight and pressure side by side instead of one giant pressure number, with both charts\n• Switching between Filter and Espresso is instant, with a cross-fade\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.1/BrewLog.ipa",
-      "size": 12613989
+      "version": "2.0.2",
+      "versionDate": "2026-11-07T12:22:50Z",
+      "versionDescription": "iOS\n• A knock on the scale no longer spoils a brew: short spikes are removed even when the scale sends several readings of them, so the final weight, the pour analysis (\"overpoured\") and the flow chart ignore them\n\nAndroid\n• A knock on the scale no longer spoils a brew: short spikes are removed even when the scale sends several readings of them, so the final weight, the pour analysis (\"overpoured\") and the flow chart ignore them\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.2/BrewLog.ipa",
+      "size": 12612291
     }
   ],
   "news": []
