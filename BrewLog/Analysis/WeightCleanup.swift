@@ -11,8 +11,8 @@ enum WeightCleanup {
         samples.map { Shared.WeightSample(t: $0.t, w: $0.w) }
     }
 
-    /// Each reading replaced by the median of itself and its two neighbours on either side: a lone spike
-    /// disappears, a real step (a pour) stays.
+    /// Each reading replaced by the median of the readings within 0.75 s on either side (at least two neighbours
+    /// each side): a knock disappears even when the scale sends several readings of it, a real step (a pour) stays.
     static func despiked(_ samples: [WeightSample]) -> [WeightSample] {
         kotlin.despiked(samples: toKotlin(samples)).map { WeightSample(t: $0.t, w: $0.w) }
     }

@@ -35,7 +35,8 @@ fun Brew.analysisInput(
     }
     return AnalysisInput(
         recipe = recipe,
-        samples = samples,
+        // Without the scale's spikes, so a knock doesn't count as an overpour or a fast pour.
+        samples = WeightCleanup.despiked(samples),
         usedScale = usedScale,
         totalTime = totalTime,
         finalWeight = finalWeight,

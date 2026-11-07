@@ -9,12 +9,24 @@ import kotlin.math.min
  * weight of a brew and the flow shown in the chart. 1:1 port of BrewLog/Analysis/WeightCleanup.swift.
  */
 object WeightCleanup {
-    /** Each reading replaced by the median of itself and its two neighbours on either side: a lone spike disappears, a real step (a pour) stays. */
+    /** Half the width of the median window in seconds: knocks that show for up to about 0.7 s disappear. */
+    const val SPIKE_WINDOW = 0.75
+
+    /**
+     * Each reading replaced by the median of the readings within [SPIKE_WINDOW] seconds on either side (at least two
+     * neighbours each side): a knock, a drop on the edge or lifting the cup for a moment disappears, even when the
+     * scale sends several readings of it; a real step (a pour) stays.
+     */
     fun despiked(samples: List<WeightSample>): List<WeightSample> {
         if (samples.size < 5) return samples
+        var lo = 0
+        var hi = 0
         return samples.indices.map { i ->
-            val window = samples.subList(max(i - 2, 0), min(i + 2, samples.lastIndex) + 1).map { it.w }.sorted()
-            WeightSample(samples[i].t, window[window.size / 2])
+            val t = samples[i].t
+            while (lo < i - 2 && samples[lo].t < t - SPIKE_WINDOW) lo++
+            while (hi < samples.lastIndex && (hi < i + 2 || samples[hi + 1].t <= t + SPIKE_WINDOW)) hi++
+            val window = samples.subList(lo, hi + 1).map { it.w }.sorted()
+            WeightSample(t, window[window.size / 2])
         }
     }
 

@@ -70,4 +70,23 @@ class WeightCleanupTest {
         assertEquals(100, flows.size)
         for (flow in flows.subList(15, 85)) assertEquals(4.0, flow, 0.6)
     }
+
+    /** 10 readings a second; a knock sent as several readings (0.4 s to 326 g mid-pour, 0.5 s to 265 g at the end). */
+    @Test
+    fun testSpikeOverSeveralReadingsIsRemoved() {
+        val values = (MutableList(116) { it * 2.0 } + repeat(230.0, 200)).toMutableList()
+        for (i in 60 until 64) values[i] = 326.0
+        for (i in 250 until 255) values[i] = 265.0
+        val raw = samples(values, step = 0.1)
+        val cleaned = WeightCleanup.despiked(raw)
+        assertEquals(230.0, cleaned.maxOf { it.w }, 0.001)
+        assertEquals(132.0, cleaned[62].w, 0.001)
+        assertEquals(230.0, WeightCleanup.settledFinalWeight(raw)!!, 0.001)
+    }
+
+    @Test
+    fun testFastPourAt10HzIsKept() {
+        val values = repeat(100.0, 30) + List(20) { 100.0 + it * 5 } + repeat(200.0, 30)
+        assertEquals(values, WeightCleanup.despiked(samples(values, step = 0.1)).map { it.w })
+    }
 }
