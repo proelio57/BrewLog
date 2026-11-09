@@ -295,6 +295,15 @@ class BrewSession(
 
     private val usesSensor: Boolean get() = monitorReady() && (machine == null || !machine.readsPressure)
 
+    /** The pressure comes from the sensor (set by hand on the machine), not from the machine itself. */
+    val pressureFromSensor: Boolean get() = usesSensor
+
+    /** Settings → Pressure view, decided live until the shot starts, then fixed for that shot. */
+    val pressureFocus: Boolean get() = focusLatched ?: livePressureFocus
+    private var focusLatched: Boolean? = null
+    private val livePressureFocus: Boolean
+        get() = isEspresso && com.brewlog.app.analysis.PressureFocus.isActive(settings().pressureFocus, usesSensor, hasPressure)
+
     private fun machineReading(status: MachineStatus, atMs: Long) {
         val grams = status.weight
         if (weighsViaMachine && grams != null) ingest(grams, atMs)
@@ -488,6 +497,7 @@ class BrewSession(
         lastMachineSampleT = -1.0
         stopRequestedAt = null
         machineStopSentAt = null
+        focusLatched = livePressureFocus
         if (isEspresso) {
             val s = settings()
             shotMonitor = if (usesScale) {

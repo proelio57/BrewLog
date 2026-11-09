@@ -334,6 +334,10 @@ data class AppSettings(
     val rinsePaper: Boolean = true,
     val darkMode: DarkMode = DarkMode.SYSTEM,
     val steamAfterShot: SteamAfterShot = SteamAfterShot.ASK,
+    /** Settings → Pressure view. */
+    val pressureFocus: com.brewlog.app.analysis.PressureFocusMode = com.brewlog.app.analysis.PressureFocusMode.AUTOMATIC,
+    /** A button on the live chart, and turning the phone, show the charts full screen in landscape. */
+    val landscapeChart: Boolean = true,
 )
 
 /** Settings → After the shot: switch GaggiMate to steam for the milk. */
