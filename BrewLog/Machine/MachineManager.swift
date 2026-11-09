@@ -206,6 +206,10 @@ final class MachineManager {
     /// BrewLog can start and stop shots on this machine.
     var canControl: Bool { kind.capabilities.contains(.startStop) && isConnected }
 
+    /// BrewLog can switch this machine to steam after a shot: GaggiMate's steam mode heats the boiler for steaming.
+    /// Not the DE1 (its steam state opens the steam wand straight away) or La Marzocco (the cloud only does power).
+    var canSwitchToSteam: Bool { isConnected && [.gaggimate, .demo].contains(kind) }
+
     /// The machine keeps profiles that can be listed and selected from BrewLog.
     var canChooseProfile: Bool { kind.capabilities.contains(.profiles) && isConnected }
 
