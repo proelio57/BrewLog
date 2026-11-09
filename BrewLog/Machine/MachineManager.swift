@@ -206,6 +206,9 @@ final class MachineManager {
     /// BrewLog can start and stop shots on this machine.
     var canControl: Bool { kind.capabilities.contains(.startStop) && isConnected }
 
+    /// BrewLog can switch this machine to steam (La Marzocco's cloud only does power and brew).
+    var canSwitchToSteam: Bool { isConnected && [.gaggimate, .decent, .demo].contains(kind) }
+
     /// The machine keeps profiles that can be listed and selected from BrewLog.
     var canChooseProfile: Bool { kind.capabilities.contains(.profiles) && isConnected }
 

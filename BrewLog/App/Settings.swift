@@ -33,6 +33,7 @@ enum SettingsKey {
     static let pressureDemo = "pressure.demo"
     static let pressureFocus = "pressure.focus"
     static let landscapeChart = "chart.landscape"
+    static let steamAfterShot = "machine.steamAfterShot"
     static let autoStopShot = "autoStopShot"
     static let shotStopLag = "shotStopLag"
     static let brewMode = "brewMode"
@@ -78,6 +79,7 @@ enum AppSettings {
             SettingsKey.shotStopLag: 1.0,
             SettingsKey.pressureFocus: PressureFocusMode.automatic.rawValue,
             SettingsKey.landscapeChart: true,
+            SettingsKey.steamAfterShot: SteamAfterShot.ask.rawValue,
         ])
     }
 
@@ -113,4 +115,27 @@ enum BrewMode: String, CaseIterable, Identifiable {
 
     /// The mode a recipe belongs to.
     static func of(_ recipe: Recipe) -> BrewMode { recipe.method.isEspresso ? .espresso : .filter }
+}
+
+/// Settings → After the shot: switch the machine to steam for milk.
+enum SteamAfterShot: String, CaseIterable, Identifiable {
+    /// Ask when the shot is done.
+    case ask
+    /// Switch straight away.
+    case steam
+    case off
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .ask: return "Ask"
+        case .steam: return "Switch to steam"
+        case .off: return "Off"
+        }
+    }
+
+    static var current: SteamAfterShot {
+        UserDefaults.standard.string(forKey: SettingsKey.steamAfterShot).flatMap(SteamAfterShot.init) ?? .ask
+    }
 }

@@ -13,6 +13,7 @@ struct BrewSessionView: View {
     @State private var confirmDiscard = false
     @State private var showLandscapeChart = false
     @AppStorage(SettingsKey.landscapeChart) private var landscapeChart = true
+    @State private var showSteamPrompt = false
 
     init(config: BrewConfig) {
         self.config = config
@@ -38,6 +39,17 @@ struct BrewSessionView: View {
         .onDisappear {
             session.deactivate()
             UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        }
+        // On the outer view: the live screen is replaced by the rating screen when the shot is saved.
+        .alert("Switch to steam?", isPresented: $showSteamPrompt) {
+            Button("Steam") { machine.setMode(.steam) }
+            Button("Always after a shot") {
+                UserDefaults.standard.set(SteamAfterShot.steam.rawValue, forKey: SettingsKey.steamAfterShot)
+                machine.setMode(.steam)
+            }
+            Button("Not now", role: .cancel) {}
+        } message: {
+            Text("\(machine.displayName) heats up for steaming the milk while you rate the shot.")
         }
         .fullScreenCover(isPresented: $showLandscapeChart) { LandscapeChartView(session: session, isPresented: $showLandscapeChart) }
         // Turning the phone during a brew opens the charts full screen (Settings → Landscape chart).
@@ -422,6 +434,16 @@ struct BrewSessionView: View {
 
     // MARK: Save
 
+    /// After a shot: switch the machine to steam for the milk, or ask (Settings → After the shot).
+    private func offerSteam() {
+        guard session.isEspresso, machine.canSwitchToSteam else { return }
+        switch SteamAfterShot.current {
+        case .steam: machine.setMode(.steam)
+        case .ask: showSteamPrompt = true
+        case .off: break
+        }
+    }
+
     private func finish() {
         guard session.phase == .brewing, savedBrew == nil else { return }
         session.finish()
@@ -466,6 +488,7 @@ struct BrewSessionView: View {
         }
         try? context.save()
         withAnimation(.spring) { savedBrew = brew }
+        offerSteam()
     }
 }
 
