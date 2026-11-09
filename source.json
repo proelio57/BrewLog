@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.2.0",
+          "buildVersion": "104",
+          "date": "2026-11-09T13:33:02Z",
+          "localizedDescription": "iOS\n• No changes in this release\n\nAndroid\n• The selected recipe is always shown at the top of the Brew screen; tap it to change the recipe\n• Choosing a recipe for another brewer (e.g. a V60 recipe while the Switch is selected) selects that brewer\n• Espresso: with the scale connected to the app, BrewLog stops the shot on the machine (GaggiMate, Decent) at the target yield in every phase of the profile, and asks again if the pump keeps running\n• After a shot BrewLog offers to switch GaggiMate to steam; Settings → After the shot: Ask, Switch to steam or Off\n• Pressure view: with a pressure sensor a big colour-coded pressure number and a pressure graph with a target band; with the machine's own pressure weight and pressure side by side (Settings → Live shot: Automatic, Always, Off)\n• Landscape full-screen chart with a button or by turning the phone (can be turned off in Settings)\n• Bigger, coloured flow (g/s) readout, and the live charts always fit on the screen\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.2.0/BrewLog.ipa",
+          "size": 12648719,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.1.0",
           "buildVersion": "100",
           "date": "2026-11-09T12:37:31Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.64/BrewLog.ipa",
           "size": 3306669,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.58",
-          "buildVersion": "58",
-          "date": "2026-11-05T12:49:07Z",
-          "localizedDescription": "• The mode switch no longer resets or hitches when the screen behind it changes\nThe Filter | Espresso switch sat inside the .id(mode) subtree, so every switch\nrebuilt it with empty widths and the thumb grew in from zero. It now lives\noutside, segments are equally wide (laid out in one pass, no preference\nround trip), taps no longer jump the thumb to the finger first, and quick\ntaps back and forth cancel the pending swap instead of swapping twice.\n\nClaude-Session: https://claude.ai/code/session_01641JjvwhhHSdTbVTqCXwLC\n\n• Import GaggiMate profiles as espresso recipes\nFrom a profile file exported from GaggiMate's web interface (Import) or\nstraight from the connected machine (Settings > Espresso machine). Phases\nmap to pre-infusion, yield, pressure and are kept as tips.\n\nClaude-Session: https://claude.ai/code/session_01641JjvwhhHSdTbVTqCXwLC\n\n• With GaggiMate the pressure comes from the machine, no pressure sensor offered\nThe BOOKOO pressure sensor is only for machines BrewLog can't connect to\n(or a GaggiMate without a pressure sensor). With GaggiMate the sensor row is\nhidden in Settings and on the machine card, the device strip shows the\nmachine's pressure, and the shot records the machine's readings even if a\nsensor is still paired.\n\nClaude-Session: https://claude.ai/code/session_01641JjvwhhHSdTbVTqCXwLC",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.58/BrewLog.ipa",
-          "size": 3195625,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.1.0",
-      "versionDate": "2026-11-09T12:37:31Z",
-      "versionDescription": "iOS\n• The selected recipe is always shown at the top of the Brew screen; tap it to change the recipe\n• Choosing a recipe for another brewer (e.g. a V60 recipe while the Switch is selected) selects that brewer\n• After a shot BrewLog offers to switch GaggiMate to steam; Settings → After the shot: Ask, Switch to steam or Off\n• Espresso: with the scale connected to the app, BrewLog stops the shot on the machine (GaggiMate, Decent) at the target yield in every phase of the profile, and asks again if the pump keeps running\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.1.0/BrewLog.ipa",
-      "size": 12642029
+      "version": "2.2.0",
+      "versionDate": "2026-11-09T13:33:02Z",
+      "versionDescription": "iOS\n• No changes in this release\n\nAndroid\n• The selected recipe is always shown at the top of the Brew screen; tap it to change the recipe\n• Choosing a recipe for another brewer (e.g. a V60 recipe while the Switch is selected) selects that brewer\n• Espresso: with the scale connected to the app, BrewLog stops the shot on the machine (GaggiMate, Decent) at the target yield in every phase of the profile, and asks again if the pump keeps running\n• After a shot BrewLog offers to switch GaggiMate to steam; Settings → After the shot: Ask, Switch to steam or Off\n• Pressure view: with a pressure sensor a big colour-coded pressure number and a pressure graph with a target band; with the machine's own pressure weight and pressure side by side (Settings → Live shot: Automatic, Always, Off)\n• Landscape full-screen chart with a button or by turning the phone (can be turned off in Settings)\n• Bigger, coloured flow (g/s) readout, and the live charts always fit on the screen\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.2.0/BrewLog.ipa",
+      "size": 12648719
     }
   ],
   "news": []
