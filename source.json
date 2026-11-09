@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.1.0",
+          "buildVersion": "100",
+          "date": "2026-11-09T12:37:31Z",
+          "localizedDescription": "iOS\n• The selected recipe is always shown at the top of the Brew screen; tap it to change the recipe\n• Choosing a recipe for another brewer (e.g. a V60 recipe while the Switch is selected) selects that brewer\n• After a shot BrewLog offers to switch GaggiMate to steam; Settings → After the shot: Ask, Switch to steam or Off\n• Espresso: with the scale connected to the app, BrewLog stops the shot on the machine (GaggiMate, Decent) at the target yield in every phase of the profile, and asks again if the pump keeps running\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.1.0/BrewLog.ipa",
+          "size": 12642029,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.0.2",
           "buildVersion": "96",
           "date": "2026-11-07T12:22:50Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.58/BrewLog.ipa",
           "size": 3195625,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.55",
-          "buildVersion": "55",
-          "date": "2026-11-02T23:26:49Z",
-          "localizedDescription": "• The mode switch's thumb slides (tap or drag) before the screen changes",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.55/BrewLog.ipa",
-          "size": 3166440,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.0.2",
-      "versionDate": "2026-11-07T12:22:50Z",
-      "versionDescription": "iOS\n• A knock on the scale no longer spoils a brew: short spikes are removed even when the scale sends several readings of them, so the final weight, the pour analysis (\"overpoured\") and the flow chart ignore them\n\nAndroid\n• A knock on the scale no longer spoils a brew: short spikes are removed even when the scale sends several readings of them, so the final weight, the pour analysis (\"overpoured\") and the flow chart ignore them\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.2/BrewLog.ipa",
-      "size": 12612291
+      "version": "2.1.0",
+      "versionDate": "2026-11-09T12:37:31Z",
+      "versionDescription": "iOS\n• The selected recipe is always shown at the top of the Brew screen; tap it to change the recipe\n• Choosing a recipe for another brewer (e.g. a V60 recipe while the Switch is selected) selects that brewer\n• After a shot BrewLog offers to switch GaggiMate to steam; Settings → After the shot: Ask, Switch to steam or Off\n• Espresso: with the scale connected to the app, BrewLog stops the shot on the machine (GaggiMate, Decent) at the target yield in every phase of the profile, and asks again if the pump keeps running\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.1.0/BrewLog.ipa",
+      "size": 12642029
     }
   ],
   "news": []
