@@ -44,6 +44,9 @@ data class MachineStatus(
     /** A shot is running (pre-infusion or extraction), not a flush or grind. */
     val isBrewing: Boolean get() = processActive && !processIsUtility && (processKind == "brew" || processKind == "infusion")
 
+    /** The pump runs a process that isn't a flush or descaling, whatever the profile calls its phase. */
+    val isPullingShot: Boolean get() = processActive && !processIsUtility && processKind != "grind"
+
     val hasWeight: Boolean get() = scaleConnected && weight != null
 
     /** Missing keys keep their value, null clears it. Numbers are clamped to sane ranges. */

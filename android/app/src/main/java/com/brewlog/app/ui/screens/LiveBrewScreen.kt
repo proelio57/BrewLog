@@ -149,6 +149,14 @@ fun LiveBrewScreen(nav: NavHostController) {
         container.repository.saveNewBrew(brew, if (session.usesScale) session.recordedSamples() else emptyList(), session.recordedMachineSamples())
         container.syncAfterBrew()
         container.activeBrew = null
+        // After a shot: switch the machine to steam for the milk, or ask (Settings → After the shot).
+        if (session.isEspresso && container.machine.canSwitchToSteam) {
+            when (container.settings.current.steamAfterShot) {
+                com.brewlog.app.domain.SteamAfterShot.STEAM -> container.machine.setMode(com.brewlog.app.machine.MachineMode.STEAM)
+                com.brewlog.app.domain.SteamAfterShot.ASK -> container.steamPrompt.value = true
+                com.brewlog.app.domain.SteamAfterShot.OFF -> Unit
+            }
+        }
         nav.navigate(Routes.brewDetail(brew.id, isNew = true)) { popUpTo(Routes.LIVE) { inclusive = true } }
     }
 

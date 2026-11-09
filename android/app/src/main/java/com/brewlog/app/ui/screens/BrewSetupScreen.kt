@@ -80,6 +80,7 @@ import com.brewlog.app.domain.GrinderSpec
 import com.brewlog.app.domain.GrindConverter
 import com.brewlog.app.domain.grams
 import com.brewlog.app.domain.grams1
+import com.brewlog.app.domain.mmss
 import com.brewlog.app.domain.roundHalfAway
 import com.brewlog.app.machine.MachineConnection
 import com.brewlog.app.machine.MachineKind
@@ -129,6 +130,17 @@ fun BrewSetupScreen(nav: NavHostController) {
     val recommendation = GrindRecommender.recommend(setup.beanId, selectedGrinder, setup.recipe.id, data.brews)
 
     LaunchedEffect(brewers.map { it.id }) { setup.reconcileGear(EquipmentType.BREWER, brewers.map { it.id }) }
+    // A recipe for another brewer (a V60 recipe while the Switch is selected) selects a brewer of that kind, if you
+    // have one. Recipes for any pour-over keep the brewer. Only on a change, not when the screen opens.
+    var lastRecipeId by remember(setup) { mutableStateOf(setup.recipe.id) }
+    LaunchedEffect(setup, setup.recipe.id) {
+        val recipe = setup.recipe
+        if (recipe.id == lastRecipeId) return@LaunchedEffect
+        lastRecipeId = recipe.id
+        if (recipe.method == BrewMethod.UNIVERSAL) return@LaunchedEffect
+        if (brewers.firstOrNull { it.id == setup.brewerId }?.method == recipe.method) return@LaunchedEffect
+        brewers.firstOrNull { it.method == recipe.method }?.let { setup.brewerId = it.id }
+    }
     LaunchedEffect(grinders.map { it.id }) { setup.reconcileGear(EquipmentType.GRINDER, grinders.map { it.id }, grinders, data.brews) }
     if (!isEspresso) {
         LaunchedEffect(filters.map { it.id }) { setup.reconcileGear(EquipmentType.FILTER, filters.map { it.id }) }
@@ -193,6 +205,8 @@ fun BrewSetupScreen(nav: NavHostController) {
         },
     ) { padding ->
         CardList(padding) {
+            // Always in view: which recipe you're about to brew (tap to change it).
+            item { RecipeHeader(setup = setup, onClick = { nav.navigate(Routes.RECIPE_PICKER) }) }
             if (data.equipment.isEmpty() && !settings.setupBannerDismissed) {
                 item { SetupBanner(onStart = { nav.navigate(Routes.ONBOARDING) }, onDismiss = { container.settings.update { it.copy(setupBannerDismissed = true) } }) }
             }
@@ -532,6 +546,27 @@ private fun SetupBanner(onStart: () -> Unit, onDismiss: () -> Unit) {
                 Button(onClick = onStart) { Text("Start setup") }
             }
             IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Dismiss", modifier = Modifier.size(18.dp)) }
+        }
+    }
+}
+
+/** The selected recipe at the top of the screen, compact; the full card with its taste notes stays at the bottom. */
+@Composable
+private fun RecipeHeader(setup: BrewSetupState, onClick: () -> Unit) {
+    val recipe = setup.scaledRecipe
+    BrewCard(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("RECIPE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(recipe.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(
+                    "${setup.dose.grams1()} : ${recipe.water.grams()} · ${recipe.targetTime.mmss()} · ${setup.waterTemp.toInt()} °C",
+                    style = MaterialTheme.typography.bodySmall.merge(tabular),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            MethodBadge(recipe.method)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

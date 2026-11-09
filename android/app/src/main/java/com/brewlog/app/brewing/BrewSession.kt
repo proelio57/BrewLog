@@ -330,6 +330,31 @@ class BrewSession(
 
     /** Set when the machine stopped the pump; the brew finishes 3 s later (see [tick]). */
     private var stopRequestedAt: Long? = null
+    /** When the app last told the machine to stop at the yield; see [checkMachineStop]. */
+    private var machineStopSentAt: Long? = null
+    private var machineStopRetries = 0
+
+    /** Whether BrewLog stops the shot at the yield itself (scale on the app, machine it can control). */
+    val appStopsShot: Boolean
+        get() = isEspresso && followsMachine && machine?.canControl == true && usesScale && !weighsViaMachine && settings().autoStopShot
+
+    /**
+     * The status doesn't always name a profile's phases as a shot, so the stop isn't sent only while it does. If the
+     * pump still runs 1.5 s after the stop, ask again; after that show "Stop now".
+     */
+    private fun checkMachineStop(now: Long) {
+        val sent = machineStopSentAt ?: return
+        if (now - sent < 1_500) return
+        if (machine?.status?.isPullingShot != true) { machineStopSentAt = null; return }
+        if (machineStopRetries == 0) {
+            machine.stopShot()
+            machineStopRetries = 1
+            machineStopSentAt = now
+        } else {
+            machineStopSentAt = null
+            stopRequested = true
+        }
+    }
 
     fun startManually() = begin(clock())
 
@@ -343,7 +368,7 @@ class BrewSession(
             if (!weighsViaMachine) scale.brewFinished()
         }
         // Ending the brew by hand also stops the pump if the machine is still pulling the shot.
-        if (followsMachine && machine?.status?.isBrewing == true) machine.stopShot()
+        if (followsMachine && machine?.status?.isPullingShot == true) machine.stopShot()
         publish()
     }
 
@@ -412,8 +437,11 @@ class BrewSession(
         val action = shot.ingest(grams, flowRate, t)
         when (action) {
             ShotMonitor.Action.STOP -> {
-                if (followsMachine && machine?.canControl == true && machine.status.isBrewing) {
+                // The scale is on the app, so the machine doesn't know the weight: the app stops it.
+                if (followsMachine && machine?.canControl == true) {
                     machine.stopShot()
+                    machineStopSentAt = clock()
+                    machineStopRetries = 0
                 } else {
                     stopRequested = true
                 }
@@ -440,6 +468,7 @@ class BrewSession(
                 onAutoFinish?.invoke()
                 return
             }
+            checkMachineStop(now)
             checkStepStarts()
             checkStepPreview()
             checkCountdownTicks()
@@ -458,6 +487,7 @@ class BrewSession(
         machineSamples.clear()
         lastMachineSampleT = -1.0
         stopRequestedAt = null
+        machineStopSentAt = null
         if (isEspresso) {
             val s = settings()
             shotMonitor = if (usesScale) {

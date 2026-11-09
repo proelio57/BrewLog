@@ -333,4 +333,12 @@ data class AppSettings(
     val shotStopLag: Double = 1.0,
     val rinsePaper: Boolean = true,
     val darkMode: DarkMode = DarkMode.SYSTEM,
+    val steamAfterShot: SteamAfterShot = SteamAfterShot.ASK,
 )
+
+/** Settings → After the shot: switch GaggiMate to steam for the milk. */
+enum class SteamAfterShot(val raw: String, val title: String) {
+    ASK("ask", "Ask"),
+    STEAM("steam", "Switch to steam"),
+    OFF("off", "Off"),
+}

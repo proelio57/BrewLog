@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import com.brewlog.app.domain.DarkMode
@@ -422,6 +423,28 @@ fun SettingsScreen(nav: NavHostController) {
                 }
             }
             item { EspressoMachineSettingsCard() }
+            item {
+                // After the shot → steam (GaggiMate): Ask, Switch to steam or Off.
+                SectionHeader("After the shot")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        com.brewlog.app.domain.SteamAfterShot.entries.forEach { option ->
+                            FilterChip(
+                                selected = settings.steamAfterShot == option,
+                                onClick = { update { it.copy(steamAfterShot = option) } },
+                                label = { Text(option.title) },
+                            )
+                        }
+                    }
+                    Text(
+                        "GaggiMate: switch the machine to steam for the milk when the shot is done, or ask each time. Not on the Decent DE1, whose steam state opens the wand straight away.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
             item {
                 SectionHeader("Espresso pressure monitor")
                 Spacer(Modifier.height(8.dp))

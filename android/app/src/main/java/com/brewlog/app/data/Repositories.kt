@@ -63,6 +63,7 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             .putFloat("shotStopLag", next.shotStopLag.toFloat())
             .putBoolean("rinsePaper", next.rinsePaper)
             .putString("darkMode", next.darkMode.raw)
+            .putString("steamAfterShot", next.steamAfterShot.raw)
             .apply()
     }
 
@@ -95,6 +96,8 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             shotStopLag = prefs.getFloat("shotStopLag", d.shotStopLag.toFloat()).toDouble().coerceIn(0.5, 2.5),
             rinsePaper = prefs.getBoolean("rinsePaper", d.rinsePaper),
             darkMode = com.brewlog.app.domain.DarkMode.entries.firstOrNull { it.raw == prefs.getString("darkMode", null) } ?: d.darkMode,
+            steamAfterShot = com.brewlog.app.domain.SteamAfterShot.entries.firstOrNull { it.raw == prefs.getString("steamAfterShot", null) }
+                ?: d.steamAfterShot,
         )
     }
 }
