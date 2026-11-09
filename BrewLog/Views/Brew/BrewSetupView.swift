@@ -104,6 +104,8 @@ private struct SetupScreen: View {
         ScrollView {
             VStack(spacing: 18) {
                 if equipment.isEmpty && !setupBannerDismissed { setupBanner }
+                // Always in view: which recipe you're about to brew (tap to change it).
+                recipeHeader
                 if espresso {
                     DeviceStrip { showSettings = true }
                 } else {
@@ -203,6 +205,7 @@ private struct SetupScreen: View {
             .onChange(of: setup.beanID, applyRecommendation)
             .onChange(of: setup.grinderID, restoreGrind)
             .onChange(of: setup.recipe.id, applyRecommendation)
+            .onChange(of: setup.recipe.id) { selectBrewer(for: setup.recipe.method) }
             .onAppear {
                 if setup.grindValue == nil { restoreGrind() }
                 // A brewer of the other mode (e.g. a V60 carried over to espresso) gives way to this mode's first.
@@ -212,6 +215,15 @@ private struct SetupScreen: View {
             }
             .onChange(of: router.startBrewRequested) { startIfRequested() }
             .onChange(of: isActive) { _, active in if active { startIfRequested() } else { grindFocused = false } }
+    }
+
+    /// A recipe for another brewer (a V60 recipe while the Switch is selected) selects a brewer of that kind,
+    /// if you have one. Recipes for any pour-over keep the brewer.
+    private func selectBrewer(for method: BrewMethod) {
+        guard method != .universal else { return }
+        let current = brewers.first { $0.id == setup.brewerID }
+        if current?.method == method { return }
+        if let match = brewers.first(where: { $0.method == method }) { setup.brewerID = match.id }
     }
 
     /// The widgets' "Brew" (brewlog://start) starts the brew with what's set up here.
@@ -258,6 +270,33 @@ private struct SetupScreen: View {
                 .accessibilityLabel("Dismiss")
             }
         }
+    }
+
+    /// The selected recipe at the top of the screen, compact; the full card with its taste notes stays at the bottom.
+    private var recipeHeader: some View {
+        let recipe = setup.scaledRecipe
+        return NavigationLink {
+            RecipePickerView(espresso: espresso)
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("RECIPE").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(recipe.name).font(.headline).foregroundStyle(.primary).lineLimit(1)
+                    Text("\(setup.dose.grams1) : \(recipe.water.grams) · \(recipe.targetTime.mmss) · \(Int(setup.waterTemp)) °C")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Spacer(minLength: 8)
+                MethodBadge(method: recipe.method)
+                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("brew.recipeHeader")
     }
 
     private var recipeCard: some View {

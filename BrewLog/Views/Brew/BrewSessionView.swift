@@ -273,6 +273,9 @@ struct BrewSessionView: View {
 
     private var preparingHint: String {
         if session.isEspresso {
+            if session.appStopsShot {
+                return "Press Ready to tare. BrewLog follows the machine and stops the shot at \(session.recipe.water.grams)."
+            }
             if session.followsMachine {
                 return "Press Ready to tare. BrewLog follows the machine: the timer starts and stops with the pump."
             }

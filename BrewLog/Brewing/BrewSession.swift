@@ -318,7 +318,7 @@ final class BrewSession {
             if !weighsViaMachine { scale.brewFinished() }
         }
         // Ending the session by hand also stops the pump if the machine is still pulling the shot.
-        if followsMachine && machine.status.isBrewing { machine.stopShot() }
+        if followsMachine && machine.status.isPullingShot { machine.stopShot() }
         timer?.invalidate()
         timer = nil
         liveActivity.end(liveActivityState(), keepFor: 120)
@@ -588,6 +588,26 @@ final class BrewSession {
         }
     }
 
+    /// Tells the machine to stop at the yield. The status doesn't always name a profile's phases as a shot
+    /// (e.g. "Prefill", "Fill"), so this doesn't wait for one; if the pump still runs a moment later, it asks again,
+    /// and after that shows "Stop now".
+    private func stopMachine() {
+        machine.stopShot()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self, self.phase == .brewing, self.machine.status.isPullingShot else { return }
+            self.machine.stopShot()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                guard let self, self.phase == .brewing, self.machine.status.isPullingShot else { return }
+                self.stopRequested = true
+            }
+        }
+    }
+
+    /// Whether BrewLog stops the shot at the yield itself (scale on the app, machine it can control).
+    var appStopsShot: Bool {
+        isEspresso && followsMachine && machine.canControl && usesScale && !weighsViaMachine && AppSettings.autoStopShot
+    }
+
     /// Espresso: stop just before the yield (the machine if the app controls it, else "Stop now"), finish when settled.
     private func checkShot(grams: Double, at t: TimeInterval) {
         guard var shot = shotMonitor else { return }
@@ -595,8 +615,9 @@ final class BrewSession {
         shotMonitor = shot
         switch action {
         case .stop:
-            if followsMachine && machine.canControl && machine.status.isBrewing {
-                machine.stopShot()
+            // The scale is on the app, so the machine doesn't know the weight: the app stops it.
+            if followsMachine && machine.canControl {
+                stopMachine()
             } else {
                 stopRequested = true
             }

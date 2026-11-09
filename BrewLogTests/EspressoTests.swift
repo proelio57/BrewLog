@@ -152,6 +152,19 @@ final class EspressoTests: XCTestCase {
         XCTAssertFalse(status.isBrewing)
     }
 
+    /// The app stops the shot at the yield in any phase of the profile, but never a flush or the grinder.
+    func testPullingShotCoversEveryPhase() throws {
+        var status = MachineStatus()
+        status.merge(try XCTUnwrap(MachineStatus.statusFrame(#"{"tp":"evt:status","pr":3,"process":{"a":1,"s":"preinfusion","l":"Compressing"}}"#)))
+        XCTAssertTrue(status.isPullingShot)
+        status.merge(try XCTUnwrap(MachineStatus.statusFrame(#"{"tp":"evt:status","pr":9,"process":{"a":1,"s":"brew","u":1}}"#)))
+        XCTAssertFalse(status.isPullingShot)
+        status.merge(try XCTUnwrap(MachineStatus.statusFrame(#"{"tp":"evt:status","pr":0,"process":{"a":1,"s":"grind"}}"#)))
+        XCTAssertFalse(status.isPullingShot)
+        status.merge(try XCTUnwrap(MachineStatus.statusFrame(#"{"tp":"evt:status","pr":0,"process":{"a":0,"s":"brew"}}"#)))
+        XCTAssertFalse(status.isPullingShot)
+    }
+
     func testIgnoresOtherMessagesAndClamps() throws {
         XCTAssertNil(MachineStatus.statusFrame(#"{"tp":"res:profiles:list","profiles":[]}"#))
         XCTAssertNil(MachineStatus.statusFrame("not json"))

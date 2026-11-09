@@ -42,6 +42,9 @@ struct MachineStatus: Equatable {
     var systemState: String?
     var systemMessage: String?
 
+    /// The pump runs a process that isn't a flush or descaling, whatever the profile calls its phase.
+    var isPullingShot: Bool { processActive && !processIsUtility && processKind != "grind" }
+
     /// Weight can be read from the machine (its own scale connection).
     var hasWeight: Bool { scaleConnected && weight != nil }
 
