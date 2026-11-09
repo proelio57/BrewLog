@@ -550,7 +550,7 @@ struct SettingsView: View {
                 ForEach(PressureFocusMode.allCases) { Text($0.title).tag($0) }
             }
             Toggle("Landscape chart", isOn: $landscapeChart)
-            if machine.kind == .gaggimate || machine.kind == .decent || machine.kind == .demo {
+            if machine.kind == .gaggimate || machine.kind == .demo {
                 Picker("After the shot", selection: $steamAfterShot) {
                     ForEach(SteamAfterShot.allCases) { Text($0.title).tag($0) }
                 }
