@@ -605,8 +605,11 @@ private fun LandscapeChart(
         val zone = PressureFocus.zone(pressure, session.recipe.pressure)
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(12.dp)) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
+                // Read the constraints here: inside Row/Column they're not in scope.
+                val totalWidth = maxWidth
+                val h = maxHeight
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(Modifier.width(minOf(maxWidth * 0.28f, 220.dp)), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.width(minOf(totalWidth * 0.28f, 220.dp)), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         BigNumber("TIME", snapshot.elapsed.mmss(), MaterialTheme.colorScheme.onSurface)
                         if (snapshot.usesScale) {
                             BigNumber("WEIGHT", "${maxOf(snapshot.weight, 0.0).scaleReadout()} g", MaterialTheme.colorScheme.onSurface)
@@ -615,7 +618,6 @@ private fun LandscapeChart(
                         if (session.hasPressure) BigNumber("PRESSURE", pressure?.let { "${fmt1(maxOf(it, 0.0))} bar" } ?: "–", zone.color())
                     }
                     Box(Modifier.weight(1f).fillMaxSize()) {
-                        val h = maxHeight
                         val samples = snapshot.machineSamples.map { PressureSample(it.t, it.p) }
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (session.hasPressure) {
