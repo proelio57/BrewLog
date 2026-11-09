@@ -120,6 +120,9 @@ class AppContainer(context: Context) {
         }
     }
 
+    /** Set when a shot is done and Settings → After the shot is "Ask": AppRoot asks to switch the machine to steam. */
+    val steamPrompt = mutableStateOf(false)
+
     /** The live brew survives configuration changes because it lives here, not in the UI. */
     var activeBrew: Pair<BrewConfig, BrewSession>? = null
 

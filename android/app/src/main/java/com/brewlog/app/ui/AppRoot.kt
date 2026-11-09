@@ -9,7 +9,10 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -101,6 +104,28 @@ fun AppRoot() {
     val startDestination = remember { if (container.settings.current.onboardingDone) Routes.BREW else Routes.ONBOARDING }
 
     LaunchedEffect(Unit) { container.scale.start() }
+    // After a shot (Settings → After the shot: Ask): offer to switch the machine to steam for the milk.
+    if (container.steamPrompt.value) {
+        val dismiss = { container.steamPrompt.value = false }
+        AlertDialog(
+            onDismissRequest = dismiss,
+            title = { Text("Switch to steam?") },
+            text = { Text("${container.machine.displayName} heats up for steaming the milk while you rate the shot.") },
+            confirmButton = {
+                TextButton(onClick = { container.machine.setMode(com.brewlog.app.machine.MachineMode.STEAM); dismiss() }) { Text("Steam") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        container.settings.update { it.copy(steamAfterShot = com.brewlog.app.domain.SteamAfterShot.STEAM) }
+                        container.machine.setMode(com.brewlog.app.machine.MachineMode.STEAM)
+                        dismiss()
+                    }) { Text("Always") }
+                    TextButton(onClick = dismiss) { Text("Not now") }
+                }
+            },
+        )
+    }
     // Widgets open the app with brewlog://brew, …/weigh, …/journal or …/beans.
     val link by container.pendingLink.collectAsState()
     LaunchedEffect(link) {

@@ -157,6 +157,11 @@ class MachineManager(
     val kind: MachineKind get() = _state.value.kind
     val isConnected: Boolean get() = _state.value.isConnected
     val canControl: Boolean get() = _state.value.canControl
+    /**
+     * BrewLog can switch this machine to steam after a shot: GaggiMate's steam mode heats the boiler for steaming.
+     * Not the DE1 (its steam state opens the steam wand straight away) or La Marzocco (the cloud only does power).
+     */
+    val canSwitchToSteam: Boolean get() = isConnected && (kind == MachineKind.GAGGIMATE || kind == MachineKind.DEMO)
     val canChooseProfile: Boolean get() = isConnected && MachineCapability.PROFILES in kind.capabilities
     val readsPressure: Boolean get() = _state.value.readsPressure
     val status: MachineStatus get() = _state.value.status

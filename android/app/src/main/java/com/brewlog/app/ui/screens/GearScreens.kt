@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import com.brewlog.app.domain.DarkMode
@@ -422,6 +423,51 @@ fun SettingsScreen(nav: NavHostController) {
                 }
             }
             item { EspressoMachineSettingsCard() }
+            item {
+                // Settings → Pressure view and the landscape chart (same as iOS).
+                SectionHeader("Live shot")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    Text("Pressure view", style = MaterialTheme.typography.titleSmall)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        com.brewlog.app.analysis.PressureFocusMode.entries.forEach { option ->
+                            FilterChip(
+                                selected = settings.pressureFocus == option,
+                                onClick = { update { it.copy(pressureFocus = option) } },
+                                label = { Text(option.title) },
+                            )
+                        }
+                    }
+                    SwitchRow("Landscape chart", settings.landscapeChart) { v -> update { it.copy(landscapeChart = v) } }
+                    Text(
+                        "Pressure view: Automatic shows a big pressure number and graph while a pressure sensor is connected, for setting the pressure by hand; Always also with the machine's own pressure. Landscape chart: a button on the live chart, and turning the phone, show the charts full screen.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+                // After the shot → steam (GaggiMate): Ask, Switch to steam or Off.
+                SectionHeader("After the shot")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        com.brewlog.app.domain.SteamAfterShot.entries.forEach { option ->
+                            FilterChip(
+                                selected = settings.steamAfterShot == option,
+                                onClick = { update { it.copy(steamAfterShot = option) } },
+                                label = { Text(option.title) },
+                            )
+                        }
+                    }
+                    Text(
+                        "GaggiMate: switch the machine to steam for the milk when the shot is done, or ask each time. Not on the Decent DE1, whose steam state opens the wand straight away.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
             item {
                 SectionHeader("Espresso pressure monitor")
                 Spacer(Modifier.height(8.dp))

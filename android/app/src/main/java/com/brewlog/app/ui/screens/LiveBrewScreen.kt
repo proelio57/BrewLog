@@ -31,6 +31,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Speed
@@ -83,6 +85,12 @@ import com.brewlog.app.domain.scaleReadout
 import com.brewlog.app.ui.Routes
 import com.brewlog.app.ui.components.BrewCard
 import com.brewlog.app.ui.components.BrewChart
+import com.brewlog.app.ui.components.PressureChart
+import com.brewlog.app.ui.components.color
+import com.brewlog.app.analysis.PressureFocus
+import com.brewlog.app.analysis.PressureZone
+import com.brewlog.app.domain.PressureSample
+import com.brewlog.app.ui.theme.FlowTeal
 import com.brewlog.app.ui.components.icon
 import com.brewlog.app.ui.theme.GoodGreen
 import com.brewlog.app.ui.theme.InfoBlue
@@ -108,6 +116,7 @@ fun LiveBrewScreen(nav: NavHostController) {
     val pressureReady by container.pressure.ready.collectAsStateWithLifecycle()
     val currentPressure by container.pressure.pressure.collectAsStateWithLifecycle()
     var confirmDiscard by remember { mutableStateOf(false) }
+    var showLandscape by remember { mutableStateOf(false) }
 
     fun close() {
         if (pressureReady) container.pressure.brewFinished()
@@ -149,6 +158,14 @@ fun LiveBrewScreen(nav: NavHostController) {
         container.repository.saveNewBrew(brew, if (session.usesScale) session.recordedSamples() else emptyList(), session.recordedMachineSamples())
         container.syncAfterBrew()
         container.activeBrew = null
+        // After a shot: switch the machine to steam for the milk, or ask (Settings → After the shot).
+        if (session.isEspresso && container.machine.canSwitchToSteam) {
+            when (container.settings.current.steamAfterShot) {
+                com.brewlog.app.domain.SteamAfterShot.STEAM -> container.machine.setMode(com.brewlog.app.machine.MachineMode.STEAM)
+                com.brewlog.app.domain.SteamAfterShot.ASK -> container.steamPrompt.value = true
+                com.brewlog.app.domain.SteamAfterShot.OFF -> Unit
+            }
+        }
         nav.navigate(Routes.brewDetail(brew.id, isNew = true)) { popUpTo(Routes.LIVE) { inclusive = true } }
     }
 
@@ -191,6 +208,22 @@ fun LiveBrewScreen(nav: NavHostController) {
         }
     }
 
+    // Turning the phone during a brew opens the charts full screen (Settings → Landscape chart).
+    val brewingOrDone = snapshot.phase == BrewPhase.BREWING || snapshot.phase == BrewPhase.FINISHED
+    DisposableEffect(settings.landscapeChart, brewingOrDone, showLandscape) {
+        val listener = object : android.view.OrientationEventListener(context) {
+            override fun onOrientationChanged(angle: Int) {
+                if (angle == ORIENTATION_UNKNOWN) return
+                if (!showLandscape && settings.landscapeChart && brewingOrDone && (angle in 60..120 || angle in 240..300)) showLandscape = true
+            }
+        }
+        if (settings.landscapeChart && brewingOrDone && !showLandscape) listener.enable()
+        onDispose { listener.disable() }
+    }
+    if (showLandscape) {
+        LandscapeChart(snapshot, session, container.machine, container.pressure) { showLandscape = false }
+    }
+
     BackHandler {
         if (snapshot.phase == BrewPhase.BREWING) confirmDiscard = true else close()
     }
@@ -201,7 +234,8 @@ fun LiveBrewScreen(nav: NavHostController) {
     ) {
         Header(config, session.recipe, snapshot.weighedDose ?: config.dose, snapshot.usesScale && scaleReady, pressureLive = pressureReady) { if (snapshot.phase == BrewPhase.BREWING) confirmDiscard = true else close() }
         if (session.isEspresso) {
-            ShotReadouts(snapshot, session.recipe, container.machine, container.pressure)
+            ShotReadouts(snapshot, session.recipe, container.machine, container.pressure,
+                focus = session.pressureFocus, fromSensor = session.pressureFromSensor)
             if (snapshot.stopRequested) {
                 Spacer(Modifier.height(8.dp))
                 StopNowBanner()
@@ -217,18 +251,21 @@ fun LiveBrewScreen(nav: NavHostController) {
             else -> ActiveStepCard(snapshot, session)
         }
         if (snapshot.phase == BrewPhase.BREWING || snapshot.phase == BrewPhase.FINISHED) {
-            BrewChart(
-                snapshot.samples,
-                session.recipe,
-                currentTime = snapshot.elapsed,
-                height = 160.dp,
-                pressureSamples = snapshot.machineSamples.map { com.brewlog.app.domain.PressureSample(it.t, it.p) },
-            )
+            // The charts take the room that is left, so the screen never runs past its edges.
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                LiveCharts(snapshot, session, height = maxHeight)
+                if (settings.landscapeChart) {
+                    IconButton(onClick = { showLandscape = true }, modifier = Modifier.align(Alignment.TopEnd).size(32.dp)) {
+                        Icon(Icons.Filled.Fullscreen, contentDescription = "Chart full screen")
+                    }
+                }
+            }
+            StepsStrip(config, session.recipe, snapshot)
         } else {
             PreparationList(config, session.recipe, snapshot.weighedDose ?: config.dose)
+            StepsStrip(config, session.recipe, snapshot)
+            Spacer(Modifier.weight(1f))
         }
-        StepsStrip(config, session.recipe, snapshot)
-        Spacer(Modifier.weight(1f))
         Controls(
             snapshot,
             onRinseDone = {
@@ -330,6 +367,8 @@ private fun ShotReadouts(
     machine: com.brewlog.app.machine.MachineManager,
     monitor: com.brewlog.app.scale.PressureManager,
     modifier: Modifier = Modifier,
+    focus: Boolean = false,
+    fromSensor: Boolean = false,
 ) {
     val monitorReady by monitor.ready.collectAsStateWithLifecycle()
     val monitorPressure by monitor.pressure.collectAsStateWithLifecycle()
@@ -341,51 +380,107 @@ private fun ShotReadouts(
         machine.readsPressure -> if (isMachineConnected) machineState.status.pressure else null
         else -> if (monitorReady) monitorPressure else null
     }
+    val zone = PressureFocus.zone(livePressure, recipe.pressure)
 
     val liveTemperature: Double? = snapshot.currentTemperature
         ?: (if (isMachineConnected) machineState.status.temperature else null)
 
     val late = snapshot.phase == BrewPhase.BREWING && snapshot.elapsed >= recipe.targetTime
+    val timeColor = if (late) WarnOrange else MaterialTheme.colorScheme.onSurface
+    val weightText = if (snapshot.usesScale) maxOf(snapshot.weight, 0.0).scaleReadout() else "–"
 
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                Text("TIME", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(snapshot.elapsed.mmss(), fontSize = 54.sp, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
-                Text("target ${recipe.targetTime.mmss()}", style = MaterialTheme.typography.bodySmall,
-                    color = if (late) WarnOrange else MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(if (focus) 6.dp else 10.dp)) {
+        when {
+            focus && fromSensor -> {
+                // Pressure set by hand (sensor): the pressure is what matters, big in the middle.
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                    Compact("TIME", snapshot.elapsed.mmss(), timeColor, Modifier.weight(1f))
+                    Compact("WEIGHT", if (snapshot.usesScale) "$weightText g" else "–", MaterialTheme.colorScheme.onSurface,
+                        Modifier.weight(1f), end = true)
+                }
+                androidx.compose.material3.Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = zone.color().copy(alpha = 0.1f),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(livePressure?.let { fmt1(maxOf(it, 0.0)) } ?: "–", fontSize = 76.sp, fontWeight = FontWeight.Bold,
+                                style = tabular, color = zone.color(), maxLines = 1)
+                            Text(" bar", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold,
+                                color = zone.color(), modifier = Modifier.padding(bottom = 12.dp))
+                        }
+                        Text(pressureCaption(livePressure, recipe.pressure, zone, snapshot.peakPressure),
+                            style = MaterialTheme.typography.titleSmall.merge(tabular), fontWeight = FontWeight.SemiBold,
+                            color = if (zone == PressureZone.NO_TARGET) MaterialTheme.colorScheme.onSurfaceVariant else zone.color())
+                    }
+                }
             }
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                Text("WEIGHT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            focus -> {
+                // The machine measures (and controls) the pressure: weight and pressure side by side.
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                    Compact("TIME", snapshot.elapsed.mmss(), timeColor, Modifier.weight(1f))
+                    Text("target ${recipe.targetTime.mmss()}", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    HalfCard("WEIGHT", weightText, "g", if (snapshot.usesScale) "of ${recipe.water.grams()}" else "no scale",
+                        null, Modifier.weight(1f))
+                    HalfCard("PRESSURE", livePressure?.let { fmt1(maxOf(it, 0.0)) } ?: "–", "bar",
+                        pressureCaption(livePressure, recipe.pressure, zone, snapshot.peakPressure, short = true),
+                        zone.color(), Modifier.weight(1f))
+                }
+            }
+            else -> {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                    Column(Modifier.weight(1f)) {
+                        Text("TIME", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(snapshot.elapsed.mmss(), fontSize = 54.sp, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
+                        Text("target ${recipe.targetTime.mmss()}", style = MaterialTheme.typography.bodySmall,
+                            color = if (late) WarnOrange else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                        Text("WEIGHT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(weightText, fontSize = 54.sp, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
+                        Text(if (snapshot.usesScale) "of ${recipe.water.grams()}" else "no scale", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 if (snapshot.usesScale) {
-                    val shown = maxOf(snapshot.weight, 0.0)
-                    Text(shown.scaleReadout(), fontSize = 54.sp, fontWeight = FontWeight.SemiBold, style = tabular, maxLines = 1)
-                    Text("of ${recipe.water.grams()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else {
-                    Text("–", fontSize = 54.sp, fontWeight = FontWeight.SemiBold, style = tabular)
-                    Text("no scale", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // The flow big and in the flow colour of the charts, with the recipe's target range.
+                    androidx.compose.material3.Surface(shape = RoundedCornerShape(12.dp), color = FlowTeal.copy(alpha = 0.1f), modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.Bottom) {
+                            Text("FLOW ", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
+                            Text(fmt1(maxOf(snapshot.flowRate, 0.0)), fontSize = 34.sp, fontWeight = FontWeight.SemiBold, style = tabular, color = FlowTeal)
+                            Text(" g/s", style = MaterialTheme.typography.titleMedium, color = FlowTeal, modifier = Modifier.padding(bottom = 6.dp))
+                            Spacer(Modifier.weight(1f))
+                            if (recipe.flowMax > 0) {
+                                Text("target ${com.brewlog.app.ui.components.flowLabel(recipe.flowMin)}–${com.brewlog.app.ui.components.flowLabel(recipe.flowMax)} g/s",
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 8.dp))
+                            }
+                        }
+                    }
                 }
             }
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (focus && fromSensor && snapshot.usesScale) {
+                ReadoutTile(title = "Flow", value = "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", color = FlowTeal, modifier = Modifier.weight(1f))
+            }
             ReadoutTile(
                 title = "Ratio",
                 value = snapshot.liveRatio?.let { "1:${fmt1(it)}" } ?: "–",
                 modifier = Modifier.weight(1f),
             )
-            if (snapshot.usesScale) {
-                ReadoutTile(
-                    title = "Flow",
-                    value = "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s",
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            if (monitorReady || (isMachineConnected && machineState.status.hasPressure != false)) {
+            if (!focus && (monitorReady || (isMachineConnected && machineState.status.hasPressure != false))) {
                 ReadoutTile(
                     title = "Pressure",
                     value = livePressure?.let { String.format(java.util.Locale.US, "%.1f bar", it) } ?: "–",
                     detail = if (snapshot.peakPressure > 0) "peak ${String.format(java.util.Locale.US, "%.1f", snapshot.peakPressure)}" else null,
+                    color = zone.color(),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -405,12 +500,161 @@ private fun ShotReadouts(
     }
 }
 
+/** "target 9.0 bar · 0.4 low" / "· on target" / "· 0.6 high", or the peak without a target. */
+private fun pressureCaption(pressure: Double?, target: Double?, zone: PressureZone, peak: Double, short: Boolean = false): String {
+    if (pressure == null || target == null || zone == PressureZone.NO_TARGET) {
+        return if (peak > 0) "peak ${fmt1(peak)}${if (short) "" else " bar"}" else " "
+    }
+    val head = "target ${fmt1(target)}${if (short) "" else " bar"}"
+    return when (zone) {
+        PressureZone.LOW -> "$head · ${fmt1(target - pressure)} low"
+        PressureZone.HIGH -> "$head · ${fmt1(pressure - target)} high"
+        else -> "$head · on target"
+    }
+}
+
+@Composable
+private fun Compact(title: String, value: String, color: Color, modifier: Modifier = Modifier, end: Boolean = false) {
+    Column(modifier, horizontalAlignment = if (end) Alignment.End else Alignment.Start) {
+        Text(title, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, style = tabular, color = color, maxLines = 1)
+    }
+}
+
+/** One of the two big numbers side by side (weight | pressure), on a tinted card. */
+@Composable
+private fun HalfCard(title: String, value: String, unit: String, detail: String, tint: Color?, modifier: Modifier = Modifier) {
+    androidx.compose.material3.Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = tint?.copy(alpha = 0.1f) ?: MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+            Text(title, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(value, fontSize = 48.sp, fontWeight = FontWeight.Bold, style = tabular, color = tint ?: MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                Text(" $unit", style = MaterialTheme.typography.titleMedium, color = tint ?: MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 8.dp))
+            }
+            Text(detail, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+                color = tint ?: MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        }
+    }
+}
+
+/** The live charts in the height that is left: the pressure graph first with the pressure view. */
+@Composable
+private fun LiveCharts(snapshot: BrewSnapshot, session: BrewSession, height: androidx.compose.ui.unit.Dp) {
+    val pressure = snapshot.machineSamples.map { PressureSample(it.t, it.p) }
+    val chrome = 44.dp
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        when {
+            session.pressureFocus && session.pressureFromSensor ->
+                PressureChart(pressure, session.recipe.pressure, currentTime = snapshot.elapsed,
+                    height = maxOf(height - chrome, 60.dp), emphasis = true)
+            session.pressureFocus -> {
+                val plots = maxOf(height - chrome * 2, 100.dp)
+                PressureChart(pressure, session.recipe.pressure, currentTime = snapshot.elapsed, height = plots * 0.55f, emphasis = true)
+                BrewChart(snapshot.samples, session.recipe, currentTime = snapshot.elapsed, height = plots * 0.45f)
+            }
+            else -> BrewChart(snapshot.samples, session.recipe, currentTime = snapshot.elapsed,
+                height = minOf(maxOf(height - chrome, 60.dp), 320.dp), pressureSamples = pressure)
+        }
+    }
+}
+
+/**
+ * The live charts full screen in landscape: opened with the button on the charts or by turning the phone
+ * (Settings → Landscape chart). Closes with the button or by turning the phone back.
+ */
+@Composable
+private fun LandscapeChart(
+    snapshot: BrewSnapshot,
+    session: BrewSession,
+    machine: com.brewlog.app.machine.MachineManager,
+    monitor: com.brewlog.app.scale.PressureManager,
+    onClose: () -> Unit,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val activity = context as? android.app.Activity
+    var sawLandscape by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) {
+        activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        val listener = object : android.view.OrientationEventListener(context) {
+            override fun onOrientationChanged(angle: Int) {
+                if (angle == ORIENTATION_UNKNOWN) return
+                if (angle in 60..120 || angle in 240..300) sawLandscape = true
+                if (sawLandscape && (angle < 25 || angle > 335)) onClose()
+            }
+        }
+        listener.enable()
+        onDispose {
+            listener.disable()
+            activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onClose,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        val monitorReady by monitor.ready.collectAsStateWithLifecycle()
+        val monitorPressure by monitor.pressure.collectAsStateWithLifecycle()
+        val machineState by machine.state.collectAsStateWithLifecycle()
+        val pressure: Double? = snapshot.currentPressure
+            ?: if (machine.readsPressure) machineState.status.pressure else if (monitorReady) monitorPressure else null
+        val zone = PressureFocus.zone(pressure, session.recipe.pressure)
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(12.dp)) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                // Read the constraints here: inside Row/Column they're not in scope.
+                val totalWidth = maxWidth
+                val h = maxHeight
+                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(Modifier.width(minOf(totalWidth * 0.28f, 220.dp)), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BigNumber("TIME", snapshot.elapsed.mmss(), MaterialTheme.colorScheme.onSurface)
+                        if (snapshot.usesScale) {
+                            BigNumber("WEIGHT", "${maxOf(snapshot.weight, 0.0).scaleReadout()} g", MaterialTheme.colorScheme.onSurface)
+                            BigNumber("FLOW", "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", FlowTeal)
+                        }
+                        if (session.hasPressure) BigNumber("PRESSURE", pressure?.let { "${fmt1(maxOf(it, 0.0))} bar" } ?: "–", zone.color())
+                    }
+                    Box(Modifier.weight(1f).fillMaxSize()) {
+                        val samples = snapshot.machineSamples.map { PressureSample(it.t, it.p) }
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (session.hasPressure) {
+                                val plots = maxOf(h - 100.dp, 120.dp)
+                                PressureChart(samples, session.recipe.pressure, currentTime = snapshot.elapsed,
+                                    height = plots * (if (session.pressureFocus) 0.6f else 0.4f), emphasis = session.pressureFocus)
+                                BrewChart(snapshot.samples, session.recipe, currentTime = snapshot.elapsed,
+                                    height = plots * (if (session.pressureFocus) 0.4f else 0.6f))
+                            } else {
+                                BrewChart(snapshot.samples, session.recipe, currentTime = snapshot.elapsed, height = maxOf(h - 50.dp, 100.dp))
+                            }
+                        }
+                    }
+                }
+            }
+            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopEnd)) {
+                Icon(Icons.Filled.FullscreenExit, contentDescription = "Close full screen chart")
+            }
+        }
+    }
+}
+
+@Composable
+private fun BigNumber(title: String, value: String, color: Color) {
+    Column {
+        Text(title, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, fontSize = 36.sp, fontWeight = FontWeight.SemiBold, style = tabular, color = color, maxLines = 1)
+    }
+}
+
 @Composable
 private fun ReadoutTile(
     title: String,
     value: String,
     modifier: Modifier = Modifier,
     detail: String? = null,
+    color: Color = Color.Unspecified,
 ) {
     androidx.compose.material3.Surface(
         modifier = modifier,
@@ -419,7 +663,7 @@ private fun ReadoutTile(
     ) {
         Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
             Text(title, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-            Text(value, style = MaterialTheme.typography.titleMedium.merge(tabular), fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(value, style = MaterialTheme.typography.titleMedium.merge(tabular), fontWeight = FontWeight.SemiBold, maxLines = 1, color = color)
             Text(detail ?: " ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }
