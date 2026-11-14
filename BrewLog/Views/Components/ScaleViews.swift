@@ -5,34 +5,39 @@ struct ScaleStatusCard: View {
     @State private var showConnect = false
 
     var body: some View {
-        Button { showConnect = true } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(statusColor.opacity(0.15)).frame(width: 42, height: 42)
-                    Image(systemName: "scalemass.fill").foregroundStyle(statusColor)
+        HStack(spacing: 12) {
+            Button { showConnect = true } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle().fill(statusColor.opacity(0.15)).frame(width: 42, height: 42)
+                        Image(systemName: "scalemass.fill").foregroundStyle(statusColor)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(scale.isReady ? scale.displayName : "No scale connected")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if scale.isReady {
+                        Text(scale.weight.grams1)
+                            .font(.title3.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(.primary)
+                    } else {
+                        Text("Connect").font(.subheadline.weight(.semibold))
+                    }
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(scale.isReady ? scale.displayName : "No scale connected")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if scale.isReady {
-                    Text(scale.weight.grams1)
-                        .font(.title3.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(.primary)
-                } else {
-                    Text("Connect").font(.subheadline.weight(.semibold))
-                }
+                .contentShape(Rectangle())
             }
-            .padding(14)
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .buttonStyle(.plain)
+            // Next to the weight, not inside the card's button: tapping the card opens the connection sheet.
+            if scale.isReady { TareChip { scale.tare() } }
         }
-        .buttonStyle(.plain)
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .sheet(isPresented: $showConnect) { ScaleConnectSheet() }
     }
 
@@ -76,6 +81,10 @@ struct ScaleConnectSheet: View {
                         }
                         Button("Tare") { scale.tare() }
                         Button("Disconnect & forget", role: .destructive) { scale.disconnect(forget: true) }
+                    }
+                    if scale.isDemo && scale.isReady {
+                        LabeledContent("Weight", value: scale.weight.grams1)
+                        Button("Tare") { scale.tare() }
                     }
                 } footer: {
                     Text("Turn on your scale (BOOKOO Themis Mini, Timemore Dot, Decent Scale; Dot: long-press the button until the white light flashes). BrewLog reconnects to it automatically next time.")

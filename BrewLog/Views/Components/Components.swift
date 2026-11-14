@@ -229,6 +229,36 @@ struct MenuPickerRow: View {
 
 // MARK: - Method badge
 
+/// A small Tare button for every place that shows the scale's weight outside of a brew (Brew tab, scale sheet).
+/// `compact` is the icon only, for tight tiles.
+struct TareChip: View {
+    var compact = false
+    var action: () -> Void
+
+    var body: some View {
+        Button {
+            action()
+            Haptics.tap()
+        } label: {
+            Group {
+                if compact {
+                    Image(systemName: "arrow.down.to.line").font(.caption.weight(.bold)).frame(width: 26, height: 26)
+                } else {
+                    Label("Tare", systemImage: "arrow.down.to.line")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                }
+            }
+            .background(Color.accentColor.opacity(0.15), in: Capsule())
+            .foregroundStyle(Color.accentColor)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Tare the scale")
+        .accessibilityIdentifier("scale.tare")
+    }
+}
+
 struct MethodBadge: View {
     let method: BrewMethod
     var body: some View {

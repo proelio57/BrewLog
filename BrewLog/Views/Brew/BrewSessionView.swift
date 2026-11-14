@@ -376,35 +376,45 @@ struct BrewSessionView: View {
     private var controls: some View {
         switch session.phase {
         case .rinsing:
+            if session.canTare { tareButton.font(.subheadline.weight(.semibold)) }
             Button("Skip rinsing") { session.rinseDone() }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
             primaryButton("Rinsed", symbol: "checkmark.circle.fill") { session.rinseDone() }
         case .dosing:
             HStack(spacing: 24) {
-                Button("Tare", systemImage: "scalemass") { session.tareDose() }
+                tareButton
                 Button("Skip weighing") { session.skipDosing() }
                     .foregroundStyle(.secondary)
             }
             .font(.subheadline.weight(.semibold))
             primaryButton("Ready", symbol: "checkmark.circle.fill") { session.ready() }
         case .preparing:
-            if session.canWeighBeans && session.weighedDose == nil {
-                Button("Weigh the beans", systemImage: "scalemass") { session.weighBeans() }
-                    .font(.subheadline.weight(.semibold))
+            if session.canTare || (session.canWeighBeans && session.weighedDose == nil) {
+                HStack(spacing: 24) {
+                    if session.canTare { tareButton }
+                    if session.canWeighBeans && session.weighedDose == nil {
+                        Button("Weigh the beans", systemImage: "scalemass") { session.weighBeans() }
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
             }
             primaryButton("Ready", symbol: "checkmark.circle.fill") { session.ready() }
         case .armed:
             if session.isEspresso {
+                if session.canTare { tareButton.font(.subheadline.weight(.semibold)) }
                 if session.followsMachine && machine.canControl {
                     primaryButton("Start shot on \(machine.displayName)", symbol: "play.fill") { machine.startShot() }
                 } else {
                     primaryButton("Start shot", symbol: "play.fill") { session.startManually() }
                 }
             } else if session.usesScale {
-                Button("Start timer manually") { session.startManually() }
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.bottom, 4)
+                HStack(spacing: 24) {
+                    tareButton
+                    Button("Start timer manually") { session.startManually() }
+                }
+                .font(.subheadline.weight(.semibold))
+                .padding(.bottom, 4)
             } else {
                 primaryButton("Start timer", symbol: "play.fill") { session.startManually() }
             }
@@ -417,6 +427,12 @@ struct BrewSessionView: View {
         case .finished:
             ProgressView()
         }
+    }
+
+    /// Zeroes the scale before the pour (the cup, the brewer, the portafilter); see `BrewSession.tare()`.
+    private var tareButton: some View {
+        Button("Tare", systemImage: "arrow.down.to.line") { session.tare() }
+            .accessibilityIdentifier("brew.tare")
     }
 
     private func primaryButton(_ title: String, symbol: String, tint: Color = .accentColor, action: @escaping () -> Void) -> some View {

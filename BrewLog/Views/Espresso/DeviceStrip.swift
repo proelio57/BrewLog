@@ -13,8 +13,12 @@ struct DeviceStrip: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            device("Scale", symbol: "scalemass.fill", live: scale.isReady,
-                   value: scale.isReady ? scale.weight.grams1 : "Connect") { showScale = true }
+            // The Tare button sits on the tile, not inside its button (tapping the tile opens the scale sheet).
+            ZStack(alignment: .topTrailing) {
+                device("Scale", symbol: "scalemass.fill", live: scale.isReady,
+                       value: scale.isReady ? scale.weight.grams1 : "Connect") { showScale = true }
+                if scale.isReady { TareChip(compact: true) { scale.tare() }.padding(6) }
+            }
             device(machine.kind == .none ? "Machine" : machine.displayName, symbol: "cup.and.saucer.fill", live: machine.isConnected,
                    value: machineValue, action: onOpenSettings)
             if machine.readsPressure {
