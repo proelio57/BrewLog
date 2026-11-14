@@ -119,15 +119,20 @@ class DosingAndAdviceTest {
         session.prepare()
         session.ready()
         assertEquals(BrewPhase.ARMED, session.phase)
+        // The screen reads the snapshot that tick() publishes; ingest() alone doesn't.
         repeat(5) { now += 100; session.ingest(0.0, now) }
+        session.tick()
         assertTrue(session.state.value.zeroConfirmed)
 
         session.tare()
         assertEquals("tare", scale.commands.last())
         assertFalse(session.state.value.zeroConfirmed)
         repeat(3) { now += 100; session.ingest(180.0, now) }
+        session.tick()
         assertEquals(BrewPhase.ARMED, session.phase)
+        assertFalse(session.state.value.zeroConfirmed)
         repeat(5) { now += 100; session.ingest(0.0, now) }
+        session.tick()
         assertTrue(session.state.value.zeroConfirmed)
     }
 
