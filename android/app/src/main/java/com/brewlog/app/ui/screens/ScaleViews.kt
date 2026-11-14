@@ -81,7 +81,8 @@ fun rememberBluetoothAccess(onReady: () -> Unit): () -> Unit {
 
 @Composable
 fun ScaleStatusCard(onClick: () -> Unit) {
-    val scale = LocalContainer.current.scale
+    val container = LocalContainer.current
+    val scale = container.scale
     val state by scale.state.collectAsStateWithLifecycle()
     val isDemo by scale.isDemo.collectAsStateWithLifecycle()
     val ready by scale.ready.collectAsStateWithLifecycle()
@@ -111,6 +112,12 @@ fun ScaleStatusCard(onClick: () -> Unit) {
             }
             if (ready) {
                 Text(weight.grams1(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(8.dp))
+                // A tap on the card opens the connection sheet; the button zeroes the scale.
+                OutlinedButton(
+                    onClick = { scale.tare(); container.haptics.tap() },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                ) { Text("Tare") }
             } else {
                 Text("Connect", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
             }
@@ -194,6 +201,10 @@ fun ScaleSheet(onDismiss: () -> Unit) {
                     OutlinedButton(onClick = { scale.tare() }) { Text("Tare") }
                     TextButton(onClick = { scale.disconnect(forget = true) }) { Text("Disconnect & forget", color = Color(0xFFFF3B30)) }
                 }
+            }
+            if (isDemo) {
+                InfoRow("Weight", weight.grams1())
+                OutlinedButton(onClick = { scale.tare() }) { Text("Tare") }
             }
             if (!isDemo && state != ScaleConnectionState.CONNECTED) {
                 HorizontalDivider()
