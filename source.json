@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.3.0",
+          "buildVersion": "107",
+          "date": "2026-11-14T20:50:48Z",
+          "localizedDescription": "iOS\n• A Tare button wherever the scale's weight is shown: on the Brew tab (scale card and scale tile), in the scale sheet (also with the demo scale) and on the brew screen before the pour: while rinsing, weighing the beans, preparing and waiting for the pour\n\nAndroid\n• A Tare button wherever the scale's weight is shown: on the Brew tab (scale card and scale tile), in the scale sheet (also with the demo scale) and on the brew screen before the pour: while rinsing, weighing the beans, preparing and waiting for the pour\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.3.0/BrewLog.ipa",
+          "size": 12665970,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.2.0",
           "buildVersion": "104",
           "date": "2026-11-09T13:33:02Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.67/BrewLog.ipa",
           "size": 3430777,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.64",
-          "buildVersion": "64",
-          "date": "2026-11-05T17:30:52Z",
-          "localizedDescription": "• Read GaggiMate's profile list with the selected profile\n• Choose the GaggiMate profile from the espresso screen and brew with it\n• Decode the Decent DE1's shot samples and states\n• Decent DE1 over Bluetooth with live shot data, following and controlling shots\n• DE1 disconnects always end the shot, profile sheet survives a dropped machine\n• Imported yields keep their decimals, your recipe edits survive picking a profile again",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.64/BrewLog.ipa",
-          "size": 3306669,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.2.0",
-      "versionDate": "2026-11-09T13:33:02Z",
-      "versionDescription": "iOS\n• No changes in this release\n\nAndroid\n• The selected recipe is always shown at the top of the Brew screen; tap it to change the recipe\n• Choosing a recipe for another brewer (e.g. a V60 recipe while the Switch is selected) selects that brewer\n• Espresso: with the scale connected to the app, BrewLog stops the shot on the machine (GaggiMate, Decent) at the target yield in every phase of the profile, and asks again if the pump keeps running\n• After a shot BrewLog offers to switch GaggiMate to steam; Settings → After the shot: Ask, Switch to steam or Off\n• Pressure view: with a pressure sensor a big colour-coded pressure number and a pressure graph with a target band; with the machine's own pressure weight and pressure side by side (Settings → Live shot: Automatic, Always, Off)\n• Landscape full-screen chart with a button or by turning the phone (can be turned off in Settings)\n• Bigger, coloured flow (g/s) readout, and the live charts always fit on the screen\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.2.0/BrewLog.ipa",
-      "size": 12648719
+      "version": "2.3.0",
+      "versionDate": "2026-11-14T20:50:48Z",
+      "versionDescription": "iOS\n• A Tare button wherever the scale's weight is shown: on the Brew tab (scale card and scale tile), in the scale sheet (also with the demo scale) and on the brew screen before the pour: while rinsing, weighing the beans, preparing and waiting for the pour\n\nAndroid\n• A Tare button wherever the scale's weight is shown: on the Brew tab (scale card and scale tile), in the scale sheet (also with the demo scale) and on the brew screen before the pour: while rinsing, weighing the beans, preparing and waiting for the pour\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.3.0/BrewLog.ipa",
+      "size": 12665970
     }
   ],
   "news": []
