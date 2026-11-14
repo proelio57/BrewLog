@@ -109,6 +109,55 @@ class DosingAndAdviceTest {
         assertEquals(recipe, BeanDosing.recipe(recipe, recipe.dose + 0.4))
     }
 
+    // MARK: Tare
+
+    /** A cup put on the scale and tared while waiting for the pour: the weight from before must not start the timer. */
+    @Test fun tareWhileWaitingForThePourWaitsForZeroAgain() {
+        val scale = FakeScale()
+        var now = 0L
+        val session = BrewSession(preset("everyday-3-pour"), scale, { AppSettings(rinsePaper = false, weighBeansFirst = false) }, {}, clock = { now })
+        session.prepare()
+        session.ready()
+        assertEquals(BrewPhase.ARMED, session.phase)
+        // The screen reads the snapshot that tick() publishes; ingest() alone doesn't.
+        repeat(5) { now += 100; session.ingest(0.0, now) }
+        session.tick()
+        assertTrue(session.state.value.zeroConfirmed)
+
+        session.tare()
+        assertEquals("tare", scale.commands.last())
+        assertFalse(session.state.value.zeroConfirmed)
+        repeat(3) { now += 100; session.ingest(180.0, now) }
+        session.tick()
+        assertEquals(BrewPhase.ARMED, session.phase)
+        assertFalse(session.state.value.zeroConfirmed)
+        repeat(5) { now += 100; session.ingest(0.0, now) }
+        session.tick()
+        assertTrue(session.state.value.zeroConfirmed)
+    }
+
+    @Test fun noTareWhileBrewing() {
+        val scale = FakeScale()
+        var now = 0L
+        val session = BrewSession(preset("everyday-3-pour"), scale, { AppSettings(rinsePaper = false, weighBeansFirst = false) }, {}, clock = { now })
+        session.prepare()
+        session.ready()
+        repeat(5) { now += 100; session.ingest(0.0, now) }
+        repeat(3) { now += 100; session.ingest(5.0 + it, now) }
+        assertEquals(BrewPhase.BREWING, session.phase)
+        val before = scale.commands.size
+        session.tare()
+        assertEquals(before, scale.commands.size)
+    }
+
+    @Test fun tareBeforeTheBrewNeedsAScale() {
+        val scale = FakeScale(isReady = false)
+        val session = BrewSession(preset("everyday-3-pour"), scale, { AppSettings(rinsePaper = false, weighBeansFirst = false) }, {})
+        session.prepare()
+        session.tare()
+        assertTrue(scale.commands.isEmpty())
+    }
+
     @Test fun settledWeightIgnoresLifting() {
         val steady = (0 until 10).map { (it * 100L) to (if (it % 2 == 0) 15.15 else 15.05) }
         assertEquals(15.1, BeanDosing.stableWeight(steady, 900)!!, 0.01)

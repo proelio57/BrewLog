@@ -214,6 +214,28 @@ class BrewSession(
         publish()
     }
 
+    /**
+     * Zeroes the scale (a cup put on it, the brewer, the portafilter) while rinsing, preparing, weighing the beans and
+     * waiting for the pour. Not while brewing: zeroing then would put a drop into the recorded curve. Where the pour is
+     * awaited the timer waits for the scale to show about 0 g again, so the weight from before the tare can't start it.
+     */
+    fun tare() {
+        when (phase) {
+            BrewPhase.DOSING -> tareDose()
+            BrewPhase.ARMED -> {
+                if (!usesScale) return
+                if (weighsViaMachine) machine?.tareScale() else scale.tare()
+                armMs = clock()
+                zeroConfirmed = false
+                retareSent = false
+                recent.clear()
+                publish()
+            }
+            BrewPhase.RINSING, BrewPhase.PREPARING -> if (scale.isReady) { scale.tare(); publish() }
+            BrewPhase.BREWING, BrewPhase.FINISHED -> Unit
+        }
+    }
+
     /** Tare while weighing (e.g. after putting the cup on the scale). */
     fun tareDose() {
         if (phase != BrewPhase.DOSING) return

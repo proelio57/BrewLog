@@ -172,6 +172,36 @@ final class BrewSession {
         Haptics.tap()
     }
 
+    /// The scale shows a weight that can be zeroed: while rinsing, preparing, weighing the beans and waiting for the
+    /// pour. Not while brewing: zeroing then would put a drop into the recorded curve.
+    var canTare: Bool {
+        switch phase {
+        case .rinsing, .preparing, .dosing: return scale.isReady
+        case .armed: return usesScale
+        case .brewing, .finished: return false
+        }
+    }
+
+    /// Zeroes the scale (a cup put on it, the brewer, the portafilter). Where the pour is awaited the timer waits for
+    /// the scale to show about 0 g again, so the weight from before the tare can't start it.
+    func tare() {
+        guard canTare else { return }
+        switch phase {
+        case .dosing:
+            tareDose()
+        case .armed:
+            if weighsViaMachine { machine.tareScale() } else { scale.tare() }
+            armDate = Date()
+            zeroConfirmed = false
+            retareSent = false
+            recent.removeAll()
+            Haptics.tap()
+        default:
+            scale.tare()
+            Haptics.tap()
+        }
+    }
+
     /// Tare while weighing (e.g. after putting the cup on the scale).
     func tareDose() {
         guard phase == .dosing else { return }

@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -274,7 +275,13 @@ fun LiveBrewScreen(nav: NavHostController) {
             },
             canWeighBeans = session.canWeighBeans && snapshot.weighedDose == null,
             onWeighBeans = { session.weighBeans(); container.haptics.tap() },
-            onTareDose = { session.tareDose(); container.haptics.tap() },
+            // Tare before the pour: rinsing, weighing the beans, preparing and waiting for the pour (not while brewing).
+            canTare = when (snapshot.phase) {
+                BrewPhase.RINSING, BrewPhase.PREPARING, BrewPhase.DOSING -> scaleReady
+                BrewPhase.ARMED -> snapshot.usesScale
+                else -> false
+            },
+            onTare = { session.tare(); container.haptics.tap() },
             onSkipDosing = { session.skipDosing() },
             onReady = {
                 session.ready()
@@ -973,7 +980,8 @@ private fun Controls(
     onRinseDone: () -> Unit,
     canWeighBeans: Boolean,
     onWeighBeans: () -> Unit,
-    onTareDose: () -> Unit,
+    canTare: Boolean,
+    onTare: () -> Unit,
     onSkipDosing: () -> Unit,
     onReady: () -> Unit,
     espresso: Boolean,
@@ -982,6 +990,7 @@ private fun Controls(
 ) {
     when (snapshot.phase) {
         BrewPhase.RINSING -> {
+            if (canTare) TareButton(onTare, Modifier.fillMaxWidth())
             TextButton(onClick = onRinseDone, modifier = Modifier.fillMaxWidth()) {
                 Text("Skip rinsing", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -989,27 +998,46 @@ private fun Controls(
         }
         BrewPhase.DOSING -> {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                TextButton(onClick = onTareDose) { Text("Tare", fontWeight = FontWeight.SemiBold) }
+                TareButton(onTare)
                 TextButton(onClick = onSkipDosing) { Text("Skip weighing", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             PrimaryButton("Ready", Icons.Filled.CheckCircle, onClick = onReady)
         }
         BrewPhase.PREPARING -> {
-            if (canWeighBeans) {
-                TextButton(onClick = onWeighBeans, modifier = Modifier.fillMaxWidth()) { Text("Weigh the beans", fontWeight = FontWeight.SemiBold) }
+            if (canTare || canWeighBeans) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    if (canTare) TareButton(onTare)
+                    if (canWeighBeans) {
+                        TextButton(onClick = onWeighBeans) { Text("Weigh the beans", fontWeight = FontWeight.SemiBold) }
+                    }
+                }
             }
             PrimaryButton("Ready", Icons.Filled.CheckCircle, onClick = onReady)
         }
         BrewPhase.ARMED -> if (espresso) {
+            if (canTare) TareButton(onTare, Modifier.fillMaxWidth())
             PrimaryButton("Start shot", Icons.Filled.PlayArrow, onClick = onStart)
         } else if (snapshot.usesScale) {
-            TextButton(onClick = onStart, modifier = Modifier.fillMaxWidth()) { Text("Start timer manually", fontWeight = FontWeight.SemiBold) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                TareButton(onTare)
+                TextButton(onClick = onStart) { Text("Start timer manually", fontWeight = FontWeight.SemiBold) }
+            }
         } else {
             PrimaryButton("Start timer", Icons.Filled.PlayArrow, onClick = onStart)
         }
         BrewPhase.BREWING -> PrimaryButton(if (espresso) "Stop · shot done" else "Finish · drawdown done", Icons.Filled.Stop,
             color = GoodGreen, onClick = onFinish)
         BrewPhase.FINISHED -> Unit
+    }
+}
+
+/** Zeroes the scale before the pour (the cup, the brewer, the portafilter); see `BrewSession.tare()`. */
+@Composable
+private fun TareButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    TextButton(onClick = onClick, modifier = modifier) {
+        Icon(Icons.Filled.VerticalAlignBottom, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text("Tare", fontWeight = FontWeight.SemiBold)
     }
 }
 

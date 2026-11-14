@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Build
@@ -221,6 +222,7 @@ fun BrewSetupScreen(nav: NavHostController) {
                         pressureEnabled = settings.espressoPressureEnabled,
                         pressureLabel = pressureState.label,
                         onOpenScale = { showScale = true },
+                        onTareScale = { container.scale.tare(); container.haptics.tap() },
                         onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                         onOpenPressure = { showPressure = true },
                     )
@@ -362,6 +364,7 @@ fun DeviceStrip(
     pressureEnabled: Boolean,
     pressureLabel: String,
     onOpenScale: () -> Unit,
+    onTareScale: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPressure: () -> Unit,
 ) {
@@ -374,6 +377,7 @@ fun DeviceStrip(
             value = if (scaleReady) scaleWeight.grams1() else "Connect",
             onClick = onOpenScale,
             modifier = Modifier.weight(1f),
+            onTare = if (scaleReady) onTareScale else null,
         )
 
         // Machine tile
@@ -427,6 +431,8 @@ private fun DeviceTile(
     value: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A Tare button in the tile's corner (the scale's tile). */
+    onTare: (() -> Unit)? = null,
 ) {
     Surface(
         modifier = modifier.clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick),
@@ -447,6 +453,13 @@ private fun DeviceTile(
                         if (live) GoodGreen else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     ),
                 )
+                if (onTare != null) {
+                    Spacer(Modifier.weight(1f))
+                    androidx.compose.material3.IconButton(onClick = onTare, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Filled.VerticalAlignBottom, contentDescription = "Tare the scale", modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
             }
             Text(name, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             Text(value, style = MaterialTheme.typography.bodyMedium.merge(tabular), fontWeight = FontWeight.SemiBold, maxLines = 1)
