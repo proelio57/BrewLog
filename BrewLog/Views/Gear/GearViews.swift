@@ -465,7 +465,7 @@ struct SettingsView: View {
 
             BackupSection()
 
-            AISettingsSection()
+            if Features.askAI { AISettingsSection() }
 
             Section {
                 LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
@@ -475,7 +475,8 @@ struct SettingsView: View {
                 Text((RecipeFeed.feedURL == nil
                       ? "BrewLog has no account, no analytics and no network access of its own. Everything stays on this device"
                       : "BrewLog has no account and no analytics. Its own network access is downloading the recipe list. Everything else stays on this device")
-                     + ", unless you turn on Git backup or ask Claude about a bean.")
+                     + (Features.askAI ? ", unless you turn on Git backup or ask Claude about a bean."
+                                       : ", unless you turn on Git backup."))
             }
         }
         .navigationTitle("Settings")

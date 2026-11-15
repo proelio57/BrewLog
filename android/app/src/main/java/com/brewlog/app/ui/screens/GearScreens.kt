@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.brewlog.app.BuildConfig
+import com.brewlog.app.Features
 import com.brewlog.app.LocalContainer
 import com.brewlog.app.brewing.BrewCue
 import com.brewlog.app.domain.BrewMethod
@@ -509,12 +510,14 @@ fun SettingsScreen(nav: NavHostController) {
                 }
             }
             item {
-                SectionHeader("Backup & AI")
+                SectionHeader(if (Features.askAi) "Backup & AI" else "Backup")
                 Spacer(Modifier.height(8.dp))
                 BrewCard {
                     LinkRow("Git backup", Icons.Filled.CloudUpload) { nav.navigate(Routes.GIT_BACKUP) }
-                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
-                    LinkRow("Ask Claude (AI)", Icons.Filled.AutoAwesome) { nav.navigate(Routes.AI) }
+                    if (Features.askAi) {
+                        HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                        LinkRow("Ask Claude (AI)", Icons.Filled.AutoAwesome) { nav.navigate(Routes.AI) }
+                    }
                 }
             }
             item {

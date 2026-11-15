@@ -130,7 +130,7 @@ struct BeanEditorView: View {
     var body: some View {
         Form {
             BeanPhotoSection(photo: $photo, roast: roastLevel, onScan: apply)
-            if bean != nil {
+            if bean != nil && Features.askAI {
                 Section {
                     Button { showAdvice = true } label: {
                         Label("Ask Claude how to brew it", systemImage: "sparkles")
