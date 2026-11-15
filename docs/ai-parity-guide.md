@@ -109,7 +109,7 @@ Use this reference table to find the corresponding implementation files across p
 | **Backup Import** (merge by id) | Yes | Yes | Yes | Android reads the wrapped format (and bare `data` objects from older Android exports). |
 | **Beanconqueror Import** | Yes | Yes | Yes | `.zip` and `.json`, de-duplicated by `externalId`. |
 | **Git Backup** | Yes | Yes | No | Settings → Backup & import → Git backup. GitHub, GitLab, Gitea/Forgejo file APIs over HTTPS; token in the Keychain; sync = download + merge, then commit if changed (pretty-printed backup for readable diffs); optional automatic sync after brews / on background. |
-| **Ask Claude (bean advice)** | Yes | Yes | No | Opt-in with the user's own Anthropic API key (Keychain). Sends only the bean, gear and that bean's brews; `claude-opus-5-5`, `web_search_20260209` for roaster pages and community posts, `fallbacks: "default"`. |
+| **Ask Claude (bean advice)** | Yes (hidden) | Yes (hidden) | No | **Hidden in the UI for now** while the AI connection is reworked: `Features.askAI` (iOS, `App/Features.swift`) and `Features.askAi` (Android, `Features.kt`) are `false`; the code stays and is tested. Opt-in with the user's own Anthropic API key (Keychain). Sends only the bean, gear and that bean's brews; `claude-opus-5-5`, `web_search_20260209` for roaster pages and community posts, `fallbacks: "default"`. |
 | **In-App Self Updater** | Via SideStore | Yes | Reload | Android checks GitHub releases and downloads the APK. |
 | **Play Store Bundle (AAB)** | N/A | Yes | N/A | Documented in `docs/play-store.md`, buildable via `./scripts/build-apk.sh --release`. |
 

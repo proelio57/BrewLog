@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.brewlog.app.Features
 import com.brewlog.app.LocalContainer
 import com.brewlog.app.domain.Bean
 import com.brewlog.app.domain.InputLimits
@@ -172,7 +173,7 @@ fun BeanEditorScreen(nav: NavHostController, beanId: String) {
         title = if (isNew) "New beans" else "Edit beans",
         onBack = { nav.popBackStack() },
         actions = {
-            if (!isNew) IconButton(onClick = { nav.navigate(Routes.beanAdvice(beanId)) }) { Icon(Icons.Filled.AutoAwesome, contentDescription = "Ask Claude how to brew it") }
+            if (!isNew && Features.askAi) IconButton(onClick = { nav.navigate(Routes.beanAdvice(beanId)) }) { Icon(Icons.Filled.AutoAwesome, contentDescription = "Ask Claude how to brew it") }
             if (!isNew) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }
             TextButton(onClick = ::save, enabled = name.sanitized(InputLimits.MAX_NAME_LENGTH).isNotEmpty()) { Text("Save", fontWeight = FontWeight.SemiBold) }
         },
