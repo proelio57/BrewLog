@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.3.2",
+          "buildVersion": "112",
+          "date": "2026-11-17T08:17:04Z",
+          "localizedDescription": "iOS\n• The pressure graph's numbers no longer overlap in a short graph\n\nAndroid\n• The pressure graph's numbers no longer overlap in a short graph\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.3.2/BrewLog.ipa",
+          "size": 12666485,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.3.1",
           "buildVersion": "109",
           "date": "2026-11-15T11:00:44Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.79/BrewLog.ipa",
           "size": 3501571,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.73",
-          "buildVersion": "73",
-          "date": "2026-11-05T22:42:55Z",
-          "localizedDescription": "• Espresso machines get their own gear section and are connected in the setup assistant",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.73/BrewLog.ipa",
-          "size": 3486119,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.3.1",
-      "versionDate": "2026-11-15T11:00:44Z",
-      "versionDescription": "iOS\n• Ask Claude (AI) is hidden for now while the AI connection is reworked\n\nAndroid\n• Ask Claude (AI) is hidden for now while the AI connection is reworked\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.3.1/BrewLog.ipa",
-      "size": 12665493
+      "version": "2.3.2",
+      "versionDate": "2026-11-17T08:17:04Z",
+      "versionDescription": "iOS\n• The pressure graph's numbers no longer overlap in a short graph\n\nAndroid\n• The pressure graph's numbers no longer overlap in a short graph\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.3.2/BrewLog.ipa",
+      "size": 12666485
     }
   ],
   "news": []
