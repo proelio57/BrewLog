@@ -556,6 +556,9 @@ struct SettingsView: View {
                     ForEach(SteamAfterShot.allCases) { Text($0.title).tag($0) }
                 }
             }
+            if Features.homeKitTest {
+                NavigationLink("HomeKit test") { HomeKitTestView() }
+            }
         } header: {
             Text("Espresso machine")
         } footer: {
