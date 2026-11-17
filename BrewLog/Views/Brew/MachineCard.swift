@@ -16,6 +16,11 @@ struct MachineCard: View {
                 HStack {
                     Label(machine.displayName, systemImage: "cup.and.saucer.fill").font(.headline)
                     Spacer()
+                    MachinePowerButton(power: MachinePower.shared)
+                        .font(.subheadline.weight(.semibold))
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.circle)
                     stateBadge
                 }
                 if !machine.readsPressure {

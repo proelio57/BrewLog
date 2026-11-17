@@ -37,26 +37,19 @@ if command -v ldid >/dev/null 2>&1; then
   group=$(/usr/libexec/PlistBuddy -c 'Print :ALTAppGroups:0' "$app/Info.plist" 2>/dev/null || true)
   if [ -n "$group" ]; then
     ent=$(mktemp)
-    appent=$(mktemp)
-    # The widget extension only gets the App Group; the app also gets HomeKit (the machine's smart plug).
-    for file in "$ent" "$appent"; do
-      homekit=""
-      [ "$file" = "$appent" ] && homekit="<key>com.apple.developer.homekit</key><true/>"
-      cat > "$file" <<PLIST
+    cat > "$ent" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>com.apple.security.application-groups</key><array><string>$group</string></array>
-$homekit
 </dict></plist>
 PLIST
-    done
     for appex in "$app"/PlugIns/*.appex; do
       [ -d "$appex" ] && ldid -S"$ent" "$appex/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$appex/Info.plist")"
     done
-    ldid -S"$appent" "$app/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
-    rm -f "$ent" "$appent"
-    echo "Added App Group entitlement $group and HomeKit"
+    ldid -S"$ent" "$app/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
+    rm -f "$ent"
+    echo "Added App Group entitlement $group"
   fi
 else
   echo "warning: ldid not found, widgets will show no data (brew install ldid)"

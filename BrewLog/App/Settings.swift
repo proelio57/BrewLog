@@ -34,6 +34,13 @@ enum SettingsKey {
     static let pressureFocus = "pressure.focus"
     static let landscapeChart = "chart.landscape"
     static let steamAfterShot = "machine.steamAfterShot"
+    /// Smart plug of the espresso machine (`PlugKind`), the two shortcuts, and when it goes off.
+    static let powerPlug = "power.plug"
+    static let powerShortcutOn = "power.shortcutOn"
+    static let powerShortcutOff = "power.shortcutOff"
+    static let powerPlugOffInStandby = "power.plugOffInStandby"
+    static let powerCountdown = "power.countdown"
+    static let powerAutoOff = "power.autoOff"
     static let autoStopShot = "autoStopShot"
     static let shotStopLag = "shotStopLag"
     static let brewMode = "brewMode"
@@ -80,6 +87,12 @@ enum AppSettings {
             SettingsKey.pressureFocus: PressureFocusMode.automatic.rawValue,
             SettingsKey.landscapeChart: true,
             SettingsKey.steamAfterShot: SteamAfterShot.ask.rawValue,
+            SettingsKey.powerPlug: PlugKind.none.rawValue,
+            SettingsKey.powerShortcutOn: "Machine on",
+            SettingsKey.powerShortcutOff: "Machine off",
+            SettingsKey.powerPlugOffInStandby: true,
+            SettingsKey.powerCountdown: 30.0,
+            SettingsKey.powerAutoOff: 0.0,
         ])
     }
 
@@ -117,12 +130,14 @@ enum BrewMode: String, CaseIterable, Identifiable {
     static func of(_ recipe: Recipe) -> BrewMode { recipe.method.isEspresso ? .espresso : .filter }
 }
 
-/// Settings → After the shot: switch the machine to steam for milk.
+/// Settings → After the shot: switch the machine to steam for milk, or off.
 enum SteamAfterShot: String, CaseIterable, Identifiable {
-    /// Ask when the shot is done.
+    /// Ask when the shot is done (steam, switch off or later).
     case ask
-    /// Switch straight away.
+    /// Switch to steam straight away.
     case steam
+    /// Switch the machine off (standby, then the smart plug).
+    case switchOff
     case off
 
     var id: String { rawValue }
@@ -131,7 +146,8 @@ enum SteamAfterShot: String, CaseIterable, Identifiable {
         switch self {
         case .ask: return "Ask"
         case .steam: return "Switch to steam"
-        case .off: return "Off"
+        case .switchOff: return "Switch off"
+        case .off: return "Nothing"
         }
     }
 
