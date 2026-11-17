@@ -8,6 +8,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var context
     @Query private var savedRecipes: [SavedRecipe]
+    private let power = MachinePower.shared
 
     var body: some View {
         @Bindable var router = router
@@ -28,6 +29,13 @@ struct RootView: View {
                 .tabItem { Label("Gear", systemImage: "wrench.and.screwdriver.fill") }
                 .tag(AppTab.gear)
         }
+        .overlay(alignment: .top) { PowerBanner(power: power).allowsHitTesting(power.secondsLeft != nil) }
+        .alert("Done steaming?", isPresented: Bindable(power).askSwitchOff) {
+            Button("Switch off") { power.switchOff() }
+            Button("Not now", role: .cancel) {}
+        } message: {
+            Text("Switch the machine off: standby, and the smart plug if you set one up.")
+        }
         .fullScreenCover(item: $router.cover) { cover in
             switch cover {
             case .onboarding:
@@ -44,6 +52,7 @@ struct RootView: View {
             BrewLiveActivity.endAll()
             ScaleManager.shared.start()
             MachineManager.shared.start()
+            MachinePower.shared.start()
             PressureMonitor.shared.start()
             if !UserDefaults.standard.bool(forKey: SettingsKey.onboardingDone) {
                 router.cover = .onboarding
@@ -74,6 +83,7 @@ struct RootView: View {
             case .weigh:
                 router.tab = .brew
                 router.present(.quickWeigh)
+            case .resume: break
             }
         }
     }

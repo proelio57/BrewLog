@@ -6,7 +6,5 @@
 	<array>
 		<string>$(BREWLOG_APP_GROUP)</string>
 	</array>
-	<key>com.apple.developer.homekit</key>
-	<true/>
 </dict>
 </plist>

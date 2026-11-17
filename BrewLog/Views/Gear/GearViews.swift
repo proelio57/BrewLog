@@ -342,6 +342,12 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.pressureFocus) private var pressureFocus = PressureFocusMode.automatic
     @AppStorage(SettingsKey.landscapeChart) private var landscapeChart = true
     @AppStorage(SettingsKey.steamAfterShot) private var steamAfterShot = SteamAfterShot.ask
+    @AppStorage(SettingsKey.powerPlug) private var powerPlug = PlugKind.none
+    @AppStorage(SettingsKey.powerShortcutOn) private var shortcutOn = "Machine on"
+    @AppStorage(SettingsKey.powerShortcutOff) private var shortcutOff = "Machine off"
+    @AppStorage(SettingsKey.powerPlugOffInStandby) private var plugOffInStandby = true
+    @AppStorage(SettingsKey.powerCountdown) private var powerCountdown = 30.0
+    @AppStorage(SettingsKey.powerAutoOff) private var powerAutoOff = 0.0
     @AppStorage(SettingsKey.pingLeadMode) private var pingLeadMode = PingLeadMode.auto.rawValue
     @AppStorage(SettingsKey.pingLeadGrams) private var pingLeadGrams = 3.0
     @AppStorage(SettingsKey.reactionTime) private var reactionTime = 0.6
@@ -555,14 +561,37 @@ struct SettingsView: View {
                 Picker("After the shot", selection: $steamAfterShot) {
                     ForEach(SteamAfterShot.allCases) { Text($0.title).tag($0) }
                 }
-            }
-            if Features.homeKitTest {
-                NavigationLink("HomeKit test") { HomeKitTestView() }
+                Picker("Smart plug", selection: $powerPlug) {
+                    ForEach(PlugKind.allCases) { Text($0.title).tag($0) }
+                }
+                if powerPlug == .shortcuts {
+                    LabeledContent("Shortcut to switch on") {
+                        TextField("Machine on", text: $shortcutOn).multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("Shortcut to switch off") {
+                        TextField("Machine off", text: $shortcutOff).multilineTextAlignment(.trailing)
+                    }
+                    Toggle("Plug off in standby", isOn: $plugOffInStandby)
+                    if plugOffInStandby {
+                        Picker("Plug off after", selection: $powerCountdown) {
+                            Text("Right away").tag(0.0)
+                            Text("30 s").tag(30.0)
+                            Text("2 min").tag(120.0)
+                            Text("5 min").tag(300.0)
+                        }
+                    }
+                }
+                Picker("Auto-off", selection: $powerAutoOff) {
+                    Text("Never").tag(0.0)
+                    Text("15 min").tag(900.0)
+                    Text("30 min").tag(1800.0)
+                    Text("60 min").tag(3600.0)
+                }
             }
         } header: {
             Text("Espresso machine")
         } footer: {
-            Text("GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes, send recipes as profiles and import the machine's profiles as recipes. Use the address from GaggiMate's web interface. La Marzocco: BrewLog uses your La Marzocco account through their servers (opt-in): it follows the shot, shows the boiler and can switch the machine on or to standby and change the brew temperature. Decent DE1: BrewLog connects over Bluetooth, records pressure, temperature and flow, follows the shot and can start it (on a DE1 without a group head controller) and switch modes. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there. GaggiMate measures the pressure itself. For a machine BrewLog can't connect to, use a pressure sensor: BOOKOO Espresso Monitor over Bluetooth. Pressure view: Automatic shows a big pressure number and graph while a pressure sensor is connected, for setting the pressure by hand; Always also with the machine's own pressure. Landscape chart: a button on the live chart, and turning the phone, show the charts full screen. After the shot: switch the machine to steam for the milk, or ask each time.")
+            Text("GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes, send recipes as profiles and import the machine's profiles as recipes. Use the address from GaggiMate's web interface. La Marzocco: BrewLog uses your La Marzocco account through their servers (opt-in): it follows the shot, shows the boiler and can switch the machine on or to standby and change the brew temperature. Decent DE1: BrewLog connects over Bluetooth, records pressure, temperature and flow, follows the shot and can start it (on a DE1 without a group head controller) and switch modes. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there. GaggiMate measures the pressure itself. For a machine BrewLog can't connect to, use a pressure sensor: BOOKOO Espresso Monitor over Bluetooth. Pressure view: Automatic shows a big pressure number and graph while a pressure sensor is connected, for setting the pressure by hand; Always also with the machine's own pressure. Landscape chart: a button on the live chart, and turning the phone, show the charts full screen. After the shot: switch the machine to steam for the milk or off, or ask each time. Smart plug: make two shortcuts in the Shortcuts app that switch the machine's plug on and off (from Home, Home Assistant or the plug's app) and enter their names; the Shortcuts app opens for a moment when BrewLog runs one. When the machine goes to standby, BrewLog switches the plug off after the time you set, with a Cancel button. Auto-off puts the machine into standby after that long without a shot. Both only work while BrewLog is open: a locked phone can't switch the plug.")
         }
         .onDisappear { if machine.host != machineHost, gaggiMateURL(host: machineHost) != nil { machine.host = machineHost } }
     }

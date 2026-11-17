@@ -1,6 +1,6 @@
 # Machine power: switch off after the shot, smart plug, and what follows
 
-Date: 2026-11-16. Status: waiting for approval.
+Date: 2026-11-16. Status: approved; HomeKit test failed (2026-11-17), iOS uses the Shortcut plug.
 
 ## Intent
 
@@ -132,3 +132,14 @@ are tested against recorded requests. HomeKit itself can only be tried on the de
 - 30 s default countdown; "ready" at 2 °C below target; one follow-up question after steaming.
 - The plug rules apply to GaggiMate and the demo machine first.
 - Home Assistant token in secure storage and left out of backups.
+
+## Result of the HomeKit test (2026-11-17)
+
+The 2.4.0 build installed through SideStore and iOS asked for HomeKit access (BrewLog shows up under Privacy →
+HomeKit), but `HMHomeManager` never reported any home: SideStore's free-account signing doesn't keep the HomeKit
+entitlement. The test screen and the entitlement are removed again; iOS uses `ShortcutPlug`.
+
+Consequences for later steps: the Siri / Shortcuts actions (step 4) can't switch a plug without opening BrewLog,
+because the Shortcut plug needs the app in front; they are reconsidered when Home Assistant (step 6) is built.
+Steam follow-up: asked when the machine goes from steam back to brew (BrewLog can't see whether steam is drawn, so
+the "2 min without steam" variant is dropped).

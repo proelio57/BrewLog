@@ -164,7 +164,8 @@ enum SharedStore {
 /// Links the widgets open (URL scheme `brewlog://`).
 enum AppLink: String {
     /// `start` opens the Brew tab and starts the brew right away with what's set up there.
-    case brew, start, weigh, journal, beans
+    /// `resume` only brings BrewLog back (the Shortcuts app returns there after switching the machine's plug).
+    case brew, start, weigh, journal, beans, resume
 
     var url: URL { URL(string: "brewlog://\(rawValue)")! }
 

@@ -42,8 +42,6 @@ targets:
       properties:
         com.apple.security.application-groups:
           - $(BREWLOG_APP_GROUP)
-        # Smart plug of the espresso machine (BrewLog/Power). scripts/build-ipa.sh writes it into the unsigned IPA.
-        com.apple.developer.homekit: true
     configFiles:
       Debug: Config/Base.xcconfig
       Release: Config/Base.xcconfig
@@ -58,7 +56,6 @@ targets:
         INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "BrewLog connects to your Bluetooth coffee scale to read the weight live while you brew."
         INFOPLIST_KEY_NSCameraUsageDescription: "BrewLog uses the camera to photograph your coffee bag and read the details from its label. The photo stays on this device."
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
-        INFOPLIST_KEY_NSHomeKitUsageDescription: "BrewLog switches the smart plug of your espresso machine on and off."
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         # Portrait app; the full-screen brew chart turns to landscape (OrientationLock in BrewLog/App/Orientation.swift).
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
