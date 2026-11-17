@@ -62,9 +62,12 @@ struct MachineChart: View {
                 }
             }
             .chartYAxis {
-                AxisMarks(position: .leading, values: emphasis ? Array(stride(from: 0.0, through: 12, by: 1)) : [0, 3, 6, 9, 12]) { value in
+                // Every bar at least 22 pt apart (labels must not overlap in a short graph): 0, 3, 6, 9, 12 when it's
+                // small, every bar when it's tall enough.
+                let step = height >= 200 ? 1.0 : 3.0
+                AxisMarks(position: .leading, values: Array(stride(from: 0.0, through: 12, by: step))) { value in
                     if let v = value.as(Double.self), v.truncatingRemainder(dividingBy: 3) == 0 { AxisGridLine() }
-                    AxisValueLabel { if let v = value.as(Double.self) { Text("\(Int(v))") } }
+                    AxisValueLabel { if let v = value.as(Double.self) { Text("\(Int(v))").font(.caption2) } }
                 }
             }
             .frame(height: height)

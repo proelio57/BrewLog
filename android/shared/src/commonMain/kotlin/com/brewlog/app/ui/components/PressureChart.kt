@@ -54,7 +54,8 @@ fun PressureChart(
     val maxBar = 12.0
     val maxT = maxOf(samples.lastOrNull()?.t ?: 0.0, currentTime ?: 0.0, 25.0) + 2
     val grid = MaterialTheme.colorScheme.outlineVariant
-    val labels = if (emphasis) (12 downTo 0).toList() else listOf(12, 9, 6, 3, 0)
+    // Every bar only when the graph is tall enough for 13 labels; otherwise they would overlap.
+    val labels = if (emphasis && height >= 220.dp) (12 downTo 0).toList() else listOf(12, 9, 6, 3, 0)
     Column(modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().height(height)) {
             Column(
