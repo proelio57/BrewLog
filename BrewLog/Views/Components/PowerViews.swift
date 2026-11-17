@@ -37,13 +37,16 @@ struct MachinePowerButton: View {
     var body: some View {
         if power.canSwitchOff {
             Button { power.switchOff() } label: {
-                Label("Switch off", systemImage: "power")
+                Label("Off", systemImage: "power")
             }
             .tint(.secondary)
+            .accessibilityLabel("Switch the machine off")
         } else if power.canSwitchOn {
             Button { power.switchOn() } label: {
-                Label("Switch on", systemImage: "power")
+                Label("On", systemImage: "power")
             }
+            .tint(.green)
+            .accessibilityLabel("Switch the machine on")
         }
     }
 }

@@ -18,9 +18,9 @@ struct MachineCard: View {
                     Spacer()
                     MachinePowerButton(power: MachinePower.shared)
                         .font(.subheadline.weight(.semibold))
-                        .labelStyle(.iconOnly)
                         .buttonStyle(.bordered)
-                        .buttonBorderShape(.circle)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.small)
                     stateBadge
                 }
                 if !machine.readsPressure {
