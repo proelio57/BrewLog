@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.5.0",
+          "buildVersion": "116",
+          "date": "2026-11-17T14:35:18Z",
+          "localizedDescription": "iOS\n• After the shot: one question, Steam / Switch off / Later (or set it in Settings → After the shot)\n• Smart plug through two shortcuts: the plug goes off a while after the machine goes to standby, with Cancel\n• Power button on the machine card: switch off, or switch on and get told when the machine is hot\n• Auto-off after 15, 30 or 60 minutes without a shot\n• Asks once whether to switch off when you go back from steam to brew\n• HomeKit test removed (SideStore installs can't use HomeKit)\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.5.0/BrewLog.ipa",
+          "size": 12721179,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.4.0",
           "buildVersion": "114",
           "date": "2026-11-17T08:45:07Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.0/BrewLog.ipa",
           "size": 12587918,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "0.1.80",
-          "buildVersion": "80",
-          "date": "2026-11-06T13:23:33Z",
-          "localizedDescription": "• Add Cafelat Robot espresso preset and expand scale support",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v0.1.80/BrewLog.ipa",
-          "size": 3501692,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -111,15 +111,14 @@
         "privacy": {
           "NSBluetoothAlwaysUsageDescription": "BrewLog connects to your Bluetooth coffee scale to read the weight live while you brew.",
           "NSCameraUsageDescription": "BrewLog uses the camera to photograph your coffee bag and read the details from its label. The photo stays on this device.",
-          "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots.",
-          "NSHomeKitUsageDescription": "BrewLog switches the smart plug of your espresso machine on and off."
+          "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.4.0",
-      "versionDate": "2026-11-17T08:45:07Z",
-      "versionDescription": "iOS\n• HomeKit test (temporary): Settings → Espresso machine → HomeKit test checks whether BrewLog can switch your smart plug\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.4.0/BrewLog.ipa",
-      "size": 12701519
+      "version": "2.5.0",
+      "versionDate": "2026-11-17T14:35:18Z",
+      "versionDescription": "iOS\n• After the shot: one question, Steam / Switch off / Later (or set it in Settings → After the shot)\n• Smart plug through two shortcuts: the plug goes off a while after the machine goes to standby, with Cancel\n• Power button on the machine card: switch off, or switch on and get told when the machine is hot\n• Auto-off after 15, 30 or 60 minutes without a shot\n• Asks once whether to switch off when you go back from steam to brew\n• HomeKit test removed (SideStore installs can't use HomeKit)\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.5.0/BrewLog.ipa",
+      "size": 12721179
     }
   ],
   "news": []
