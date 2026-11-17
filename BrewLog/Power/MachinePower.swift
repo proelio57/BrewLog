@@ -39,10 +39,11 @@ final class MachinePower {
         machine.isConnected && (machine.status.mode ?? 0) != MachineMode.standby.rawValue
     }
 
-    /// "Switch on" makes sense: the machine is in standby, or off and a plug can switch it on.
+    /// "Switch on" makes sense: the machine is in standby, or unreachable and a plug can switch it on.
+    /// Unreachable counts as off: that's how it looks once the plug cut the power.
     var canSwitchOn: Bool { isAvailable && !machineIsOn && (machine.isConnected || plug != nil) }
 
-    var canSwitchOff: Bool { isAvailable && (machineIsOn || (plug != nil && !machine.isConnected)) }
+    var canSwitchOff: Bool { isAvailable && machineIsOn }
 
     var settings: PowerRules.Settings {
         let d = UserDefaults.standard
