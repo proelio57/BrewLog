@@ -1,6 +1,10 @@
 package com.brewlog.app.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import com.brewlog.app.domain.JournalFilter
+import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -65,11 +69,15 @@ fun JournalScreen(nav: NavHostController) {
     val container = LocalContainer.current
     val data by container.repository.data.collectAsStateWithLifecycle()
     var search by rememberSaveable { mutableStateOf("") }
+    var filter by remember { mutableStateOf(JournalFilter()) }
     var journalMode by rememberSaveable { mutableStateOf("journal") }
     var toDelete by remember { mutableStateOf<Brew?>(null) }
     val beans = data.beans.associateBy { it.id }
     val brews = data.brews.sortedByDescending { it.date }
-    val filtered = if (search.isBlank()) brews else brews.filter { brew ->
+    val chosen = if (!filter.isActive) brews else brews.filter { brew ->
+        filter.matches(brew.isEspresso, brew.isReviewed, beans[brew.beanId]?.displayName, brew.recipeName)
+    }
+    val filtered = if (search.isBlank()) chosen else chosen.filter { brew ->
         val bean = beans[brew.beanId]
         listOfNotNull(brew.recipeName, bean?.name, bean?.roaster, brew.notes).any { it.contains(search, ignoreCase = true) }
     }
@@ -174,7 +182,23 @@ fun JournalScreen(nav: NavHostController) {
                 OutlinedTextField(search, { search = it.take(80) }, Modifier.fillMaxWidth(), singleLine = true,
                     placeholder = { Text("Recipe, bean, roaster, notes") }, leadingIcon = { Icon(Icons.Filled.Search, null) })
             }
-            if (search.isBlank()) {
+            item {
+                JournalFilterBar(
+                    filter = filter,
+                    beans = JournalFilter.options(brews.map { beans[it.beanId]?.displayName }),
+                    recipes = JournalFilter.options(brews.map { it.recipeName }),
+                    onChange = { filter = it },
+                )
+            }
+            if (filtered.isEmpty()) {
+                item {
+                    BrewCard {
+                        Text("No matching brews", style = MaterialTheme.typography.titleMedium)
+                        TextButton(onClick = { filter = JournalFilter(); search = "" }) { Text("Show all") }
+                    }
+                }
+            }
+            if (search.isBlank() && !filter.isActive) {
                 item {
                     val rated = brews.filter { it.rating > 0 }
                     val weekAgo = System.currentTimeMillis() - 7 * 86_400_000L
@@ -234,6 +258,47 @@ fun JournalScreen(nav: NavHostController) {
                 TextButton(onClick = { importResult = null }) { Text("OK") }
             },
         )
+    }
+}
+
+/** Chips above the journal: All / Filter / Espresso, To review, and menus for one bean or one recipe. */
+@Composable
+private fun JournalFilterBar(filter: JournalFilter, beans: List<String>, recipes: List<String>, onChange: (JournalFilter) -> Unit) {
+    val haptics = LocalContainer.current.haptics
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(JournalFilter.Kind.entries.toList()) { kind ->
+            FilterChip(selected = filter.kind == kind, onClick = { onChange(filter.copy(kind = kind)); haptics.tap() },
+                label = { Text(kind.title) })
+        }
+        item {
+            FilterChip(selected = filter.toReview, onClick = { onChange(filter.copy(toReview = !filter.toReview)); haptics.tap() },
+                label = { Text("To review") })
+        }
+        if (beans.isNotEmpty()) {
+            item { ChoiceChip("Bean", beans, filter.bean) { onChange(filter.copy(bean = it)) } }
+        }
+        if (recipes.size > 1) {
+            item { ChoiceChip("Recipe", recipes, filter.recipe) { onChange(filter.copy(recipe = it)) } }
+        }
+    }
+}
+
+/** A chip that opens a menu: "Any …" or one of the options. */
+@Composable
+private fun ChoiceChip(title: String, options: List<String>, selection: String?, onSelect: (String?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        FilterChip(selected = selection != null, onClick = { open = true },
+            label = { Text(selection ?: title, maxLines = 1, modifier = Modifier.widthIn(max = 200.dp)) })
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(text = { Text("Any ${title.lowercase()}") }, onClick = { onSelect(null); open = false })
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(if (option == selection) "✓ $option" else option) },
+                    onClick = { onSelect(option); open = false },
+                )
+            }
+        }
     }
 }
 
