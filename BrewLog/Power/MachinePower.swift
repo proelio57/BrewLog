@@ -104,6 +104,9 @@ final class MachinePower {
     func shortcutFailed(name: String, message: String?) {
         let reason = message.map { " Shortcuts says: \($0)" } ?? ""
         shortcutError = "The shortcut \"\(name)\" didn't run.\(reason) Create a shortcut with exactly this name in the Shortcuts app, or enter the name of yours in Settings → Espresso machine."
+        // Nothing was switched: the button goes back from "Starting" to Off.
+        rules.cancelSwitchOn()
+        starting = false
     }
 
     func cancelCountdown() {

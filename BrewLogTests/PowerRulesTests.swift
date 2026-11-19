@@ -135,3 +135,14 @@ final class ShortcutPlugTests: XCTestCase {
         XCTAssertNil(ShortcutPlug.failure(in: try XCTUnwrap(URL(string: "brewlog://resume"))))
     }
 }
+
+final class PowerRulesSwitchOnFailureTests: XCTestCase {
+    func testAFailedSwitchOnStopsWaitingForTheMachine() {
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        var rules = PowerRules(now: t0)
+        rules.switchOn(now: t0)
+        XCTAssertTrue(rules.waitingForReady)
+        rules.cancelSwitchOn()
+        XCTAssertFalse(rules.waitingForReady)
+    }
+}
