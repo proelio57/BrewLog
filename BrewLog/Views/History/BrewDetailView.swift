@@ -114,6 +114,9 @@ struct BrewDetailView: View {
                     StatView(value: brew.totalTime.mmss, label: "Time", symbol: "timer")
                     StatView(value: brew.finalWeight.grams, label: isEspresso ? "Yield" : "Water", symbol: "drop.fill")
                     StatView(value: String(format: "1:%.1f", brew.ratio), label: "Ratio")
+                    if let milk = brew.milkWeight ?? brew.recipe?.milk {
+                        StatView(value: milk.grams, label: "Milk", symbol: "drop.halffull")
+                    }
                     StatView(value: brew.grindDisplay.isEmpty ? "–" : brew.grindDisplay, label: "Grind", symbol: "dial.medium")
                 }
             }

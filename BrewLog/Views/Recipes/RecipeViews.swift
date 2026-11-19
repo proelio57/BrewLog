@@ -92,6 +92,15 @@ struct RecipePickerView: View {
     @Query(sort: \Equipment.name) private var equipment: [Equipment]
     @AppStorage(SettingsKey.recipeFilter) private var filterRaw = ""
     @State private var appeared = false
+    @Environment(MachineManager.self) private var machine
+    @Environment(\.modelContext) private var context
+    /// Espresso with a GaggiMate: a BrewLog recipe was chosen, ask whether to send it to the machine.
+    @State private var askSend = false
+    @State private var selectingProfile: String?
+    @State private var detailRecipe: Recipe?
+
+    /// Espresso on a machine with profiles: they come first and are used as they are.
+    private var showsMachineProfiles: Bool { espresso && machine.canChooseProfile }
 
     /// The type of the brewer selected on the Brew tab.
     private var brewerMethod: BrewMethod? {
@@ -112,9 +121,49 @@ struct RecipePickerView: View {
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
+            if showsMachineProfiles {
+                Section {
+                    if machine.profiles.isEmpty {
+                        if machine.profilesLoading {
+                            HStack { Spacer(); ProgressView(); Spacer() }
+                        } else {
+                            Text("No profiles on the machine.").foregroundStyle(.secondary)
+                        }
+                    }
+                    ForEach(machine.profiles) { profile in
+                        Button { chooseProfile(profile) } label: {
+                            HStack {
+                                Label(profile.label, systemImage: "slider.horizontal.3").foregroundStyle(.primary)
+                                Spacer()
+                                if selectingProfile == profile.id {
+                                    ProgressView()
+                                } else if profile.isSelected {
+                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
+                                }
+                            }
+                        }
+                        .disabled(selectingProfile != nil)
+                    }
+                } header: {
+                    Text("On \(machine.displayName)")
+                } footer: {
+                    Text("Brews with the profile as it is on the machine. A recipe below can be sent to the machine when you pick it.")
+                }
+            }
             ForEach(RecipeFilter.sections(custom: custom, presets: presets, method: method), id: \.title) { section in
                 Section(section.title) { ForEach(section.recipes) { row($0) } }
             }
+        }
+        .task { if showsMachineProfiles { machine.refreshProfiles() } }
+        .navigationDestination(item: $detailRecipe) { RecipeDetailView(recipe: $0) }
+        .confirmationDialog("Send to \(machine.displayName)?", isPresented: $askSend, titleVisibility: .visible) {
+            Button("Send to machine") {
+                machine.sendProfile(recipe: setup.scaledRecipe, dose: setup.dose, temperature: setup.waterTemp)
+                dismiss()
+            }
+            Button("Not now", role: .cancel) { dismiss() }
+        } message: {
+            Text("\(setup.recipe.name) becomes a profile on the machine and is selected there, so the shot follows the recipe.")
         }
         .navigationTitle("Choose recipe")
         .navigationBarTitleDisplayMode(.inline)
@@ -127,19 +176,42 @@ struct RecipePickerView: View {
     }
 
     private func row(_ recipe: Recipe) -> some View {
-        Button {
-            setup.select(recipe)
-            Haptics.tap()
-            dismiss()
-        } label: {
-            HStack {
-                RecipeRow(recipe: recipe)
-                if setup.recipe.id == recipe.id {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
+        HStack {
+            Button {
+                setup.select(recipe)
+                Haptics.tap()
+                if showsMachineProfiles { askSend = true } else { dismiss() }
+            } label: {
+                HStack {
+                    RecipeRow(recipe: recipe)
+                    if setup.recipe.id == recipe.id {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
+                    }
                 }
             }
+            .buttonStyle(.plain)
+            // The recipe's details (taste profile, steps) — they used to be a card on the Brew tab.
+            Button { detailRecipe = recipe } label: {
+                Image(systemName: "info.circle").foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Details of \(recipe.name)")
         }
-        .buttonStyle(.plain)
+    }
+
+    /// A profile on the machine: select it there and brew with it, nothing to send.
+    @MainActor
+    private func chooseProfile(_ profile: MachineProfileSummary) {
+        selectingProfile = profile.id
+        machine.selectProfile(profile.id) { accepted in
+            selectingProfile = nil
+            guard accepted else { return }
+            if let recipe = MachineProfileRecipe.recipe(for: profile, machine: machine, context: context) {
+                setup.select(recipe)
+            }
+            Haptics.tap()
+            dismiss()
+        }
     }
 }
 
@@ -228,6 +300,9 @@ struct RecipeDetailView: View {
                             }
                             HStack {
                                 StatView(value: "\(Int(recipe.temperature)) °C", label: "Temp")
+                                if let milk = recipe.milk, milk > 0 {
+                                    StatView(value: milk.grams, label: "Milk")
+                                }
                                 StatView(value: recipe.targetTime.mmss, label: "Total time")
                                 StatView(value: "\(Int(recipe.flowMin))–\(Int(recipe.flowMax))", label: "Pour g/s")
                             }
@@ -363,6 +438,10 @@ struct RecipeEditorView: View {
                 numberRow("Coffee (g)", value: $draft.dose)
                 numberRow("Water (g)", value: $draft.water)
                 numberRow("Temperature (°C)", value: $draft.temperature)
+                if draft.method.isEspresso {
+                    numberRow("Milk (g, 0 = espresso only)",
+                              value: Binding { draft.milk ?? 0 } set: { draft.milk = $0 > 0 ? $0 : nil })
+                }
                 Stepper("Total time \(draft.targetTime.mmss)", value: $draft.targetTime, in: 30...1200, step: 5)
                 numberRow("Min pour rate (g/s)", value: $draft.flowMin)
                 numberRow("Max pour rate (g/s)", value: $draft.flowMax)

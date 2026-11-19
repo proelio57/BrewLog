@@ -114,3 +114,24 @@ final class PowerRulesTests: XCTestCase {
         XCTAssertEqual(rules.update(input(1), settings: settings, now: at(200)), [])
     }
 }
+
+/// The Shortcuts callback: a missing shortcut comes back as brewlog://resume?failed=…&errorMessage=…
+final class ShortcutPlugTests: XCTestCase {
+    func testTheErrorCallbackNamesTheShortcut() throws {
+        let url = try XCTUnwrap(ShortcutPlug.url(name: "Machine on"))
+        let items = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        let error = try XCTUnwrap(items.first { $0.name == "x-error" }?.value)
+        XCTAssertEqual(items.first { $0.name == "x-success" }?.value, "brewlog://resume")
+
+        // Shortcuts appends errorMessage to the x-error URL.
+        let callback = try XCTUnwrap(URL(string: error + "&errorMessage=Not%20found"))
+        let failure = try XCTUnwrap(ShortcutPlug.failure(in: callback))
+        XCTAssertEqual(failure.name, "Machine on")
+        XCTAssertEqual(failure.message, "Not found")
+        XCTAssertEqual(AppLink(url: callback), .resume)
+    }
+
+    func testSuccessIsNoFailure() throws {
+        XCTAssertNil(ShortcutPlug.failure(in: try XCTUnwrap(URL(string: "brewlog://resume"))))
+    }
+}

@@ -153,7 +153,7 @@ jobs:
           if ! gh release view "$tag" --repo "${RELEASE_REPO}" >/dev/null 2>&1; then
             gh release create "$tag" \
               --title "BrewLog ${{ steps.version.outputs.version }}" \
-              --notes "$notes" \
+              --notes "$notes"$'\n\n'"<!-- commit: $GITHUB_SHA -->" \
               --target "$GITHUB_SHA" \
               --repo "${RELEASE_REPO}" || true
           fi

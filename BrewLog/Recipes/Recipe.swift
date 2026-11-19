@@ -135,6 +135,12 @@ struct Recipe: Codable, Hashable, Identifiable {
     var isCustom: Bool?
     /// Espresso: peak brew pressure in bar the recipe is designed for (e.g. 9, or 6 for turbo shots).
     var pressure: Double?
+    /// Espresso: milk in grams for a milk drink (cappuccino, flat white …); nil = espresso only.
+    /// After the shot BrewLog switches the machine to steam and weighs the milk.
+    var milk: Double?
+
+    /// A milk drink: the recipe has a milk amount.
+    var isMilkDrink: Bool { (milk ?? 0) > 0 }
 
     var ratio: Double { dose > 0 ? water / dose : 0 }
 
@@ -205,6 +211,7 @@ extension Recipe {
         tips = try c.decodeIfPresent([String].self, forKey: .tips) ?? []
         isCustom = try c.decodeIfPresent(Bool.self, forKey: .isCustom)
         pressure = try c.decodeIfPresent(Double.self, forKey: .pressure)
+        milk = try c.decodeIfPresent(Double.self, forKey: .milk)
     }
 }
 

@@ -332,6 +332,8 @@ struct EquipmentEditorView: View {
 struct SettingsView: View {
     var showsDone = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.espressoSetup) private var espressoSetup
+    @Query(sort: \Equipment.name) private var equipment: [Equipment]
     @Environment(ScaleManager.self) private var scale
     @Environment(MachineManager.self) private var machine
     @State private var machineHost = MachineManager.shared.host
@@ -517,8 +519,16 @@ struct SettingsView: View {
     @ViewBuilder
     private var machineSection: some View {
         @Bindable var machine = machine
+        @Bindable var espressoSetup = espressoSetup
+        let machines = equipment.filter { $0.type == .brewer && $0.method == .espresso }
         Section {
-            Picker("Machine", selection: $machine.kind) {
+            // Your espresso machine in Gear: saved with each shot (it used to be picked on the Brew tab).
+            if !machines.isEmpty {
+                MenuPickerRow(title: "Your machine", symbol: "cup.and.saucer.fill",
+                              options: machines.map { PickerOption(id: $0.id, name: $0.name) },
+                              selection: $espressoSetup.brewerID)
+            }
+            Picker("Connection", selection: $machine.kind) {
                 ForEach(MachineKind.allCases) { Text($0.displayName).tag($0) }
             }
             if machine.kind == .gaggimate {
@@ -558,7 +568,7 @@ struct SettingsView: View {
             }
             Toggle("Landscape chart", isOn: $landscapeChart)
             if machine.kind == .gaggimate || machine.kind == .demo {
-                Picker("After the shot", selection: $steamAfterShot) {
+                Picker("After an espresso", selection: $steamAfterShot) {
                     ForEach(SteamAfterShot.allCases) { Text($0.title).tag($0) }
                 }
                 Picker("Smart plug", selection: $powerPlug) {
@@ -571,6 +581,12 @@ struct SettingsView: View {
                     LabeledContent("Shortcut to switch off") {
                         TextField("Machine off", text: $shortcutOff).multilineTextAlignment(.trailing)
                     }
+                    HStack {
+                        Button("Test on") { ShortcutPlug.test(name: shortcutOn) }
+                        Spacer()
+                        Button("Test off") { ShortcutPlug.test(name: shortcutOff) }
+                    }
+                    .buttonStyle(.borderless)
                     Toggle("Plug off in standby", isOn: $plugOffInStandby)
                     if plugOffInStandby {
                         Picker("Plug off after", selection: $powerCountdown) {
@@ -591,7 +607,7 @@ struct SettingsView: View {
         } header: {
             Text("Espresso machine")
         } footer: {
-            Text("GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes, send recipes as profiles and import the machine's profiles as recipes. Use the address from GaggiMate's web interface. La Marzocco: BrewLog uses your La Marzocco account through their servers (opt-in): it follows the shot, shows the boiler and can switch the machine on or to standby and change the brew temperature. Decent DE1: BrewLog connects over Bluetooth, records pressure, temperature and flow, follows the shot and can start it (on a DE1 without a group head controller) and switch modes. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there. GaggiMate measures the pressure itself. For a machine BrewLog can't connect to, use a pressure sensor: BOOKOO Espresso Monitor over Bluetooth. Pressure view: Automatic shows a big pressure number and graph while a pressure sensor is connected, for setting the pressure by hand; Always also with the machine's own pressure. Landscape chart: a button on the live chart, and turning the phone, show the charts full screen. After the shot: switch the machine to steam for the milk or off, or ask each time. Smart plug: make two shortcuts in the Shortcuts app that switch the machine's plug on and off (from Home, Home Assistant or the plug's app) and enter their names; the Shortcuts app opens for a moment when BrewLog runs one. When the machine goes to standby, BrewLog switches the plug off after the time you set, with a Cancel button. Auto-off puts the machine into standby after that long without a shot. Both only work while BrewLog is open: a locked phone can't switch the plug.")
+            Text("GaggiMate: BrewLog connects over your Wi-Fi, records pressure, temperature and flow, follows the shot and can start it, switch modes, send recipes as profiles and import the machine's profiles as recipes. Use the address from GaggiMate's web interface. La Marzocco: BrewLog uses your La Marzocco account through their servers (opt-in): it follows the shot, shows the boiler and can switch the machine on or to standby and change the brew temperature. Decent DE1: BrewLog connects over Bluetooth, records pressure, temperature and flow, follows the shot and can start it (on a DE1 without a group head controller) and switch modes. Your scale can stay connected to GaggiMate; BrewLog then reads the weight from there. GaggiMate measures the pressure itself. For a machine BrewLog can't connect to, use a pressure sensor: BOOKOO Espresso Monitor over Bluetooth. Pressure view: Automatic shows a big pressure number and graph while a pressure sensor is connected, for setting the pressure by hand; Always also with the machine's own pressure. Landscape chart: a button on the live chart, and turning the phone, show the charts full screen. After an espresso: switch the machine off, ask, or leave it on. With a milk drink (Milk drink on the Brew tab, or milk in the recipe) BrewLog switches to steam after the shot and weighs the milk. Smart plug: make two shortcuts in the Shortcuts app that switch the machine's plug on and off (from Home, Home Assistant or the plug's app) and enter their names; the Shortcuts app opens for a moment when BrewLog runs one. When the machine goes to standby, BrewLog switches the plug off after the time you set, with a Cancel button. Auto-off puts the machine into standby after that long without a shot. Both only work while BrewLog is open: a locked phone can't switch the plug.")
         }
         .onDisappear { if machine.host != machineHost, gaggiMateURL(host: machineHost) != nil { machine.host = machineHost } }
     }

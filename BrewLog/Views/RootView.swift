@@ -30,6 +30,12 @@ struct RootView: View {
                 .tag(AppTab.gear)
         }
         .overlay(alignment: .top) { PowerBanner(power: power).allowsHitTesting(power.secondsLeft != nil) }
+        .alert("Smart plug", isPresented: Binding(get: { power.shortcutError != nil },
+                                                  set: { if !$0 { power.shortcutError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(power.shortcutError ?? "")
+        }
         .alert("Done steaming?", isPresented: Bindable(power).askSwitchOff) {
             Button("Switch off") { power.switchOff() }
             Button("Not now", role: .cancel) {}
@@ -83,7 +89,10 @@ struct RootView: View {
             case .weigh:
                 router.tab = .brew
                 router.present(.quickWeigh)
-            case .resume: break
+            case .resume:
+                if let failure = ShortcutPlug.failure(in: url) {
+                    power.shortcutFailed(name: failure.name, message: failure.message)
+                }
             }
         }
     }

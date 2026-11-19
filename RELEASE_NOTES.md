@@ -1,10 +1,16 @@
 <!-- Notes for the next release, grouped by platform. scripts/release-notes.sh uses this file for the release
      whose commits change it; otherwise the notes come from the feat/fix/perf commit subjects. -->
 iOS
-• Journal filters: Filter or Espresso, To review, one bean, one recipe
+• Espresso Brew tab reorganised: machine and scale on top, then beans, then the recipe with the grind
+• Choose recipe lists the machine's profiles first and asks before sending a BrewLog recipe to the machine
+• Milk drinks: milk amount in the recipe and a "Milk drink" switch on the Brew tab
+• After a milk drink's shot the machine switches to steam and BrewLog weighs the milk with you
+• After an espresso without milk BrewLog only asks about switching off (Settings → After an espresso)
+• The power button shows the machine's state: Off (grey), Starting/Heating (orange), On (green)
+• Smart plug: says when a shortcut doesn't exist, and Test buttons for both shortcuts in Settings
 
 Android
-• Journal filters: Filter or Espresso, To review, one bean, one recipe
+• No app changes (2.7.0 was the journal filters again: a re-run of a release counted up; re-runs now keep their version)
 
 Web
 • No changes in this release

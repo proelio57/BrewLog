@@ -130,12 +130,11 @@ enum BrewMode: String, CaseIterable, Identifiable {
     static func of(_ recipe: Recipe) -> BrewMode { recipe.method.isEspresso ? .espresso : .filter }
 }
 
-/// Settings → After the shot: switch the machine to steam for milk, or off.
+/// Settings → After an espresso: what happens after a shot without milk. A milk drink (the recipe has milk)
+/// always switches the machine to steam. (Stored under the old key; the old "steam" value reads as `ask`.)
 enum SteamAfterShot: String, CaseIterable, Identifiable {
-    /// Ask when the shot is done (steam, switch off or later).
+    /// Ask whether to switch off.
     case ask
-    /// Switch to steam straight away.
-    case steam
     /// Switch the machine off (standby, then the smart plug).
     case switchOff
     case off
@@ -144,8 +143,7 @@ enum SteamAfterShot: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .ask: return "Ask"
-        case .steam: return "Switch to steam"
+        case .ask: return "Ask to switch off"
         case .switchOff: return "Switch off"
         case .off: return "Nothing"
         }
@@ -153,5 +151,26 @@ enum SteamAfterShot: String, CaseIterable, Identifiable {
 
     static var current: SteamAfterShot {
         UserDefaults.standard.string(forKey: SettingsKey.steamAfterShot).flatMap(SteamAfterShot.init) ?? .ask
+    }
+}
+
+/// What BrewLog does with the machine when a shot is done.
+enum AfterShot: Equatable {
+    /// Milk drink: switch to steam and weigh the milk.
+    case steamAndMilk
+    /// Milk drink on a machine BrewLog can't switch: only weigh the milk.
+    case milk
+    case askSwitchOff
+    case switchOff
+    case nothing
+
+    static func action(milkDrink: Bool, canSteam: Bool, canSwitchOff: Bool, setting: SteamAfterShot) -> AfterShot {
+        if milkDrink { return canSteam ? .steamAndMilk : .milk }
+        guard canSwitchOff else { return .nothing }
+        switch setting {
+        case .ask: return .askSwitchOff
+        case .switchOff: return .switchOff
+        case .off: return .nothing
+        }
     }
 }
