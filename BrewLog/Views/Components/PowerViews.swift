@@ -30,23 +30,31 @@ struct PowerBanner: View {
     }
 }
 
-/// Power button for the machine card: switch on (plug + brew mode) or off (standby + plug).
+/// Power switch for the machine card. Shows the machine's state and switches it the other way:
+/// Off (grey) → tap to switch on; Starting (orange) while it comes up and heats; On (green) → tap to switch off.
 struct MachinePowerButton: View {
     let power: MachinePower
 
     var body: some View {
         if power.canSwitchOff {
-            Button { power.switchOff() } label: {
-                Label("Off", systemImage: "power")
+            if power.starting {
+                button("Heating", tint: .orange, hint: "Switches the machine off") { power.switchOff() }
+            } else {
+                button("On", tint: .green, hint: "Switches the machine off") { power.switchOff() }
             }
-            .tint(.secondary)
-            .accessibilityLabel("Switch the machine off")
+        } else if power.starting {
+            button("Starting", tint: .orange, hint: "Switches the machine off") { power.switchOff() }
         } else if power.canSwitchOn {
-            Button { power.switchOn() } label: {
-                Label("On", systemImage: "power")
-            }
-            .tint(.green)
-            .accessibilityLabel("Switch the machine on")
+            button("Off", tint: .secondary, hint: "Switches the machine on") { power.switchOn() }
         }
+    }
+
+    private func button(_ title: String, tint: Color, hint: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: "power")
+        }
+        .tint(tint)
+        .accessibilityLabel("Machine \(title.lowercased())")
+        .accessibilityHint(hint)
     }
 }

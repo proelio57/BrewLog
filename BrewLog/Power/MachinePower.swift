@@ -15,6 +15,8 @@ final class MachinePower {
 
     /// Seconds until the plug goes off; nil when no countdown runs.
     private(set) var secondsLeft: Int?
+    /// "Switch on" was tapped and the machine isn't hot yet.
+    private(set) var starting = false
     /// "GaggiMate is ready", shown for a moment after switching on.
     private(set) var readyMessage: String?
     /// Steaming after a shot is done: ask once whether to switch off.
@@ -76,6 +78,7 @@ final class MachinePower {
         for action in rules.update(input, settings: settings, now: now) { perform(action) }
         let left = rules.secondsLeft(now: now)
         if left != secondsLeft { secondsLeft = left }
+        if rules.waitingForReady != starting { starting = rules.waitingForReady }
     }
 
     /// Standby now, the plug after the countdown.
