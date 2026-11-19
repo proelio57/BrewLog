@@ -228,6 +228,9 @@ struct RecipeDetailView: View {
                             }
                             HStack {
                                 StatView(value: "\(Int(recipe.temperature)) °C", label: "Temp")
+                                if let milk = recipe.milk, milk > 0 {
+                                    StatView(value: milk.grams, label: "Milk")
+                                }
                                 StatView(value: recipe.targetTime.mmss, label: "Total time")
                                 StatView(value: "\(Int(recipe.flowMin))–\(Int(recipe.flowMax))", label: "Pour g/s")
                             }
@@ -363,6 +366,10 @@ struct RecipeEditorView: View {
                 numberRow("Coffee (g)", value: $draft.dose)
                 numberRow("Water (g)", value: $draft.water)
                 numberRow("Temperature (°C)", value: $draft.temperature)
+                if draft.method.isEspresso {
+                    numberRow("Milk (g, 0 = espresso only)",
+                              value: Binding { draft.milk ?? 0 } set: { draft.milk = $0 > 0 ? $0 : nil })
+                }
                 Stepper("Total time \(draft.targetTime.mmss)", value: $draft.targetTime, in: 30...1200, step: 5)
                 numberRow("Min pour rate (g/s)", value: $draft.flowMin)
                 numberRow("Max pour rate (g/s)", value: $draft.flowMax)

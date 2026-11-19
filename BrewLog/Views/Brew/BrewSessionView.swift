@@ -14,6 +14,9 @@ struct BrewSessionView: View {
     @State private var showLandscapeChart = false
     @AppStorage(SettingsKey.landscapeChart) private var landscapeChart = true
     @State private var showSteamPrompt = false
+    /// Milk drink: the milk step shows before the rating screen.
+    @State private var milkStep = false
+    @State private var milkSteaming = false
 
     init(config: BrewConfig) {
         self.config = config
@@ -22,7 +25,14 @@ struct BrewSessionView: View {
 
     var body: some View {
         Group {
-            if let savedBrew {
+            if let savedBrew, milkStep, let target = session.recipe.milk {
+                MilkStepView(target: target, steaming: milkSteaming) { weight in
+                    savedBrew.milkWeight = weight
+                    try? context.save()
+                    withAnimation(.spring) { milkStep = false }
+                }
+                .transition(.move(edge: .bottom))
+            } else if let savedBrew {
                 NavigationStack {
                     BrewDetailView(brew: savedBrew, isNew: true) { dismiss() }
                 }
@@ -41,15 +51,11 @@ struct BrewSessionView: View {
             UIDevice.current.endGeneratingDeviceOrientationNotifications()
         }
         // On the outer view: the live screen is replaced by the rating screen when the shot is saved.
-        .alert("Shot done", isPresented: $showSteamPrompt) {
-            Button("Steam") {
-                machine.setMode(.steam)
-                MachinePower.shared.steamChosen()
-            }
+        .alert("Switch the machine off?", isPresented: $showSteamPrompt) {
             Button("Switch off") { MachinePower.shared.switchOff() }
-            Button("Later", role: .cancel) {}
+            Button("Not now", role: .cancel) {}
         } message: {
-            Text("Steam: \(machine.displayName) heats up for the milk while you rate the shot. Switch off: standby, and the smart plug if you set one up.")
+            Text("Standby, and the smart plug if you set one up. Settings → After an espresso changes this.")
         }
         .fullScreenCover(isPresented: $showLandscapeChart) { LandscapeChartView(session: session, isPresented: $showLandscapeChart) }
         // Turning the phone during a brew opens the charts full screen (Settings → Landscape chart).
@@ -450,16 +456,22 @@ struct BrewSessionView: View {
 
     // MARK: Save
 
-    /// After a shot: switch the machine to steam for the milk or off, or ask (Settings → After the shot).
-    private func offerSteam() {
-        guard session.isEspresso, machine.canSwitchToSteam else { return }
-        switch SteamAfterShot.current {
-        case .steam:
+    /// After a shot: a milk drink switches to steam and weighs the milk; an espresso asks about switching off,
+    /// or switches off (Settings → After an espresso).
+    private func afterShot() {
+        guard session.isEspresso else { return }
+        switch AfterShot.action(milkDrink: session.recipe.isMilkDrink, canSteam: machine.canSwitchToSteam,
+                                canSwitchOff: MachinePower.shared.canSwitchOff, setting: SteamAfterShot.current) {
+        case .steamAndMilk:
             machine.setMode(.steam)
             MachinePower.shared.steamChosen()
+            milkSteaming = true
+            milkStep = true
+        case .milk:
+            milkStep = true
+        case .askSwitchOff: showSteamPrompt = true
         case .switchOff: MachinePower.shared.switchOff()
-        case .ask: showSteamPrompt = true
-        case .off: break
+        case .nothing: break
         }
     }
 
@@ -506,8 +518,8 @@ struct BrewSessionView: View {
             bean.remaining = max(0, bean.remaining - session.dose)
         }
         try? context.save()
+        afterShot()
         withAnimation(.spring) { savedBrew = brew }
-        offerSteam()
     }
 }
 

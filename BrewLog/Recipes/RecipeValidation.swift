@@ -51,6 +51,7 @@ extension Recipe {
         r.flowMin = flowMin.clamped(0.5, 30)
         r.flowMax = flowMax.clamped(r.flowMin + 0.5, 40)
         r.pressure = pressure.map { $0.clamped(1, 15) }
+        r.milk = milk.map { $0.clamped(0, InputLimits.maxWater) }.flatMap { $0 >= 1 ? $0 : nil }
         r.taste = TasteProfile(acidity: min(max(taste.acidity, 1), 5),
                                sweetness: min(max(taste.sweetness, 1), 5),
                                body: min(max(taste.body, 1), 5),

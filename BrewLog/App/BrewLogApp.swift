@@ -67,6 +67,8 @@ final class BrewSetup {
     var recipe: Recipe
     var dose: Double
     var waterTemp: Double
+    /// Espresso: milk in grams for this drink (0 = espresso only). Starts at the recipe's amount.
+    var milk: Double = 0
     var beanID: UUID? { didSet { save(beanID, "beanID") } }
     var brewerID: UUID? { didSet { save(brewerID, "brewerID") } }
     var grinderID: UUID? { didSet { save(grinderID, "grinderID") } }
@@ -126,6 +128,7 @@ final class BrewSetup {
         self.recipe = recipe
         self.dose = recipe.dose
         self.waterTemp = recipe.temperature
+        self.milk = recipe.milk ?? 0
         func load(_ name: String) -> UUID? { defaults.string(forKey: scope.key(name)).flatMap(UUID.init(uuidString:)) }
         self.beanID = load("beanID")
         self.brewerID = load("brewerID")
@@ -137,12 +140,17 @@ final class BrewSetup {
     /// The key under which this setup remembers its recipe (custom recipes are restored from it at launch).
     var recipeIDKey: String { scope.key("recipeID") }
 
-    var scaledRecipe: Recipe { recipe.scaled(toDose: dose) }
+    var scaledRecipe: Recipe {
+        var scaled = recipe.scaled(toDose: dose)
+        scaled.milk = recipe.method.isEspresso && milk > 0 ? milk : nil
+        return scaled
+    }
 
     func select(_ recipe: Recipe) {
         self.recipe = recipe
         dose = recipe.dose
         waterTemp = recipe.temperature
+        milk = recipe.milk ?? 0
         defaults.set(recipe.id, forKey: recipeIDKey)
     }
 

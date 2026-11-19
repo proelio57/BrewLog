@@ -363,6 +363,8 @@ final class Brew {
     /// Refractometer reading in % and the drink weight it was taken from (see `Extraction`).
     var tds: Double?
     var beverageWeight: Double?
+    /// Milk drink: the milk weighed after the shot, in grams (the target is `recipe.milk`).
+    var milkWeight: Double?
     /// The water profile used (gear of type water).
     var waterID: UUID?
     var waterName: String = ""
