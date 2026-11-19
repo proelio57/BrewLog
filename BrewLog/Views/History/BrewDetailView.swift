@@ -27,6 +27,8 @@ struct BrewDetailView: View {
         let analysis = brew.analyze(allBrews: allBrews)
         ScrollView {
             VStack(spacing: 18) {
+                // Right after a shot: rinse the screen while you rate it.
+                if isNew, brew.isEspresso { FlushButton() }
                 summaryCard
                 if brew.usedScale, let recipe = brew.recipe, !brew.samples.isEmpty {
                     chartCard(recipe)

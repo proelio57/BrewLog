@@ -130,6 +130,7 @@ struct MachineCard: View {
                 ForEach(MachineMode.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
+            FlushButton()
         } else if machine.kind.capabilities.contains(.power) {
             Toggle(isOn: Binding(get: { status.mode == MachineMode.brew.rawValue },
                                  set: { machine.setPower($0) })) {
