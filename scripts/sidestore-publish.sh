@@ -75,8 +75,9 @@ case "${1:-}" in
     # Android publishes the same version into the same release: create it unless it exists (or the other
     # workflow just created it), then upload. Re-runs replace the .ipa.
     if ! gh release view "v$version" --repo "$RELEASE_REPO" >/dev/null 2>&1; then
+      # The hidden commit line lets scripts/next-version.sh give a re-run the same version.
       gh release create "v$version" --repo "$RELEASE_REPO" --target "$BRANCH" \
-        --title "BrewLog $version" --notes "$notes" || true
+        --title "BrewLog $version" --notes "$notes"$'\n\n'"<!-- commit: ${GITHUB_SHA:-unknown} -->" || true
     fi
     gh release upload "v$version" "$ipa" --repo "$RELEASE_REPO" --clobber
     update_source() {

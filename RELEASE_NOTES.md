@@ -7,7 +7,7 @@ iOS
 • Smart plug: says when a shortcut doesn't exist, and Test buttons for both shortcuts in Settings
 
 Android
-• No changes in this release
+• No app changes (2.7.0 was the journal filters again: a re-run of a release counted up; re-runs now keep their version)
 
 Web
 • No changes in this release
