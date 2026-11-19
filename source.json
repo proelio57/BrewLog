@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.9.0",
+          "buildVersion": "132",
+          "date": "2026-11-19T11:23:03Z",
+          "localizedDescription": "iOS\n• Learns when to stop the shot: after each shot BrewLog stopped it measures what still dripped in and adjusts the stop lead (per machine and scale)\n• The rating screen shows target vs. the weight in the cup\n• Fixed: starting the shot right after Ready stopped the machine after a second (the scale wasn't tared yet and the cup counted as the yield)\n• Flush button for GaggiMate: on the machine card, in the shot's preparation and on the rating screen after the shot\n\nAndroid\n• Learns when to stop the shot: after each shot BrewLog stopped it measures what still dripped in and adjusts the stop lead (per machine and scale)\n• Fixed: starting the shot right after Ready stopped the machine after a second (the scale wasn't tared yet and the cup counted as the yield)\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.9.0/BrewLog.ipa",
+          "size": 12859718,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.8.0",
           "buildVersion": "127",
           "date": "2026-11-19T10:38:44Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.2.0/BrewLog.ipa",
           "size": 12648719,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.1.0",
-          "buildVersion": "100",
-          "date": "2026-11-09T12:37:31Z",
-          "localizedDescription": "iOS\n• The selected recipe is always shown at the top of the Brew screen; tap it to change the recipe\n• Choosing a recipe for another brewer (e.g. a V60 recipe while the Switch is selected) selects that brewer\n• After a shot BrewLog offers to switch GaggiMate to steam; Settings → After the shot: Ask, Switch to steam or Off\n• Espresso: with the scale connected to the app, BrewLog stops the shot on the machine (GaggiMate, Decent) at the target yield in every phase of the profile, and asks again if the pump keeps running\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.1.0/BrewLog.ipa",
-          "size": 12642029,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.8.0",
-      "versionDate": "2026-11-19T10:38:44Z",
-      "versionDescription": "iOS\n• Espresso Brew tab reorganised: machine and scale on top, then beans, then the recipe with the grind\n• Choose recipe lists the machine's profiles first and asks before sending a BrewLog recipe to the machine\n• Milk drinks: milk amount in the recipe and a \"Milk drink\" switch on the Brew tab\n• After a milk drink's shot the machine switches to steam and BrewLog weighs the milk with you\n• After an espresso without milk BrewLog only asks about switching off (Settings → After an espresso)\n• The power button shows the machine's state: Off (grey), Starting/Heating (orange), On (green)\n• Smart plug: says when a shortcut doesn't exist, and Test buttons for both shortcuts in Settings\n\nAndroid\n• No app changes (2.7.0 was the journal filters again: a re-run of a release counted up; re-runs now keep their version)\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.8.0/BrewLog.ipa",
-      "size": 12825918
+      "version": "2.9.0",
+      "versionDate": "2026-11-19T11:23:03Z",
+      "versionDescription": "iOS\n• Learns when to stop the shot: after each shot BrewLog stopped it measures what still dripped in and adjusts the stop lead (per machine and scale)\n• The rating screen shows target vs. the weight in the cup\n• Fixed: starting the shot right after Ready stopped the machine after a second (the scale wasn't tared yet and the cup counted as the yield)\n• Flush button for GaggiMate: on the machine card, in the shot's preparation and on the rating screen after the shot\n\nAndroid\n• Learns when to stop the shot: after each shot BrewLog stopped it measures what still dripped in and adjusts the stop lead (per machine and scale)\n• Fixed: starting the shot right after Ready stopped the machine after a second (the scale wasn't tared yet and the cup counted as the yield)\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.9.0/BrewLog.ipa",
+      "size": 12859718
     }
   ],
   "news": []
