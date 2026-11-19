@@ -31,6 +31,16 @@ struct EspressoSetupView: View {
                 Stepper(value: $setup.dose, in: 5...30, step: 0.5) {
                     Label("Dose", systemImage: "scalemass")
                 }
+                // Milk drink: after the shot the machine switches to steam and BrewLog weighs the milk.
+                Toggle(isOn: Binding(get: { setup.milk > 0 },
+                                     set: { setup.milk = $0 ? (setup.recipe.milk ?? MilkStep.defaultMilk) : 0 })) {
+                    Label("Milk drink", systemImage: "drop.halffull")
+                }
+                if setup.milk > 0 {
+                    Stepper(value: $setup.milk, in: 20...500, step: 10) {
+                        Label("Milk \(setup.milk.grams)", systemImage: "scalemass")
+                    }
+                }
                 if machine.isConnected {
                     VStack(spacing: 8) {
                         machineRow("Temperature", machineTemp.map { String(format: "%.0f °C", $0) } ?? "–",

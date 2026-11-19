@@ -362,18 +362,6 @@ private struct SetupScreen: View {
                 Stepper(value: $setup.waterTemp, in: 70...100, step: 1) {
                     Label(recipe.method.isEspresso ? "Brew temperature" : "Water temperature", systemImage: "thermometer.medium")
                 }
-                if recipe.method.isEspresso {
-                    // Milk drink: after the shot the machine switches to steam and BrewLog weighs the milk.
-                    Toggle(isOn: Binding(get: { setup.milk > 0 },
-                                         set: { setup.milk = $0 ? (setup.recipe.milk ?? MilkStep.defaultMilk) : 0 })) {
-                        Label("Milk drink", systemImage: "drop.halffull")
-                    }
-                    if setup.milk > 0 {
-                        Stepper(value: $setup.milk, in: 20...500, step: 10) {
-                            Label("Milk \(setup.milk.grams)", systemImage: "scalemass")
-                        }
-                    }
-                }
                 HStack {
                     Label("Grind", systemImage: "dial.medium").foregroundStyle(.secondary)
                     Spacer()
