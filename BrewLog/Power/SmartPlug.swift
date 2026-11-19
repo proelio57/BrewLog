@@ -46,8 +46,11 @@ struct ShortcutPlug: SmartPlug {
     func turnOn() { run(onName) }
     func turnOff() { run(offName) }
 
-    /// `shortcuts://x-callback-url/run-shortcut?name=…&x-success=brewlog://resume`
+    /// `shortcuts://x-callback-url/run-shortcut?name=…&x-success=brewlog://resume&x-error=brewlog://resume?failed=…`
+    /// On an error (e.g. no shortcut with that name) Shortcuts returns to BrewLog with `errorMessage` added.
     static func url(name: String) -> URL? {
+        var error = URLComponents(url: AppLink.resume.url, resolvingAgainstBaseURL: false)
+        error?.queryItems = [URLQueryItem(name: failedKey, value: name)]
         var components = URLComponents()
         components.scheme = "shortcuts"
         components.host = "x-callback-url"
@@ -55,9 +58,25 @@ struct ShortcutPlug: SmartPlug {
         components.queryItems = [
             URLQueryItem(name: "name", value: name),
             URLQueryItem(name: "x-success", value: AppLink.resume.url.absoluteString),
-            URLQueryItem(name: "x-error", value: AppLink.resume.url.absoluteString),
+            URLQueryItem(name: "x-error", value: error?.url?.absoluteString ?? AppLink.resume.url.absoluteString),
         ]
         return components.url
+    }
+
+    static let failedKey = "failed"
+
+    /// The failed shortcut's name and Shortcuts' message, from the x-error callback; nil for any other link.
+    static func failure(in url: URL) -> (name: String, message: String?)? {
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        guard let name = items.first(where: { $0.name == failedKey })?.value, !name.isEmpty else { return nil }
+        let message = items.first(where: { $0.name == "errorMessage" })?.value
+        return (String(name.prefix(80)), message.map { String($0.prefix(200)) })
+    }
+
+    /// Settings → Test: runs one of the shortcuts.
+    static func test(name: String) {
+        guard let url = url(name: name) else { return }
+        UIApplication.shared.open(url)
     }
 
     private func run(_ name: String) {

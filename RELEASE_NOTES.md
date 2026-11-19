@@ -4,6 +4,7 @@ iOS
 • Milk drinks: milk amount in the recipe and a "Milk drink" switch on the Brew tab
 • After a milk drink's shot the machine switches to steam and BrewLog weighs the milk with you
 • After an espresso without milk BrewLog only asks about switching off (Settings → After an espresso)
+• Smart plug: says when a shortcut doesn't exist, and Test buttons for both shortcuts in Settings
 
 Android
 • No changes in this release

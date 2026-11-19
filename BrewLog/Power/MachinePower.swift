@@ -19,6 +19,8 @@ final class MachinePower {
     private(set) var readyMessage: String?
     /// Steaming after a shot is done: ask once whether to switch off.
     var askSwitchOff = false
+    /// A plug shortcut failed (e.g. it doesn't exist): shown as an alert.
+    var shortcutError: String?
 
     @ObservationIgnored private let machine: MachineManager
     @ObservationIgnored private var rules = PowerRules(now: Date())
@@ -93,6 +95,12 @@ final class MachinePower {
         }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         tick()
+    }
+
+    /// Shortcuts came back through x-error.
+    func shortcutFailed(name: String, message: String?) {
+        let reason = message.map { " Shortcuts says: \($0)" } ?? ""
+        shortcutError = "The shortcut \"\(name)\" didn't run.\(reason) Create a shortcut with exactly this name in the Shortcuts app, or enter the name of yours in Settings → Espresso machine."
     }
 
     func cancelCountdown() {

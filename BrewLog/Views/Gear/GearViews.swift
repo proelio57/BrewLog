@@ -571,6 +571,12 @@ struct SettingsView: View {
                     LabeledContent("Shortcut to switch off") {
                         TextField("Machine off", text: $shortcutOff).multilineTextAlignment(.trailing)
                     }
+                    HStack {
+                        Button("Test on") { ShortcutPlug.test(name: shortcutOn) }
+                        Spacer()
+                        Button("Test off") { ShortcutPlug.test(name: shortcutOff) }
+                    }
+                    .buttonStyle(.borderless)
                     Toggle("Plug off in standby", isOn: $plugOffInStandby)
                     if plugOffInStandby {
                         Picker("Plug off after", selection: $powerCountdown) {
