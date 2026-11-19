@@ -438,6 +438,8 @@ final class BrewSession {
     /// Hard limits so a forgotten brew or a misbehaving device can't grow memory without bound.
     static let maxRecentReadings = 120
     static let maxSamples = Int(InputLimits.maxBrewSeconds * 10) + 10
+    /// A shot that started before the scale was zeroed: tare again after this long without a zero reading.
+    static let shotTareWait: TimeInterval = 2
 
     private func ingest(_ grams: Double, at date: Date) {
         guard grams.isFinite else { return }
@@ -477,6 +479,20 @@ final class BrewSession {
             }
         case .brewing:
             guard let startDate else { return }
+            // The shot started before the tare reached the scale ("Start shot" right after Ready, or the machine
+            // started first): until the scale reads zero its weight is the cup, not the shot, and would stop the
+            // machine at once. Wait for the zero; tare once more if it doesn't come.
+            if usesScale && !zeroConfirmed {
+                if abs(grams) < 1.0 {
+                    zeroConfirmed = true
+                } else {
+                    if date.timeIntervalSince(startDate) > Self.shotTareWait, !retareSent {
+                        if weighsViaMachine { machine.tareScale() } else { scale.tare() }
+                        retareSent = true
+                    }
+                    return
+                }
+            }
             maxWeight = max(maxWeight, grams)
             appendSample(t: date.timeIntervalSince(startDate), grams: grams, force: false)
             checkShot(grams: grams, at: date.timeIntervalSince(startDate))
