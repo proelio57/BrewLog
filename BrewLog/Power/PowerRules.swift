@@ -129,6 +129,9 @@ struct PowerRules {
 
     mutating func cancelCountdown() { countdownEnd = nil }
 
+    /// "Switch on" failed (the plug's shortcut didn't run): stop waiting for the machine.
+    mutating func cancelSwitchOn() { waitingForReady = false }
+
     /// The user chose steam after a shot.
     mutating func steamChosen() { steamFollowUp = true }
 

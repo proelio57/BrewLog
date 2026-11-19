@@ -30,27 +30,23 @@ struct PowerBanner: View {
     }
 }
 
-/// Power switch for the machine card. Shows the machine's state and switches it the other way:
-/// Off (grey) → tap to switch on; Starting (orange) while it comes up and heats; On (green) → tap to switch off.
+/// Power switch for the machine card. Shows the smart plug's state (or the machine's, without a plug) and switches
+/// it the other way: Off (grey) → tap to switch on; Starting/Heating (orange); On (green) → tap to switch off.
 struct MachinePowerButton: View {
     let power: MachinePower
 
     var body: some View {
-        if power.canSwitchOff {
-            if power.starting {
-                button("Heating", tint: .orange, hint: "Switches the machine off") { power.switchOff() }
-            } else {
-                button("On", tint: .green, hint: "Switches the machine off") { power.switchOff() }
-            }
-        } else if power.starting {
-            button("Starting", tint: .orange, hint: "Switches the machine off") { power.switchOff() }
-        } else if power.canSwitchOn {
-            button("Off", tint: .secondary, hint: "Switches the machine on") { power.switchOn() }
+        switch power.buttonState {
+        case .off: button("Off", tint: .secondary, hint: "Switches the machine on")
+        case .starting: button("Starting", tint: .orange, hint: "Switches the machine off")
+        case .heating: button("Heating", tint: .orange, hint: "Switches the machine off")
+        case .on: button("On", tint: .green, hint: "Switches the machine off")
+        case nil: EmptyView()
         }
     }
 
-    private func button(_ title: String, tint: Color, hint: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+    private func button(_ title: String, tint: Color, hint: String) -> some View {
+        Button { power.pressButton() } label: {
             Label(title, systemImage: "power")
         }
         .tint(tint)

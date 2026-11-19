@@ -602,9 +602,9 @@ struct SettingsView: View {
                         TextField("Machine off", text: $shortcutOff).multilineTextAlignment(.trailing)
                     }
                     HStack {
-                        Button("Test on") { ShortcutPlug.test(name: shortcutOn) }
+                        Button("Test on") { ShortcutPlug.test(name: shortcutOn, done: .on) }
                         Spacer()
-                        Button("Test off") { ShortcutPlug.test(name: shortcutOff) }
+                        Button("Test off") { ShortcutPlug.test(name: shortcutOff, done: .off) }
                     }
                     .buttonStyle(.borderless)
                     Toggle("Plug off in standby", isOn: $plugOffInStandby)

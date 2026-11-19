@@ -92,6 +92,8 @@ struct RootView: View {
             case .resume:
                 if let failure = ShortcutPlug.failure(in: url) {
                     power.shortcutFailed(name: failure.name, message: failure.message)
+                } else if let done = ShortcutPlug.success(in: url) {
+                    power.plugSwitched(on: done == .on)
                 }
             }
         }
