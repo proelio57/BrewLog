@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.7.0",
+          "buildVersion": "120",
+          "date": "2026-11-19T09:46:31Z",
+          "localizedDescription": "iOS\n• Journal filters: Filter or Espresso, To review, one bean, one recipe\n\nAndroid\n• Journal filters: Filter or Espresso, To review, one bean, one recipe\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.7.0/BrewLog.ipa",
+          "size": 12758372,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.5.1",
           "buildVersion": "118",
           "date": "2026-11-17T16:36:50Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.2/BrewLog.ipa",
           "size": 12612291,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.0.1",
-          "buildVersion": "94",
-          "date": "2026-11-06T18:25:18Z",
-          "localizedDescription": "iOS\n• Fix the live espresso screen running past the screen edges with the pressure view: the pressure chart now fills the space that is left\n• The landscape chart turns straight to landscape instead of showing upright for a moment\n• Pressure view with a machine that measures the pressure itself (GaggiMate, Decent): weight and pressure side by side instead of one giant pressure number, with both charts\n• Switching between Filter and Espresso is instant, with a cross-fade\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.0.1/BrewLog.ipa",
-          "size": 12613989,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.5.1",
-      "versionDate": "2026-11-17T16:36:50Z",
-      "versionDescription": "iOS\n• The machine card's power button switches the machine on when it's offline (smart plug), and says On or Off\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.5.1/BrewLog.ipa",
-      "size": 12720780
+      "version": "2.7.0",
+      "versionDate": "2026-11-19T09:46:31Z",
+      "versionDescription": "iOS\n• Journal filters: Filter or Espresso, To review, one bean, one recipe\n\nAndroid\n• Journal filters: Filter or Espresso, To review, one bean, one recipe\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.7.0/BrewLog.ipa",
+      "size": 12758372
     }
   ],
   "news": []
