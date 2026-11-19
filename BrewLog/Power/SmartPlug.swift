@@ -43,27 +43,39 @@ struct ShortcutPlug: SmartPlug {
         return ShortcutPlug(onName: on, offName: off)
     }
 
-    func turnOn() { run(onName) }
-    func turnOff() { run(offName) }
+    func turnOn() { run(onName, done: .on) }
+    func turnOff() { run(offName, done: .off) }
 
-    /// `shortcuts://x-callback-url/run-shortcut?name=…&x-success=brewlog://resume&x-error=brewlog://resume?failed=…`
+    /// What a shortcut that ran switched the plug to (from the x-success callback).
+    enum Done: String { case on, off }
+
+    /// `shortcuts://x-callback-url/run-shortcut?name=…&x-success=brewlog://resume?done=on&x-error=brewlog://resume?failed=…`
     /// On an error (e.g. no shortcut with that name) Shortcuts returns to BrewLog with `errorMessage` added.
-    static func url(name: String) -> URL? {
+    static func url(name: String, done: Done? = nil) -> URL? {
         var error = URLComponents(url: AppLink.resume.url, resolvingAgainstBaseURL: false)
         error?.queryItems = [URLQueryItem(name: failedKey, value: name)]
+        var success = URLComponents(url: AppLink.resume.url, resolvingAgainstBaseURL: false)
+        if let done { success?.queryItems = [URLQueryItem(name: doneKey, value: done.rawValue)] }
         var components = URLComponents()
         components.scheme = "shortcuts"
         components.host = "x-callback-url"
         components.path = "/run-shortcut"
         components.queryItems = [
             URLQueryItem(name: "name", value: name),
-            URLQueryItem(name: "x-success", value: AppLink.resume.url.absoluteString),
+            URLQueryItem(name: "x-success", value: success?.url?.absoluteString ?? AppLink.resume.url.absoluteString),
             URLQueryItem(name: "x-error", value: error?.url?.absoluteString ?? AppLink.resume.url.absoluteString),
         ]
         return components.url
     }
 
     static let failedKey = "failed"
+    static let doneKey = "done"
+
+    /// The plug state a shortcut switched to, from the x-success callback; nil for any other link.
+    static func success(in url: URL) -> Done? {
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        return items.first(where: { $0.name == doneKey })?.value.flatMap(Done.init)
+    }
 
     /// The failed shortcut's name and Shortcuts' message, from the x-error callback; nil for any other link.
     static func failure(in url: URL) -> (name: String, message: String?)? {
@@ -74,13 +86,13 @@ struct ShortcutPlug: SmartPlug {
     }
 
     /// Settings → Test: runs one of the shortcuts.
-    static func test(name: String) {
-        guard let url = url(name: name) else { return }
+    static func test(name: String, done: Done) {
+        guard let url = url(name: name, done: done) else { return }
         UIApplication.shared.open(url)
     }
 
-    private func run(_ name: String) {
-        guard let url = Self.url(name: name) else { return }
+    private func run(_ name: String, done: Done) {
+        guard let url = Self.url(name: name, done: done) else { return }
         DispatchQueue.main.async { UIApplication.shared.open(url) }
     }
 }
