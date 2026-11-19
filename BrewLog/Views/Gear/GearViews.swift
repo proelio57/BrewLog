@@ -332,6 +332,8 @@ struct EquipmentEditorView: View {
 struct SettingsView: View {
     var showsDone = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.espressoSetup) private var espressoSetup
+    @Query(sort: \Equipment.name) private var equipment: [Equipment]
     @Environment(ScaleManager.self) private var scale
     @Environment(MachineManager.self) private var machine
     @State private var machineHost = MachineManager.shared.host
@@ -517,8 +519,16 @@ struct SettingsView: View {
     @ViewBuilder
     private var machineSection: some View {
         @Bindable var machine = machine
+        @Bindable var espressoSetup = espressoSetup
+        let machines = equipment.filter { $0.type == .brewer && $0.method == .espresso }
         Section {
-            Picker("Machine", selection: $machine.kind) {
+            // Your espresso machine in Gear: saved with each shot (it used to be picked on the Brew tab).
+            if !machines.isEmpty {
+                MenuPickerRow(title: "Your machine", symbol: "cup.and.saucer.fill",
+                              options: machines.map { PickerOption(id: $0.id, name: $0.name) },
+                              selection: $espressoSetup.brewerID)
+            }
+            Picker("Connection", selection: $machine.kind) {
                 ForEach(MachineKind.allCases) { Text($0.displayName).tag($0) }
             }
             if machine.kind == .gaggimate {

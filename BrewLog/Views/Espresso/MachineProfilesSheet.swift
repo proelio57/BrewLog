@@ -71,16 +71,19 @@ struct MachineProfilesSheet: View {
         machine.selectProfile(profile.id) { accepted in
             selecting = nil
             guard accepted else { return }
-            if let recipe = recipe(for: profile) { setup.select(recipe) }
+            if let recipe = MachineProfileRecipe.recipe(for: profile, machine: machine, context: context) { setup.select(recipe) }
             dismiss()
         }
     }
+}
 
+/// The recipe that goes with a profile on the machine (machine profiles sheet, recipe picker).
+enum MachineProfileRecipe {
     /// The recipe to brew with. A profile BrewLog sent brings back its BrewLog recipe. Any other profile is imported
     /// once; after that the recipe in BrewLog is used as it is, so changes you made to it aren't overwritten
     /// (Settings → "Import profiles as recipes" updates them from the machine on purpose).
     @MainActor
-    private func recipe(for profile: MachineProfileSummary) -> Recipe? {
+    static func recipe(for profile: MachineProfileSummary, machine: MachineManager, context: ModelContext) -> Recipe? {
         let saved = (try? context.fetch(FetchDescriptor<SavedRecipe>())) ?? []
         func savedRecipe(_ id: String) -> Recipe? { saved.first { $0.id == id }?.recipe }
         if profile.isBrewLogs {

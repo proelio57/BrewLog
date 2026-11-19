@@ -107,34 +107,37 @@ private struct SetupScreen: View {
                 // Always in view: which recipe you're about to brew (tap to change it).
                 recipeHeader
                 if espresso {
-                    DeviceStrip { showSettings = true }
-                } else {
-                    ScaleStatusCard()
-                }
-                if espresso {
-                    EspressoSetupView()
-                    MachineCard(recipe: setup.scaledRecipe, dose: setup.dose, temperature: setup.waterTemp) {
-                        showSettings = true
+                    // Machine, its state and the scale; then the beans; then the recipe with the grind.
+                    MachineCard { showSettings = true }
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionHeader(title: "Coffee")
+                        beanCard
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionHeader(title: "Recipe")
+                        EspressoSetupView()
+                        grindCard
                     }
                 } else {
+                    ScaleStatusCard()
                     doseCard
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    SectionHeader(title: "Coffee")
-                    beanCard
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    SectionHeader(title: "Gear & grind")
-                    gearCard
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    SectionHeader(title: "Before you brew")
-                    stepsCard
-                }
-                // Last: the recipe is set once and rarely changed.
-                VStack(alignment: .leading, spacing: 8) {
-                    SectionHeader(title: "Recipe")
-                    recipeCard
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionHeader(title: "Coffee")
+                        beanCard
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionHeader(title: "Gear & grind")
+                        gearCard
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionHeader(title: "Before you brew")
+                        stepsCard
+                    }
+                    // Last: the recipe is set once and rarely changed.
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionHeader(title: "Recipe")
+                        recipeCard
+                    }
                 }
                 Color.clear.frame(height: 80)
             }
@@ -421,6 +424,30 @@ private struct SetupScreen: View {
                     }
                     Divider()
                 }
+                gearRow("Grinder", symbol: "gearshape.2.fill", items: grinders, selection: $setup.grinderID)
+                GrindInputView(spec: selectedGrinder?.grinderSpec, value: grindByHand, text: $setup.grindText,
+                               recommendation: recommendation, focus: $grindFocused)
+                if let hint = recipeGrindHint {
+                    Label(hint, systemImage: "arrow.left.arrow.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if !waters.isEmpty {
+                    Divider()
+                    MenuPickerRow(title: "Water", symbol: "drop.triangle.fill",
+                                  options: waters.map { PickerOption(id: $0.id, name: $0.name) },
+                                  selection: $setup.waterID, noneLabel: "Not set")
+                }
+            }
+        }
+    }
+
+    /// Espresso: the grinder and the grind, under the recipe. (The machine is chosen in the machine settings.)
+    private var grindCard: some View {
+        @Bindable var setup = setup
+        return Card {
+            VStack(spacing: 14) {
                 gearRow("Grinder", symbol: "gearshape.2.fill", items: grinders, selection: $setup.grinderID)
                 GrindInputView(spec: selectedGrinder?.grinderSpec, value: grindByHand, text: $setup.grindText,
                                recommendation: recommendation, focus: $grindFocused)

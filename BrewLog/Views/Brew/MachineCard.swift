@@ -1,31 +1,36 @@
 import SwiftUI
 
-/// Espresso machine status and controls on the Brew tab: mode, temperature, sending the recipe as a profile.
+/// Espresso machine, its state and the scale in one card at the top of the Brew tab (espresso): power, connection,
+/// boiler and target temperature, pressure, profile, mode, temperature nudge, and the scale's weight with Tare.
+/// The gear opens the machine settings.
 struct MachineCard: View {
-    let recipe: Recipe
-    let dose: Double
-    let temperature: Double
     var onOpenSettings: () -> Void
 
     @Environment(MachineManager.self) private var machine
+    @Environment(ScaleManager.self) private var scale
     @State private var showProfiles = false
+    @State private var showScale = false
 
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Label(machine.displayName, systemImage: "cup.and.saucer.fill").font(.headline)
+                HStack(spacing: 8) {
+                    Label(machine.kind == .none ? "Machine" : machine.displayName, systemImage: "cup.and.saucer.fill")
+                        .font(.headline)
+                        .lineLimit(1)
                     Spacer()
                     MachinePowerButton(power: MachinePower.shared)
                         .font(.subheadline.weight(.semibold))
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.capsule)
                         .controlSize(.small)
-                    stateBadge
-                }
-                if !machine.readsPressure {
-                    PressureMonitorRow()
-                        .font(.subheadline)
+                    if machine.kind != .none { stateBadge }
+                    Button(action: onOpenSettings) {
+                        Image(systemName: "gearshape")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Machine settings")
                 }
                 if machine.kind == .none {
                     Text("Connect a GaggiMate (Wi-Fi), a Decent DE1 (Bluetooth) or a La Marzocco (your La Marzocco account) to record pressure, temperature and flow and start shots from here. Without one, BrewLog times the shot with your scale.")
@@ -39,13 +44,49 @@ struct MachineCard: View {
                     Text(unreachableText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Button("Machine settings", action: onOpenSettings)
-                        .font(.subheadline.weight(.semibold))
                 }
+                if !machine.readsPressure {
+                    PressureMonitorRow()
+                        .font(.subheadline)
+                }
+                Divider()
+                scaleRow
             }
         }
         // On the card, not on the profile button: the sheet stays open (and shows the error) if the machine drops.
         .sheet(isPresented: $showProfiles) { MachineProfilesSheet() }
+        .sheet(isPresented: $showScale) { ScaleConnectSheet() }
+    }
+
+    /// The phone's scale, or the one connected to GaggiMate.
+    @ViewBuilder
+    private var scaleRow: some View {
+        let machineWeight = machine.isConnected && machine.status.hasWeight ? machine.status.weight : nil
+        HStack {
+            Button { showScale = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "scalemass.fill")
+                    Circle().fill(scale.isReady || machineWeight != nil ? Color.green : Color.secondary.opacity(0.5))
+                        .frame(width: 6, height: 6)
+                    if scale.isReady {
+                        Text(scale.weight.grams1).monospacedDigit().fontWeight(.semibold)
+                    } else if let machineWeight {
+                        Text(machineWeight.grams1).monospacedDigit().fontWeight(.semibold)
+                        Text("via \(machine.displayName)").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Text("Connect scale").foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            Spacer()
+            if scale.isReady {
+                TareChip { scale.tare() }
+            } else if machineWeight != nil {
+                TareChip { machine.tareScale() }
+            }
+        }
+        .font(.subheadline)
     }
 
     @ViewBuilder
@@ -57,18 +98,30 @@ struct MachineCard: View {
                 StatView(value: boilerText(status.systemState), label: "Boiler", symbol: "thermometer.medium")
                 StatView(value: status.targetTemperature.map { String(format: "%.1f°", $0) } ?? "–", label: "Target")
             } else {
-            StatView(value: status.temperature.map { String(format: "%.1f°", $0) } ?? "–", label: "Boiler",
-                     symbol: "thermometer.medium")
-            StatView(value: status.targetTemperature.map { String(format: "%.0f°", $0) } ?? "–", label: "Target")
+                StatView(value: status.temperature.map { String(format: "%.1f°", $0) } ?? "–", label: "Boiler",
+                         symbol: "thermometer.medium")
+                StatView(value: status.targetTemperature.map { String(format: "%.0f°", $0) } ?? "–", label: "Target")
+                if machine.readsPressure {
+                    StatView(value: status.pressure.map { String(format: "%.1f", $0) } ?? "–", label: "bar",
+                             symbol: "gauge.with.dots.needle.67percent")
+                }
+            }
+        }
+        if machine.kind != .laMarzocco {
             if machine.canChooseProfile {
                 Button { showProfiles = true } label: {
-                    StatView(value: status.profile ?? "–", label: "Profile ›")
+                    HStack {
+                        Label("Profile", systemImage: "slider.horizontal.3").foregroundStyle(.secondary)
+                        Spacer()
+                        Text(status.profile ?? "–").fontWeight(.semibold).lineLimit(1)
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                    }
+                    .font(.subheadline)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Choose the profile on the machine")
-            } else {
-                StatView(value: status.profile ?? "–", label: "Profile")
-            }
+            } else if let profile = status.profile {
+                LabeledContent("Profile", value: profile).font(.subheadline)
             }
         }
         if machine.kind.capabilities.contains(.startStop) {
@@ -96,14 +149,6 @@ struct MachineCard: View {
             .font(.subheadline)
             .buttonStyle(.plain)
             .foregroundStyle(Color.accentColor)
-        }
-        if machine.kind.capabilities.contains(.profiles) {
-            Button {
-                machine.sendProfile(recipe: recipe, dose: dose, temperature: temperature)
-            } label: {
-                Label("Send recipe to machine", systemImage: "square.and.arrow.up.on.square")
-                    .font(.subheadline.weight(.semibold))
-            }
         }
         if let notice = machine.notice {
             Text(notice).font(.caption).foregroundStyle(.secondary)
