@@ -5,7 +5,7 @@ iOS
 • Flush button for GaggiMate: on the machine card, in the shot's preparation and on the rating screen after the shot
 
 Android
-• No changes in this release
+• Fixed: starting the shot right after Ready stopped the machine after a second (the scale wasn't tared yet and the cup counted as the yield)
 
 Web
 • No changes in this release

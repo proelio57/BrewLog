@@ -450,6 +450,20 @@ class BrewSession(
             }
             BrewPhase.BREWING -> {
                 val start = startMs ?: return
+                // The shot started before the tare reached the scale ("Start shot" right after Ready, or the machine
+                // started first): until the scale reads zero its weight is the cup, not the shot, and would stop
+                // the machine at once. Wait for the zero; tare once more if it doesn't come.
+                if (usesScale && !zeroConfirmed) {
+                    if (abs(grams) < 1.0) {
+                        zeroConfirmed = true
+                    } else {
+                        if (atMs - start > SHOT_TARE_WAIT_MS && !retareSent) {
+                            if (weighsViaMachine) machine?.tareScale() else scale.tare()
+                            retareSent = true
+                        }
+                        return
+                    }
+                }
                 maxWeight = max(maxWeight, grams)
                 val t = (atMs - start) / 1000.0
                 appendSample(t, grams, force = false)
@@ -708,6 +722,8 @@ class BrewSession(
     companion object {
         /** Hard limits so a forgotten brew or a misbehaving device can't grow memory without bound. */
         const val MAX_RECENT_READINGS = 120
+        /** A shot that started before the scale was zeroed: tare again after this long without a zero reading. */
+        const val SHOT_TARE_WAIT_MS = 2_000L
         val MAX_SAMPLES = (InputLimits.MAX_BREW_SECONDS * 10).toInt() + 10
 
         /** Least-squares slope (g/s) over the last [window] seconds. */
