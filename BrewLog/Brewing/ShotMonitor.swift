@@ -16,6 +16,9 @@ struct ShotMonitor {
     /// Seconds into the shot of the first gram in the cup.
     private(set) var firstDropsTime: TimeInterval?
     private(set) var stopped = false
+    /// Weight and flow when the monitor said stop, for learning the lead (`StopLagLearner`).
+    private(set) var weightAtStop: Double?
+    private(set) var flowAtStop: Double?
     private var finished = false
     private var lastGrams: Double = 0
     private var recent: [(t: TimeInterval, grams: Double)] = []
@@ -49,6 +52,8 @@ struct ShotMonitor {
 
         if autoStop, yield > 0, !stopped, Self.shouldStop(weight: grams, flow: flow, yield: yield, lag: stopLag) {
             stopped = true
+            weightAtStop = grams
+            flowAtStop = flow
             return .stop
         }
         if yield > 0, !finished, grams >= yield * Self.finishShare, Self.isSettled(recent, now: t) {

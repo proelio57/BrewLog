@@ -121,6 +121,14 @@ struct BrewDetailView: View {
                     }
                     StatView(value: brew.grindDisplay.isEmpty ? "–" : brew.grindDisplay, label: "Grind", symbol: "dial.medium")
                 }
+                if isEspresso, brew.usedScale, brew.targetWater > 0 {
+                    // How close the stop came: the stop lead learns from the difference.
+                    let diff = brew.finalWeight - brew.targetWater
+                    Text(String(format: "Target %.0f g · %.1f g in the cup (%+.1f g)", brew.targetWater, brew.finalWeight, diff))
+                        .font(.caption)
+                        .foregroundStyle(abs(diff) <= 1 ? .green : .secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
     }

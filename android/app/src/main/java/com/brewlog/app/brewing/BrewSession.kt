@@ -10,6 +10,7 @@ import com.brewlog.app.machine.MachineStatus
 import com.brewlog.app.domain.PingLeadMode
 import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.StepAnnouncement
+import com.brewlog.app.domain.StopLagLearner
 import com.brewlog.app.domain.WeightSample
 import com.brewlog.app.domain.roundHalfAway
 import com.brewlog.app.domain.valveChange
@@ -89,6 +90,8 @@ class BrewSession(
     private val prepareMonitor: (Recipe) -> Unit = {},
     /** Spoken step prompts (only called when they are switched on). */
     private val onSpeak: (String) -> Unit = {},
+    /** Learned stop leads per machine and scale (null: always the setting). */
+    private val stopLags: StopLagStore? = null,
 ) {
     /** The recipe brewed: the planned one, or scaled to the weighed dose when that is at least 0.5 g off. */
     var recipe: Recipe = plannedRecipe
@@ -365,6 +368,27 @@ class BrewSession(
     private var machineStopSentAt: Long? = null
     private var machineStopRetries = 0
 
+    private val stopLagKey: String
+        get() = StopLagLearner.key(machine?.kind?.name?.lowercase() ?: "none", weighsViaMachine)
+
+    private fun stopLagFor(s: AppSettings): Double =
+        if (s.shotStopLearn) stopLags?.get(stopLagKey)?.lag ?: s.shotStopLag else s.shotStopLag
+
+    /** The lead this shot learned (null when it didn't teach anything). */
+    var learnedStopLag: Double? = null
+        private set
+
+    /** Only shots the app stopped on the machine teach the lead: a stop by hand or by the machine has its own delay. */
+    private fun learnStopLag() {
+        val store = stopLags ?: return
+        val shot = shotMonitor ?: return
+        if (!settings().shotStopLearn || !appStopsShot || !shot.stopped) return
+        val next = StopLagLearner.next(store.get(stopLagKey), shot.stopLag, shot.weightAtStop ?: return,
+            shot.flowAtStop ?: return, finalWeight) ?: return
+        store.put(stopLagKey, next)
+        learnedStopLag = next.lag
+    }
+
     /** Whether BrewLog stops the shot at the yield itself (scale on the app, machine it can control). */
     val appStopsShot: Boolean
         get() = isEspresso && followsMachine && machine?.canControl == true && usesScale && !weighsViaMachine && settings().autoStopShot
@@ -398,6 +422,7 @@ class BrewSession(
             appendSample(elapsed, weight, force = true)
             if (!weighsViaMachine) scale.brewFinished()
         }
+        learnStopLag()
         // Ending the brew by hand also stops the pump if the machine is still pulling the shot.
         if (followsMachine && machine?.status?.isPullingShot == true) machine.stopShot()
         publish()
@@ -540,7 +565,7 @@ class BrewSession(
                 ShotMonitor(
                     yield = recipe.water,
                     dose = dose,
-                    stopLag = s.shotStopLag,
+                    stopLag = stopLagFor(s),
                     autoStop = s.autoStopShot,
                 )
             } else null
@@ -744,4 +769,10 @@ class BrewSession(
             return if (denominator > 0.0001) numerator / denominator else 0.0
         }
     }
+}
+
+/** Where learned stop leads are kept (SharedPreferences in the app, a map in tests). */
+interface StopLagStore {
+    fun get(key: String): StopLagLearner.Learned?
+    fun put(key: String, learned: StopLagLearner.Learned)
 }
