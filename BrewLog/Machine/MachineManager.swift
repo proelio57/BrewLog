@@ -249,6 +249,29 @@ final class MachineManager {
         send(["tp": "req:process:activate", "ignoreWarnings": ignoreWarnings])
     }
 
+    // MARK: Flush
+
+    /// BrewLog can flush the group head (GaggiMate's flush: valve open, pump on for its flush time).
+    var canFlush: Bool { isConnected && [.gaggimate, .demo].contains(kind) }
+
+    /// A flush (or another utility process) is running.
+    var isFlushing: Bool { status.processActive && status.processIsUtility }
+
+    /// Starts a flush, or stops a running one.
+    func toggleFlush() {
+        guard canFlush else { return }
+        if kind == .demo { isFlushing ? demo.stopFlush() : demo.flush(); return }
+        if isFlushing {
+            send(["tp": "req:flush:stop"])
+            send(["tp": "req:process:deactivate"])
+            return
+        }
+        send(["tp": "req:flush:start"]) { [weak self] response in
+            guard let self, (response?["success"] as? Bool) == false else { return }
+            self.notice = "The machine didn't start the flush (another process may be running)."
+        }
+    }
+
     func stopShot() {
         if kind == .demo { demo.stopShot(); return }
         if kind == .decent { writeToDecent(DecentProtocol.stopShot); return }
@@ -667,6 +690,28 @@ private final class DemoMachine {
         if shotStart == nil { shotStart = Date() }
     }
 
+    private var flushEnd: Date?
+
+    /// A 5 s flush: a utility process, never a shot.
+    func flush() {
+        guard shotStart == nil else { return }
+        flushEnd = Date().addingTimeInterval(5)
+        status.processActive = true
+        status.processIsUtility = true
+        status.processKind = "brew"
+        status.processLabel = "Flush"
+        onStatus?(status, false)
+    }
+
+    func stopFlush() {
+        flushEnd = nil
+        status.processActive = false
+        status.processIsUtility = false
+        status.processKind = nil
+        status.processLabel = nil
+        onStatus?(status, false)
+    }
+
     func setMode(_ mode: MachineMode) {
         status.mode = mode.rawValue
         onStatus?(status, false)
@@ -701,6 +746,7 @@ private final class DemoMachine {
     }
 
     private func tick() {
+        if let flushEnd, Date() >= flushEnd { stopFlush() }
         let target = status.targetTemperature ?? 93
         if let shotStart, Date() >= shotStart {
             let t = Date().timeIntervalSince(shotStart)

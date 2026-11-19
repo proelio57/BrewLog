@@ -43,6 +43,8 @@ enum SettingsKey {
     static let powerAutoOff = "power.autoOff"
     static let autoStopShot = "autoStopShot"
     static let shotStopLag = "shotStopLag"
+    /// Learn the stop lead from each shot the app stops (`StopLagLearner`).
+    static let shotStopLearn = "shotStopLearn"
     static let brewMode = "brewMode"
 
     // Last used setup
@@ -84,6 +86,7 @@ enum AppSettings {
             SettingsKey.chartShowsFlow: true,
             SettingsKey.autoStopShot: true,
             SettingsKey.shotStopLag: 1.0,
+            SettingsKey.shotStopLearn: true,
             SettingsKey.pressureFocus: PressureFocusMode.automatic.rawValue,
             SettingsKey.landscapeChart: true,
             SettingsKey.steamAfterShot: SteamAfterShot.ask.rawValue,
@@ -118,6 +121,7 @@ enum AppSettings {
     static var autoStopShot: Bool { d.bool(forKey: SettingsKey.autoStopShot) }
     /// Seconds of flow still on its way to the cup after the stop (0.5–2.5 s).
     static var shotStopLag: Double { min(max(d.double(forKey: SettingsKey.shotStopLag), 0.5), 2.5) }
+    static var shotStopLearn: Bool { d.bool(forKey: SettingsKey.shotStopLearn) }
 }
 
 /// The Brew tab's switch: pour-over (filter) or espresso, each with its own setup.

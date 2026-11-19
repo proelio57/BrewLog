@@ -58,3 +58,25 @@ struct MachinePowerButton: View {
         .accessibilityHint(hint)
     }
 }
+
+/// Flush the group head (GaggiMate, demo): before the shot to bring the group to temperature and clear old coffee,
+/// after it to rinse the screen. Tapping again stops a running flush.
+struct FlushButton: View {
+    @Environment(MachineManager.self) private var machine
+
+    var body: some View {
+        if machine.canFlush {
+            Button {
+                machine.toggleFlush()
+                Haptics.tap()
+            } label: {
+                Label(machine.isFlushing ? "Flushing… tap to stop" : "Flush",
+                      systemImage: machine.isFlushing ? "stop.circle" : "drop.triangle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .tint(machine.isFlushing ? .orange : .accentColor)
+            .accessibilityHint("Runs water through the group head")
+        }
+    }
+}

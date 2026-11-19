@@ -331,6 +331,8 @@ data class AppSettings(
     val espressoPressureEnabled: Boolean = false,
     val autoStopShot: Boolean = true,
     val shotStopLag: Double = 1.0,
+    /** Learn the stop lead from each shot the app stops (StopLagLearner). */
+    val shotStopLearn: Boolean = true,
     val rinsePaper: Boolean = true,
     val darkMode: DarkMode = DarkMode.SYSTEM,
     val steamAfterShot: SteamAfterShot = SteamAfterShot.ASK,

@@ -27,6 +27,8 @@ struct BrewDetailView: View {
         let analysis = brew.analyze(allBrews: allBrews)
         ScrollView {
             VStack(spacing: 18) {
+                // Right after a shot: rinse the screen while you rate it.
+                if isNew, brew.isEspresso { FlushButton() }
                 summaryCard
                 if brew.usedScale, let recipe = brew.recipe, !brew.samples.isEmpty {
                     chartCard(recipe)
@@ -118,6 +120,14 @@ struct BrewDetailView: View {
                         StatView(value: milk.grams, label: "Milk", symbol: "drop.halffull")
                     }
                     StatView(value: brew.grindDisplay.isEmpty ? "–" : brew.grindDisplay, label: "Grind", symbol: "dial.medium")
+                }
+                if isEspresso, brew.usedScale, brew.targetWater > 0 {
+                    // How close the stop came: the stop lead learns from the difference.
+                    let diff = brew.finalWeight - brew.targetWater
+                    Text(String(format: "Target %.0f g · %.1f g in the cup (%+.1f g)", brew.targetWater, brew.finalWeight, diff))
+                        .font(.caption)
+                        .foregroundStyle(abs(diff) <= 1 ? .green : .secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }

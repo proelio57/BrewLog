@@ -318,6 +318,7 @@ struct BrewSessionView: View {
                     Label("Distribute (WDT) and tamp level", systemImage: "2.circle.fill")
                     Label("Flush the group head, lock in the portafilter", systemImage: "3.circle.fill")
                     Label("Brew at \(Int(config.waterTemp)) °C, stop at \(session.recipe.water.grams)", systemImage: "4.circle.fill")
+                    FlushButton()
                 }
                 .font(.subheadline)
                 .symbolRenderingMode(.hierarchical)

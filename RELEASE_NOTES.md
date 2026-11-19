@@ -1,16 +1,14 @@
 <!-- Notes for the next release, grouped by platform. scripts/release-notes.sh uses this file for the release
      whose commits change it; otherwise the notes come from the feat/fix/perf commit subjects. -->
 iOS
-• Espresso Brew tab reorganised: machine and scale on top, then beans, then the recipe with the grind
-• Choose recipe lists the machine's profiles first and asks before sending a BrewLog recipe to the machine
-• Milk drinks: milk amount in the recipe and a "Milk drink" switch on the Brew tab
-• After a milk drink's shot the machine switches to steam and BrewLog weighs the milk with you
-• After an espresso without milk BrewLog only asks about switching off (Settings → After an espresso)
-• The power button shows the machine's state: Off (grey), Starting/Heating (orange), On (green)
-• Smart plug: says when a shortcut doesn't exist, and Test buttons for both shortcuts in Settings
+• Learns when to stop the shot: after each shot BrewLog stopped it measures what still dripped in and adjusts the stop lead (per machine and scale)
+• The rating screen shows target vs. the weight in the cup
+• Fixed: starting the shot right after Ready stopped the machine after a second (the scale wasn't tared yet and the cup counted as the yield)
+• Flush button for GaggiMate: on the machine card, in the shot's preparation and on the rating screen after the shot
 
 Android
-• No app changes (2.7.0 was the journal filters again: a re-run of a release counted up; re-runs now keep their version)
+• Learns when to stop the shot: after each shot BrewLog stopped it measures what still dripped in and adjusts the stop lead (per machine and scale)
+• Fixed: starting the shot right after Ready stopped the machine after a second (the scale wasn't tared yet and the cup counted as the yield)
 
 Web
 • No changes in this release

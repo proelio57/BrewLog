@@ -341,6 +341,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.autoStartThreshold) private var autoStartThreshold = 1.5
     @AppStorage(SettingsKey.autoStopShot) private var autoStopShot = true
     @AppStorage(SettingsKey.shotStopLag) private var shotStopLag = 1.0
+    @AppStorage(SettingsKey.shotStopLearn) private var shotStopLearn = true
+    @State private var learnedLags = StopLagLearner.all()
     @AppStorage(SettingsKey.pressureFocus) private var pressureFocus = PressureFocusMode.automatic
     @AppStorage(SettingsKey.landscapeChart) private var landscapeChart = true
     @AppStorage(SettingsKey.steamAfterShot) private var steamAfterShot = SteamAfterShot.ask
@@ -384,16 +386,34 @@ struct SettingsView: View {
             Section {
                 Toggle("Stop at the target yield", isOn: $autoStopShot)
                 if autoStopShot {
-                    VStack(alignment: .leading) {
-                        Text("Stop lead \(shotStopLag, specifier: "%.1f") s")
-                        Slider(value: $shotStopLag, in: 0.5...2.5, step: 0.1)
+                    Toggle("Learn the stop lead", isOn: $shotStopLearn)
+                    if shotStopLearn {
+                        let learned = learnedLags[StopLagLearner.key(machine: machine.kind, scaleOnMachine: false)]
+                            ?? learnedLags[StopLagLearner.key(machine: machine.kind, scaleOnMachine: true)]
+                        if let learned {
+                            LabeledContent("Stop lead",
+                                           value: String(format: "%.1f s · learned from %d shot%@", learned.lag, learned.shots,
+                                                         learned.shots == 1 ? "" : "s"))
+                            Button("Start learning again", role: .destructive) {
+                                StopLagLearner.reset()
+                                learnedLags = [:]
+                            }
+                        } else {
+                            LabeledContent("Stop lead", value: String(format: "%.1f s · learns from your next shot", shotStopLag))
+                        }
+                    } else {
+                        VStack(alignment: .leading) {
+                            Text("Stop lead \(shotStopLag, specifier: "%.1f") s")
+                            Slider(value: $shotStopLag, in: 0.5...2.5, step: 0.1)
+                        }
                     }
                 }
             } header: {
                 Text("Espresso shot")
             } footer: {
-                Text("BrewLog stops the shot when the weight plus the current flow times this lead reaches the yield, so drips land on target.")
+                Text("BrewLog stops the shot when the weight plus the current flow times this lead reaches the yield, so drips land on target. Learning: after each shot BrewLog stopped, it measures what still dripped in after the stop and moves the lead halfway towards what would have been right, separately for each machine and scale.")
             }
+            .onAppear { learnedLags = StopLagLearner.all() }
 
             Section {
                 VStack(alignment: .leading) {

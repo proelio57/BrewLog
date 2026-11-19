@@ -243,4 +243,24 @@ class DosingAndAdviceTest {
         assertEquals("Try a faster paper", BrewAnalyzer.clarityAdvice(preset("rao-v60"), flatInput(preset("rao-v60"), FilterFlow.SLOW))?.first)
         assertNull(BrewAnalyzer.clarityAdvice(preset("rao-v60"), flatInput(preset("rao-v60"), FilterFlow.FAST)))
     }
+
+    /** "Start shot" right after Ready: the scale still shows the cup until the tare lands. That must not stop the shot. */
+    @Test fun theCupBeforeTheTareDoesNotStopTheShot() {
+        val recipe = preset("espresso-classic")
+        val scale = FakeScale()
+        var now = 0L
+        val session = BrewSession(recipe, scale, { AppSettings(weighBeansFirst = false, rinsePaper = false, autoStopShot = true) }, {}, clock = { now })
+        session.prepare()
+        session.ready()
+        session.startManually()
+        assertEquals(BrewPhase.BREWING, session.phase)
+        now += 200; session.ingest(210.0, now)
+        now += 300; session.ingest(210.0, now)
+        assertFalse(session.stopRequested)
+        now += 400; session.ingest(0.0, now)
+        now += 7_000; session.ingest(10.0, now)
+        assertFalse(session.stopRequested)
+        now += 17_000; session.ingest(recipe.water + 1, now)
+        assertTrue(session.stopRequested)
+    }
 }

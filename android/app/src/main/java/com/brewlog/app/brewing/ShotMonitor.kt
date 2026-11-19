@@ -24,6 +24,11 @@ class ShotMonitor(
         private set
     var stopped: Boolean = false
         private set
+    /** Weight and flow when the monitor said stop, for learning the lead (StopLagLearner). */
+    var weightAtStop: Double? = null
+        private set
+    var flowAtStop: Double? = null
+        private set
     var finished: Boolean = false
         private set
     private var lastGrams: Double = 0.0
@@ -47,6 +52,8 @@ class ShotMonitor(
 
         if (autoStop && yield > 0.0 && !stopped && shouldStop(grams, flow, yield, stopLag)) {
             stopped = true
+            weightAtStop = grams
+            flowAtStop = flow
             return Action.STOP
         }
         if (yield > 0.0 && !finished && grams >= yield * FINISH_SHARE && isSettled(recent, t)) {

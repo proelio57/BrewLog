@@ -53,6 +53,14 @@ class AppContainer(context: Context) {
     val preferences get() = prefs
 
     val settings = SettingsRepository(prefs)
+    /** Learned stop leads per machine and scale (see StopLagLearner). */
+    val stopLags = object : com.brewlog.app.brewing.StopLagStore {
+        override fun get(key: String) = com.brewlog.app.domain.StopLagLearner.decode(prefs.getString("shotStopLag.learned", null))[key]
+        override fun put(key: String, learned: com.brewlog.app.domain.StopLagLearner.Learned) {
+            val all = com.brewlog.app.domain.StopLagLearner.decode(prefs.getString("shotStopLag.learned", null)) + (key to learned)
+            prefs.edit().putString("shotStopLag.learned", com.brewlog.app.domain.StopLagLearner.encode(all)).apply()
+        }
+    }
     val bundledRecipes: List<Recipe> = context.assets.open("recipes.json").bufferedReader().use { RecipeLibrary.parse(it.readText()) }
     val recipeFeed = com.brewlog.app.data.RecipeFeed(
         bundledRecipes = bundledRecipes,

@@ -347,6 +347,7 @@ final class BrewSession {
             appendSample(t: elapsed, grams: weight, force: true)
             if !weighsViaMachine { scale.brewFinished() }
         }
+        learnStopLag()
         // Ending the session by hand also stops the pump if the machine is still pulling the shot.
         if followsMachine && machine.status.isPullingShot { machine.stopShot() }
         timer?.invalidate()
@@ -438,6 +439,8 @@ final class BrewSession {
     /// Hard limits so a forgotten brew or a misbehaving device can't grow memory without bound.
     static let maxRecentReadings = 120
     static let maxSamples = Int(InputLimits.maxBrewSeconds * 10) + 10
+    /// A shot that started before the scale was zeroed: tare again after this long without a zero reading.
+    static let shotTareWait: TimeInterval = 2
 
     private func ingest(_ grams: Double, at date: Date) {
         guard grams.isFinite else { return }
@@ -477,6 +480,20 @@ final class BrewSession {
             }
         case .brewing:
             guard let startDate else { return }
+            // The shot started before the tare reached the scale ("Start shot" right after Ready, or the machine
+            // started first): until the scale reads zero its weight is the cup, not the shot, and would stop the
+            // machine at once. Wait for the zero; tare once more if it doesn't come.
+            if usesScale && !zeroConfirmed {
+                if abs(grams) < 1.0 {
+                    zeroConfirmed = true
+                } else {
+                    if date.timeIntervalSince(startDate) > Self.shotTareWait, !retareSent {
+                        if weighsViaMachine { machine.tareScale() } else { scale.tare() }
+                        retareSent = true
+                    }
+                    return
+                }
+            }
             maxWeight = max(maxWeight, grams)
             appendSample(t: date.timeIntervalSince(startDate), grams: grams, force: false)
             checkShot(grams: grams, at: date.timeIntervalSince(startDate))
@@ -498,7 +515,7 @@ final class BrewSession {
         lastMachineSampleT = -1
         if isEspresso {
             // Measured by a scale: the monitor stops at the yield and ends the shot once the cup has settled.
-            shotMonitor = usesScale ? ShotMonitor(yield: recipe.water, dose: dose, stopLag: AppSettings.shotStopLag,
+            shotMonitor = usesScale ? ShotMonitor(yield: recipe.water, dose: dose, stopLag: stopLag,
                                                   autoStop: AppSettings.autoStopShot) : nil
             peakPressure = 0
             currentPressure = nil
@@ -631,6 +648,25 @@ final class BrewSession {
                 self.stopRequested = true
             }
         }
+    }
+
+    /// Where the stop lead is learned: per machine and scale.
+    private var stopLagKey: String { StopLagLearner.key(machine: machine.kind, scaleOnMachine: weighsViaMachine) }
+
+    /// The stop lead for this shot: learned for this machine and scale, otherwise the setting.
+    private var stopLag: Double {
+        StopLagLearner.lag(for: stopLagKey, manual: AppSettings.shotStopLag, learning: AppSettings.shotStopLearn)
+    }
+
+    /// The lead the shot used and what it learned (nil when this shot didn't teach anything).
+    private(set) var learnedStopLag: Double?
+
+    /// Only shots the app stopped on the machine teach the lead: a stop by hand or by the machine has its own delay.
+    private func learnStopLag() {
+        guard AppSettings.shotStopLearn, appStopsShot, let shot = shotMonitor, shot.stopped,
+              let weightAtStop = shot.weightAtStop, let flowAtStop = shot.flowAtStop else { return }
+        learnedStopLag = StopLagLearner.record(key: stopLagKey, start: shot.stopLag, weightAtStop: weightAtStop,
+                                               flowAtStop: flowAtStop, finalWeight: finalWeight)
     }
 
     /// Whether BrewLog stops the shot at the yield itself (scale on the app, machine it can control).

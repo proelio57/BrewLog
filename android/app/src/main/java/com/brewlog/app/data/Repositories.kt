@@ -61,6 +61,7 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             .putBoolean("espressoPressureEnabled", next.espressoPressureEnabled)
             .putBoolean("autoStopShot", next.autoStopShot)
             .putFloat("shotStopLag", next.shotStopLag.toFloat())
+            .putBoolean("shotStopLearn", next.shotStopLearn)
             .putBoolean("rinsePaper", next.rinsePaper)
             .putString("darkMode", next.darkMode.raw)
             .putString("steamAfterShot", next.steamAfterShot.raw)
@@ -96,6 +97,7 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             espressoPressureEnabled = prefs.getBoolean("espressoPressureEnabled", d.espressoPressureEnabled),
             autoStopShot = prefs.getBoolean("autoStopShot", d.autoStopShot),
             shotStopLag = prefs.getFloat("shotStopLag", d.shotStopLag.toFloat()).toDouble().coerceIn(0.5, 2.5),
+            shotStopLearn = prefs.getBoolean("shotStopLearn", d.shotStopLearn),
             rinsePaper = prefs.getBoolean("rinsePaper", d.rinsePaper),
             darkMode = com.brewlog.app.domain.DarkMode.entries.firstOrNull { it.raw == prefs.getString("darkMode", null) } ?: d.darkMode,
             steamAfterShot = com.brewlog.app.domain.SteamAfterShot.entries.firstOrNull { it.raw == prefs.getString("steamAfterShot", null) }
