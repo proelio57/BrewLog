@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.10.0",
+          "buildVersion": "135",
+          "date": "2026-11-19T16:03:32Z",
+          "localizedDescription": "iOS\n• The power button shows the smart plug's state: On while the plug is on (also in standby), Off once it's off\n• Fixed: the power button stayed on \"Starting\" when the smart plug's shortcut didn't run\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.10.0/BrewLog.ipa",
+          "size": 12861142,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.9.0",
           "buildVersion": "132",
           "date": "2026-11-19T11:23:03Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.3.0/BrewLog.ipa",
           "size": 12665970,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.2.0",
-          "buildVersion": "104",
-          "date": "2026-11-09T13:33:02Z",
-          "localizedDescription": "iOS\n• No changes in this release\n\nAndroid\n• The selected recipe is always shown at the top of the Brew screen; tap it to change the recipe\n• Choosing a recipe for another brewer (e.g. a V60 recipe while the Switch is selected) selects that brewer\n• Espresso: with the scale connected to the app, BrewLog stops the shot on the machine (GaggiMate, Decent) at the target yield in every phase of the profile, and asks again if the pump keeps running\n• After a shot BrewLog offers to switch GaggiMate to steam; Settings → After the shot: Ask, Switch to steam or Off\n• Pressure view: with a pressure sensor a big colour-coded pressure number and a pressure graph with a target band; with the machine's own pressure weight and pressure side by side (Settings → Live shot: Automatic, Always, Off)\n• Landscape full-screen chart with a button or by turning the phone (can be turned off in Settings)\n• Bigger, coloured flow (g/s) readout, and the live charts always fit on the screen\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.2.0/BrewLog.ipa",
-          "size": 12648719,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.9.0",
-      "versionDate": "2026-11-19T11:23:03Z",
-      "versionDescription": "iOS\n• Learns when to stop the shot: after each shot BrewLog stopped it measures what still dripped in and adjusts the stop lead (per machine and scale)\n• The rating screen shows target vs. the weight in the cup\n• Fixed: starting the shot right after Ready stopped the machine after a second (the scale wasn't tared yet and the cup counted as the yield)\n• Flush button for GaggiMate: on the machine card, in the shot's preparation and on the rating screen after the shot\n\nAndroid\n• Learns when to stop the shot: after each shot BrewLog stopped it measures what still dripped in and adjusts the stop lead (per machine and scale)\n• Fixed: starting the shot right after Ready stopped the machine after a second (the scale wasn't tared yet and the cup counted as the yield)\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.9.0/BrewLog.ipa",
-      "size": 12859718
+      "version": "2.10.0",
+      "versionDate": "2026-11-19T16:03:32Z",
+      "versionDescription": "iOS\n• The power button shows the smart plug's state: On while the plug is on (also in standby), Off once it's off\n• Fixed: the power button stayed on \"Starting\" when the smart plug's shortcut didn't run\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.10.0/BrewLog.ipa",
+      "size": 12861142
     }
   ],
   "news": []
