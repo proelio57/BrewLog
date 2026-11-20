@@ -134,6 +134,9 @@ class AppContainer(context: Context) {
     /** The live brew survives configuration changes because it lives here, not in the UI. */
     var activeBrew: Pair<BrewConfig, BrewSession>? = null
 
+    /** "Brew this" on a recipe: the Brew tab starts the brew as soon as it shows. */
+    var startBrewRequested by mutableStateOf(false)
+
     val voice = com.brewlog.app.audio.VoicePrompter(context, { settings.current })
 
     fun cue(cue: BrewCue) {

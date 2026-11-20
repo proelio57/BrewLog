@@ -288,6 +288,8 @@ fun RecipeDetailScreen(nav: NavHostController, recipeId: String) {
                         container.brewMode = "filter"
                         container.setup.select(recipe)
                     }
+                    // Straight into the brew screen with this recipe.
+                    container.startBrewRequested = true
                     nav.switchTab(Routes.BREW)
                 }
             }

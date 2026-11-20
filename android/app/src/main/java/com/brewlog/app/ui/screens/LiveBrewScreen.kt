@@ -246,7 +246,7 @@ fun LiveBrewScreen(nav: NavHostController) {
         }
         when (snapshot.phase) {
             BrewPhase.RINSING -> RinseCard()
-            BrewPhase.DOSING -> DoseCard(snapshot.weight, session.plannedDose, snapshot.doseStatus)
+            BrewPhase.DOSING -> DoseCard(snapshot.weight, session.plannedDose, snapshot.doseStatus, intoBrewer = !session.isEspresso)
             BrewPhase.PREPARING -> PreparingCard(snapshot.usesScale, session)
             BrewPhase.ARMED -> ArmedCard(snapshot, session.recipe.steps.firstOrNull(), session)
             else -> ActiveStepCard(snapshot, session)
@@ -701,14 +701,18 @@ private fun StopNowBanner(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun DoseCard(weight: Double, dose: Double, status: BeanDosing.Status) {
+private fun DoseCard(weight: Double, dose: Double, status: BeanDosing.Status, intoBrewer: Boolean = false) {
     val color = when (status) {
         BeanDosing.Status.ON_TARGET -> GoodGreen
         BeanDosing.Status.OVER -> WarnOrange
         else -> MaterialTheme.colorScheme.primary
     }
     val hint = when (status) {
-        BeanDosing.Status.EMPTY -> "Put a cup on the scale, tare and add the beans. Or tap Ready to brew without weighing."
+        BeanDosing.Status.EMPTY -> if (intoBrewer) {
+            "The scale is tared with the brewer on it: pour the beans in. Ready tares again for the pour."
+        } else {
+            "Put a cup on the scale, tare and add the beans. Or tap Ready to brew without weighing."
+        }
         BeanDosing.Status.UNDER -> "${fmt1(dose - weight)} g to go." + rescaleNote(weight, dose)
         BeanDosing.Status.ON_TARGET -> "On target. Tap Ready."
         BeanDosing.Status.OVER -> "${fmt1(weight - dose)} g more than planned." + rescaleNote(weight, dose)
@@ -718,7 +722,7 @@ private fun DoseCard(weight: Double, dose: Double, status: BeanDosing.Status) {
             Icon(if (status == BeanDosing.Status.ON_TARGET) Icons.Filled.CheckCircle else Icons.Filled.Scale, null, Modifier.size(32.dp), tint = color)
             Spacer(Modifier.width(14.dp))
             Column {
-                Text("Weigh ${dose.grams1()} of beans", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(if (intoBrewer) "Pour in ${dose.grams1()} of beans" else "Weigh ${dose.grams1()} of beans", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(hint, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

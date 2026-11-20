@@ -20,6 +20,7 @@ struct BrewSetupView: View {
     @Environment(BrewSetup.self) private var pourOverSetup
     @Environment(\.espressoSetup) private var espressoSetup
     @AppStorage(SettingsKey.brewMode) private var modeRaw = BrewMode.filter.rawValue
+    @Environment(AppRouter.self) private var router
 
     var body: some View {
         let mode = BrewMode(rawValue: modeRaw) ?? .filter
@@ -40,6 +41,8 @@ struct BrewSetupView: View {
                 }
             }
         }
+        // "Brew this" from a recipe pushed here (recipe picker → details): rebuilt, so it starts from the first screen.
+        .id(router.brewStackID)
         .onAppear {
             if BrewSetup.moveEspressoRecipe(from: pourOverSetup, to: espressoSetup) { modeRaw = BrewMode.espresso.rawValue }
         }

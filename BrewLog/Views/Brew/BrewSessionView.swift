@@ -249,7 +249,8 @@ struct BrewSessionView: View {
                 }
             }
         case .dosing:
-            DoseCard(weight: session.weight, dose: session.plannedDose, status: session.doseStatus)
+            DoseCard(weight: session.weight, dose: session.plannedDose, status: session.doseStatus,
+                     intoBrewer: !session.isEspresso)
         case .preparing:
             Card {
                 HStack(spacing: 14) {
@@ -530,6 +531,8 @@ private struct DoseCard: View {
     let weight: Double
     let dose: Double
     let status: BeanDosing.Status
+    /// Pour-over: after rinsing the brewer stays on the tared scale and the beans go straight in.
+    var intoBrewer = false
 
     var body: some View {
         Card {
@@ -539,7 +542,7 @@ private struct DoseCard: View {
                         .font(.title)
                         .foregroundStyle(tint)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Weigh \(dose.grams1) of beans").font(.headline)
+                        Text(intoBrewer ? "Pour in \(dose.grams1) of beans" : "Weigh \(dose.grams1) of beans").font(.headline)
                         Text(hint).font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
@@ -560,7 +563,10 @@ private struct DoseCard: View {
 
     private var hint: String {
         switch status {
-        case .empty: return "Put a cup on the scale, tare and add the beans. Or tap Ready to brew without weighing."
+        case .empty:
+            return intoBrewer
+                ? "The scale is tared with the brewer on it: pour the beans in. Ready tares again for the pour."
+                : "Put a cup on the scale, tare and add the beans. Or tap Ready to brew without weighing."
         case .under: return "\(String(format: "%.1f", dose - weight)) g to go." + rescaleNote
         case .onTarget: return "On target. Tap Ready."
         case .over: return "\(String(format: "%.1f", weight - dose)) g more than planned." + rescaleNote
