@@ -48,6 +48,15 @@ final class AppRouter {
     var cover: RootCover?
     /// Set by the widgets' brewlog://start: the Brew tab starts the brew as soon as it's shown.
     var startBrewRequested = false
+    /// Changing it rebuilds the Brew tab's navigation, back to its first screen (e.g. from a recipe pushed there).
+    var brewStackID = UUID()
+
+    /// "Brew this": back to the Brew tab's first screen and straight into the brew with the chosen recipe.
+    func brewNow() {
+        brewStackID = UUID()
+        startBrewRequested = true
+        tab = .brew
+    }
 
     /// Switches between full-screen flows (dismiss first, then present, to avoid presentation glitches).
     func present(_ next: RootCover?) {

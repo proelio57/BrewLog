@@ -353,7 +353,8 @@ struct RecipeDetailView: View {
                     let mode = BrewMode.of(recipe)
                     (mode == .espresso ? espressoSetup : setup).select(recipe)
                     brewMode = mode.rawValue
-                    router.tab = .brew
+                    // Straight into the brew screen with this recipe (the Brew tab starts it when it shows).
+                    router.brewNow()
                 } label: {
                     Label("Brew this", systemImage: "drop.fill")
                         .font(.headline)

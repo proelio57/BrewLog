@@ -162,6 +162,38 @@ fun BrewSetupScreen(nav: NavHostController) {
         }
     }
 
+    fun startBrew() {
+        val config = BrewConfig(
+            recipe = setup.scaledRecipe,
+            dose = setup.dose,
+            waterTemp = setup.waterTemp,
+            beanId = selectedBean?.id,
+            brewer = brewers.firstOrNull { it.id == setup.brewerId },
+            grinder = selectedGrinder,
+            filter = if (isEspresso) null else filters.firstOrNull { it.id == setup.filterId },
+            grindValue = if (selectedGrinder == null) null else setup.grindValue,
+            grindText = setup.grindText,
+            water = waters.firstOrNull { it.id == setup.waterId },
+        )
+        container.activeBrew = config to BrewSession(
+            config.recipe, container.scale, { container.settings.current }, container::cue,
+            machine = container.machine,
+            monitorReady = { container.pressure.ready.value },
+            prepareMonitor = { container.pressure.prepareForBrew(it) },
+            onSpeak = { container.voice.say(it) },
+            stopLags = container.stopLags,
+        )
+        nav.navigate(Routes.LIVE)
+    }
+
+    // "Brew this" on a recipe: start right away.
+    LaunchedEffect(container.startBrewRequested) {
+        if (container.startBrewRequested) {
+            container.startBrewRequested = false
+            startBrew()
+        }
+    }
+
     BrewScreen(
         titleContent = {
             CapsuleSwitch(
@@ -181,31 +213,12 @@ fun BrewSetupScreen(nav: NavHostController) {
         bottomBar = {
             Box(Modifier.background(MaterialTheme.colorScheme.background).padding(horizontal = 16.dp, vertical = 8.dp)) {
                 PrimaryButton(if (ready) "Start brew" else "Start brew (timer only)", if (ready) Icons.Filled.Scale else Icons.Filled.Timer) {
-                    val config = BrewConfig(
-                        recipe = setup.scaledRecipe,
-                        dose = setup.dose,
-                        waterTemp = setup.waterTemp,
-                        beanId = selectedBean?.id,
-                        brewer = brewers.firstOrNull { it.id == setup.brewerId },
-                        grinder = selectedGrinder,
-                        filter = if (isEspresso) null else filters.firstOrNull { it.id == setup.filterId },
-                        grindValue = if (selectedGrinder == null) null else setup.grindValue,
-                        grindText = setup.grindText,
-                        water = waters.firstOrNull { it.id == setup.waterId },
-                    )
-                    container.activeBrew = config to BrewSession(
-                        config.recipe, container.scale, { container.settings.current }, container::cue,
-                        machine = container.machine,
-                        monitorReady = { container.pressure.ready.value },
-                        prepareMonitor = { container.pressure.prepareForBrew(it) },
-                        onSpeak = { container.voice.say(it) },
-                        stopLags = container.stopLags,
-                    )
-                    nav.navigate(Routes.LIVE)
+                    startBrew()
                 }
             }
         },
     ) { padding ->
+
         CardList(padding) {
             // Always in view: which recipe you're about to brew (tap to change it).
             item { RecipeHeader(setup = setup, onClick = { nav.navigate(Routes.RECIPE_PICKER) }) }
