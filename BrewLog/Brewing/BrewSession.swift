@@ -111,12 +111,10 @@ final class BrewSession {
         // Only once per brew, so the view appearing again doesn't ask again.
         if !prepared {
             prepared = true
-            // Beans first (on the empty scale), then rinse the paper.
-            rinsePending = AppSettings.rinsePaper && !isEspresso
-            if AppSettings.weighBeansFirst && scale.isReady {
+            if AppSettings.rinsePaper && !isEspresso {
+                phase = .rinsing
+            } else if AppSettings.weighBeansFirst {
                 weighBeans()
-            } else {
-                rinseIfPending()
             }
         }
     }
@@ -143,30 +141,12 @@ final class BrewSession {
 
     // MARK: Rinsing the paper
 
-    /// Rinsing the paper still comes (pour-over, switched on): after weighing the beans.
-    private var rinsePending = false
-
-    /// Weighing is followed by rinsing, so its button says "Beans weighed" instead of "Ready".
-    var rinseNext: Bool { rinsePending }
-
-    /// Paper rinsed (or skipped): on to Ready.
+    /// Paper rinsed (or skipped): on to weighing the beans if that's switched on.
     func rinseDone() {
         guard phase == .rinsing else { return }
-        rinsePending = false
         phase = .preparing
         Haptics.tap()
-    }
-
-    /// Beans weighed: keep the dose, then rinse the paper (or wait for Ready).
-    func dosingDone() {
-        guard phase == .dosing else { return }
-        finishDosing()
-        rinseIfPending()
-        Haptics.tap()
-    }
-
-    private func rinseIfPending() {
-        if rinsePending && phase == .preparing { phase = .rinsing }
+        if AppSettings.weighBeansFirst { weighBeans() }
     }
 
     // MARK: Weighing the beans
@@ -251,7 +231,6 @@ final class BrewSession {
         guard phase == .dosing else { return }
         scale.dosingFinished()
         phase = .preparing
-        rinseIfPending()
     }
 
     /// "Ready": tare the scale and wait for the first pour. While weighing it keeps the weighed dose first.

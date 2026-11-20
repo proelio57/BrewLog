@@ -283,8 +283,6 @@ fun LiveBrewScreen(nav: NavHostController) {
             },
             onTare = { session.tare(); container.haptics.tap() },
             onSkipDosing = { session.skipDosing() },
-            rinseNext = session.rinseNext,
-            onDosingDone = { session.dosingDone(); container.haptics.tap() },
             onReady = {
                 session.ready()
                 container.haptics.tap()
@@ -985,8 +983,6 @@ private fun Controls(
     canTare: Boolean,
     onTare: () -> Unit,
     onSkipDosing: () -> Unit,
-    rinseNext: Boolean,
-    onDosingDone: () -> Unit,
     onReady: () -> Unit,
     espresso: Boolean,
     onStart: () -> Unit,
@@ -1005,9 +1001,7 @@ private fun Controls(
                 TareButton(onTare)
                 TextButton(onClick = onSkipDosing) { Text("Skip weighing", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
-            // Rinsing the paper comes next: weighed, on to rinsing (Ready comes after).
-            if (rinseNext) PrimaryButton("Beans weighed", Icons.Filled.CheckCircle, onClick = onDosingDone)
-            else PrimaryButton("Ready", Icons.Filled.CheckCircle, onClick = onReady)
+            PrimaryButton("Ready", Icons.Filled.CheckCircle, onClick = onReady)
         }
         BrewPhase.PREPARING -> {
             if (canTare || canWeighBeans) {
