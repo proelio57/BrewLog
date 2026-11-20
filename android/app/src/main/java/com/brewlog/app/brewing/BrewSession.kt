@@ -153,6 +153,11 @@ class BrewSession(
     private var weighedDose: Double? = null
     private var dosePinged = false
     private var prepared = false
+    /** Rinsing the paper still comes (pour-over, switched on): after weighing the beans. */
+    private var rinsePending = false
+
+    /** Weighing the beans is followed by rinsing the paper, so its button says "Beans weighed" instead of "Ready". */
+    val rinseNext: Boolean get() = rinsePending
     private val previewed = HashSet<Int>()
     private val pourIndices: List<Int> =
         recipe.steps.indices.filter { recipe.steps[it].kind.isPour && recipe.steps[it].target != null }
@@ -184,26 +189,39 @@ class BrewSession(
     /** Weighing the beans needs a scale. */
     val canWeighBeans: Boolean get() = scale.isReady && (phase == BrewPhase.PREPARING || phase == BrewPhase.DOSING)
 
-    /** Called once when the live screen opens: starts by rinsing paper / weighing beans if switched on. */
+    /** Called once when the live screen opens: weighs the beans first, then rinses the paper, if switched on. */
     fun prepare() {
         // Only once per brew, so recreating the screen (e.g. rotating) doesn't ask again.
         if (prepared) return
         prepared = true
-        if (settings().rinsePaper && !isEspresso) {
-            phase = BrewPhase.RINSING
-            publish()
-        } else if (settings().weighBeansFirst) {
+        rinsePending = settings().rinsePaper && !isEspresso
+        if (settings().weighBeansFirst && scale.isReady) {
             weighBeans()
+        } else {
+            rinseIfPending()
         }
     }
 
-    /** Paper rinsed (or skipped): on to weighing the beans if that's switched on. */
+    /** Paper rinsed (or skipped): on to Ready. */
     fun rinseDone() {
         if (phase != BrewPhase.RINSING) return
+        rinsePending = false
         phase = BrewPhase.PREPARING
         publish()
-        if (settings().weighBeansFirst) {
-            weighBeans()
+    }
+
+    /** Beans weighed: keep the dose, then rinse the paper (or wait for Ready). */
+    fun dosingDone() {
+        if (phase != BrewPhase.DOSING) return
+        finishDosing()
+        rinseIfPending()
+        publish()
+    }
+
+    private fun rinseIfPending() {
+        if (rinsePending && phase == BrewPhase.PREPARING) {
+            phase = BrewPhase.RINSING
+            publish()
         }
     }
 
@@ -270,6 +288,7 @@ class BrewSession(
         if (phase != BrewPhase.DOSING) return
         scale.dosingFinished()
         phase = BrewPhase.PREPARING
+        rinseIfPending()
         publish()
     }
 

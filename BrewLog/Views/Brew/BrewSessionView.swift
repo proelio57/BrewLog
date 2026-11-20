@@ -395,7 +395,12 @@ struct BrewSessionView: View {
                     .foregroundStyle(.secondary)
             }
             .font(.subheadline.weight(.semibold))
-            primaryButton("Ready", symbol: "checkmark.circle.fill") { session.ready() }
+            // Rinsing the paper comes next: weighed, on to rinsing (Ready comes after).
+            if session.rinseNext {
+                primaryButton("Beans weighed", symbol: "checkmark.circle.fill") { session.dosingDone() }
+            } else {
+                primaryButton("Ready", symbol: "checkmark.circle.fill") { session.ready() }
+            }
         case .preparing:
             if session.canTare || (session.canWeighBeans && session.weighedDose == nil) {
                 HStack(spacing: 24) {

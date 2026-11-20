@@ -166,15 +166,26 @@ class DosingAndAdviceTest {
         assertNull(BeanDosing.stableWeight(steady.take(3), 200))
     }
 
-    @Test fun startsWithRinsingWhenSwitchedOnThenWeighs() {
+    @Test fun weighsFirstThenRinses() {
         val scale = FakeScale()
         val session = BrewSession(preset("everyday-3-pour"), scale, { AppSettings() }, {})
         session.prepare()
-        assertEquals(BrewPhase.RINSING, session.phase)
-        assertEquals(emptyList<String>(), scale.commands)
-        session.rinseDone()
         assertEquals(BrewPhase.DOSING, session.phase)
         assertEquals(listOf("dose"), scale.commands)
+        assertTrue(session.rinseNext)
+        session.dosingDone()
+        assertEquals(BrewPhase.RINSING, session.phase)
+        session.rinseDone()
+        assertEquals(BrewPhase.PREPARING, session.phase)
+        // Skipping the weighing also goes on to rinsing.
+        val skip = BrewSession(preset("everyday-3-pour"), FakeScale(), { AppSettings() }, {})
+        skip.prepare()
+        skip.skipDosing()
+        assertEquals(BrewPhase.RINSING, skip.phase)
+        // Without a scale there's nothing to weigh: straight to rinsing.
+        val noScale = BrewSession(preset("everyday-3-pour"), FakeScale(isReady = false), { AppSettings() }, {})
+        noScale.prepare()
+        assertEquals(BrewPhase.RINSING, noScale.phase)
         // Espresso has no paper to rinse.
         val shot = BrewSession(preset("espresso-classic"), FakeScale(), { AppSettings() }, {})
         shot.prepare()
