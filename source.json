@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.11.0",
+          "buildVersion": "139",
+          "date": "2026-11-20T12:25:56Z",
+          "localizedDescription": "iOS\n• After rinsing: \"Pour in 15 g of beans\" straight into the brewer on the tared scale; Ready tares again for the pour\n• \"Brew this\" on a recipe goes straight to the brew screen\n\nAndroid\n• After rinsing: \"Pour in 15 g of beans\" straight into the brewer on the tared scale; Ready tares again for the pour\n• \"Brew this\" on a recipe goes straight to the brew screen\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.11.0/BrewLog.ipa",
+          "size": 12863906,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.10.0",
           "buildVersion": "135",
           "date": "2026-11-19T16:03:32Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.3.1/BrewLog.ipa",
           "size": 12665493,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.3.0",
-          "buildVersion": "107",
-          "date": "2026-11-14T20:50:48Z",
-          "localizedDescription": "iOS\n• A Tare button wherever the scale's weight is shown: on the Brew tab (scale card and scale tile), in the scale sheet (also with the demo scale) and on the brew screen before the pour: while rinsing, weighing the beans, preparing and waiting for the pour\n\nAndroid\n• A Tare button wherever the scale's weight is shown: on the Brew tab (scale card and scale tile), in the scale sheet (also with the demo scale) and on the brew screen before the pour: while rinsing, weighing the beans, preparing and waiting for the pour\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.3.0/BrewLog.ipa",
-          "size": 12665970,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.10.0",
-      "versionDate": "2026-11-19T16:03:32Z",
-      "versionDescription": "iOS\n• The power button shows the smart plug's state: On while the plug is on (also in standby), Off once it's off\n• Fixed: the power button stayed on \"Starting\" when the smart plug's shortcut didn't run\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.10.0/BrewLog.ipa",
-      "size": 12861142
+      "version": "2.11.0",
+      "versionDate": "2026-11-20T12:25:56Z",
+      "versionDescription": "iOS\n• After rinsing: \"Pour in 15 g of beans\" straight into the brewer on the tared scale; Ready tares again for the pour\n• \"Brew this\" on a recipe goes straight to the brew screen\n\nAndroid\n• After rinsing: \"Pour in 15 g of beans\" straight into the brewer on the tared scale; Ready tares again for the pour\n• \"Brew this\" on a recipe goes straight to the brew screen\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.11.0/BrewLog.ipa",
+      "size": 12863906
     }
   ],
   "news": []
