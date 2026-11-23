@@ -342,7 +342,7 @@
     "dose": 15,
     "water": 240,
     "temperature": 90,
-    "grind": "Medium (per the bag)",
+    "grind": "Medium (approx. 750 µm)",
     "targetTime": 180,
     "flowMin": 2,
     "flowMax": 5,
