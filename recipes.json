@@ -327,6 +327,52 @@
     ]
   },
   {
+    "id": "after-three-hot-drip",
+    "name": "After THREE Hot Drip",
+    "author": "After THREE (bag)",
+    "method": "v60",
+    "summary": "The hand-drip recipe on the After THREE bag: 15 g, three pours into 240 ml of water.",
+    "tasteNotes": "Taken from the roaster's card. Three gentle pours give an even extraction and a clean cup.",
+    "taste": {
+      "acidity": 3,
+      "sweetness": 3,
+      "body": 3,
+      "clarity": 3
+    },
+    "dose": 15,
+    "water": 240,
+    "temperature": 90,
+    "grind": "Medium (per the bag)",
+    "targetTime": 180,
+    "flowMin": 2,
+    "flowMax": 5,
+    "steps": [
+      {
+        "kind": "bloom",
+        "time": 0,
+        "target": 50,
+        "note": "First pour: 50 ml, wet all the grounds evenly."
+      },
+      {
+        "kind": "pour",
+        "time": 40,
+        "target": 110,
+        "note": "Second pour: 60 ml, by 0:40."
+      },
+      {
+        "kind": "pour",
+        "time": 75,
+        "target": 240,
+        "note": "Last pour: 130 ml, by 1:15. Total 240 ml."
+      }
+    ],
+    "tips": [
+      "Water at 88\u201392 \u00b0C.",
+      "Total time 2:30\u20133:00. If it drains faster, grind finer; if slower, grind coarser.",
+      "Rinse the paper with hot water before you start."
+    ]
+  },
+  {
     "id": "kasuya-switch-hybrid",
     "name": "Switch Hybrid",
     "author": "Tetsu Kasuya",
