@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.12.1",
+          "buildVersion": "143",
+          "date": "2026-11-23T09:31:25Z",
+          "localizedDescription": "• Give the After THREE recipe a grind size the Android test can read",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.12.1/BrewLog.ipa",
+          "size": 12864162,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.11.0",
           "buildVersion": "139",
           "date": "2026-11-20T12:25:56Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.3.2/BrewLog.ipa",
           "size": 12666485,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.3.1",
-          "buildVersion": "109",
-          "date": "2026-11-15T11:00:44Z",
-          "localizedDescription": "iOS\n• Ask Claude (AI) is hidden for now while the AI connection is reworked\n\nAndroid\n• Ask Claude (AI) is hidden for now while the AI connection is reworked\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.3.1/BrewLog.ipa",
-          "size": 12665493,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.11.0",
-      "versionDate": "2026-11-20T12:25:56Z",
-      "versionDescription": "iOS\n• After rinsing: \"Pour in 15 g of beans\" straight into the brewer on the tared scale; Ready tares again for the pour\n• \"Brew this\" on a recipe goes straight to the brew screen\n\nAndroid\n• After rinsing: \"Pour in 15 g of beans\" straight into the brewer on the tared scale; Ready tares again for the pour\n• \"Brew this\" on a recipe goes straight to the brew screen\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.11.0/BrewLog.ipa",
-      "size": 12863906
+      "version": "2.12.1",
+      "versionDate": "2026-11-23T09:31:25Z",
+      "versionDescription": "• Give the After THREE recipe a grind size the Android test can read",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.12.1/BrewLog.ipa",
+      "size": 12864162
     }
   ],
   "news": []
