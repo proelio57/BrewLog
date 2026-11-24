@@ -142,7 +142,7 @@ The app writes `WidgetSnapshot` (last brew: recipe, date, rating, grind, ratio; 
 date, remaining, bag weight; brews in the last 7 days) as JSON to the App Group's `UserDefaults` (key
 `widget.snapshot`) when it goes to the background and after a brew is saved, and reloads the widgets only when it
 changed. The group id comes from `ALTAppGroups` / `BrewLogAppGroup` in Info.plist (`group.<app bundle id>`;
-SideStore rewrites `ALTAppGroups` to the group it registered). Widget links: `brewlog://brew`, `brewlog://weigh`
+AltStore rewrites `ALTAppGroups` to the group it registered). Widget links: `brewlog://brew`, `brewlog://weigh`
 (Quick weigh), `brewlog://journal`, `brewlog://beans`.
 
 ## Ask Claude (iOS)
