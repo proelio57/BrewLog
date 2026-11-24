@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.15.0",
+          "buildVersion": "152",
+          "date": "2026-11-24T19:30:43Z",
+          "localizedDescription": "iOS\n• New Settings → Appearance: choose the accent color (copper, blue, green, purple, red, graphite) and light, dark or system\n\nAndroid\n• Settings → Appearance: choose the accent color (copper, blue, green, purple, red, graphite) next to light and dark\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.15.0/BrewLog.ipa",
+          "size": 12923681,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.14.0",
           "buildVersion": "150",
           "date": "2026-11-24T18:28:45Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.5.1/BrewLog.ipa",
           "size": 12720780,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.5.0",
-          "buildVersion": "116",
-          "date": "2026-11-17T14:35:18Z",
-          "localizedDescription": "iOS\n• After the shot: one question, Steam / Switch off / Later (or set it in Settings → After the shot)\n• Smart plug through two shortcuts: the plug goes off a while after the machine goes to standby, with Cancel\n• Power button on the machine card: switch off, or switch on and get told when the machine is hot\n• Auto-off after 15, 30 or 60 minutes without a shot\n• Asks once whether to switch off when you go back from steam to brew\n• HomeKit test removed (SideStore installs can't use HomeKit)\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.5.0/BrewLog.ipa",
-          "size": 12721179,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.14.0",
-      "versionDate": "2026-11-24T18:28:45Z",
-      "versionDescription": "iOS\n• Brew tab (filter) is more compact: the numbers sit on the controls (coffee, water with ratio, temperature), the scale is one slim row, the recipe's grind is with the grinder\n• \"Before you brew\" (weigh the beans, rinse the paper) is only in Settings → Brew assistant; the recipe's details are behind the ⓘ in Choose recipe\n• Espresso: the dose, yield and milk numbers sit on the controls too\n• After an update, a \"What's new\" screen lists what changed for iOS (once per version; also under Settings → About)\n\nAndroid\n• After an update, a \"What's new\" window lists what changed for Android (once per version)\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.14.0/BrewLog.ipa",
-      "size": 12892451
+      "version": "2.15.0",
+      "versionDate": "2026-11-24T19:30:43Z",
+      "versionDescription": "iOS\n• New Settings → Appearance: choose the accent color (copper, blue, green, purple, red, graphite) and light, dark or system\n\nAndroid\n• Settings → Appearance: choose the accent color (copper, blue, green, purple, red, graphite) next to light and dark\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.15.0/BrewLog.ipa",
+      "size": 12923681
     }
   ],
   "news": []
