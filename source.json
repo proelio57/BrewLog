@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.14.0",
+          "buildVersion": "150",
+          "date": "2026-11-24T18:28:45Z",
+          "localizedDescription": "iOS\n• Brew tab (filter) is more compact: the numbers sit on the controls (coffee, water with ratio, temperature), the scale is one slim row, the recipe's grind is with the grinder\n• \"Before you brew\" (weigh the beans, rinse the paper) is only in Settings → Brew assistant; the recipe's details are behind the ⓘ in Choose recipe\n• Espresso: the dose, yield and milk numbers sit on the controls too\n• After an update, a \"What's new\" screen lists what changed for iOS (once per version; also under Settings → About)\n\nAndroid\n• After an update, a \"What's new\" window lists what changed for Android (once per version)\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.14.0/BrewLog.ipa",
+          "size": 12892451,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.13.0",
           "buildVersion": "147",
           "date": "2026-11-24T16:31:32Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.5.0/BrewLog.ipa",
           "size": 12721179,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.4.0",
-          "buildVersion": "114",
-          "date": "2026-11-17T08:45:07Z",
-          "localizedDescription": "iOS\n• HomeKit test (temporary): Settings → Espresso machine → HomeKit test checks whether BrewLog can switch your smart plug\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.4.0/BrewLog.ipa",
-          "size": 12701519,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.13.0",
-      "versionDate": "2026-11-24T16:31:32Z",
-      "versionDescription": "iOS\n• Settings are split into pages: Scale, Machine, Shot, Power & smart plug, Brew assistant, Sound/haptics/voice, and Recipes/backup/data, with a one-line summary for each\n• The long help text under \"Espresso machine\" is now one short note under each setting\n• Opening the machine from its card goes straight to the Machine settings\n• Fixed: the \"Your machine\" row in Settings had a huge empty space\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.13.0/BrewLog.ipa",
-      "size": 12892275
+      "version": "2.14.0",
+      "versionDate": "2026-11-24T18:28:45Z",
+      "versionDescription": "iOS\n• Brew tab (filter) is more compact: the numbers sit on the controls (coffee, water with ratio, temperature), the scale is one slim row, the recipe's grind is with the grinder\n• \"Before you brew\" (weigh the beans, rinse the paper) is only in Settings → Brew assistant; the recipe's details are behind the ⓘ in Choose recipe\n• Espresso: the dose, yield and milk numbers sit on the controls too\n• After an update, a \"What's new\" screen lists what changed for iOS (once per version; also under Settings → About)\n\nAndroid\n• After an update, a \"What's new\" window lists what changed for Android (once per version)\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.14.0/BrewLog.ipa",
+      "size": 12892451
     }
   ],
   "news": []
