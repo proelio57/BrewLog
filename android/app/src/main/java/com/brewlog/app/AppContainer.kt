@@ -190,7 +190,7 @@ class MainActivity : ComponentActivity() {
                 DarkMode.DARK -> true
             }
             CompositionLocalProvider(LocalContainer provides container) {
-                BrewLogTheme(darkTheme = isDark) {
+                BrewLogTheme(darkTheme = isDark, accent = settings.accent) {
                     AppRoot()
                 }
             }

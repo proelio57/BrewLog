@@ -27,6 +27,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.powerAutoOff) private var powerAutoOff = 0.0
     @AppStorage(SettingsKey.soundEnabled) private var soundEnabled = true
     @AppStorage(SettingsKey.voicePrompts) private var voicePrompts = false
+    @AppStorage(SettingsKey.accentColor) private var accent = AccentChoice.copper
+    @AppStorage(SettingsKey.appearance) private var appearance = AppearanceMode.system
 
     var body: some View {
         List {
@@ -59,6 +61,10 @@ struct SettingsView: View {
                 }
             }
             Section {
+                SettingsLink(title: "Appearance", symbol: "paintpalette",
+                             summary: "\(accent.title) · \(appearance.title)") {
+                    SettingsAppearanceView()
+                }
                 SettingsLink(title: "Recipes, backup & data", symbol: "externaldrive",
                              summary: Features.askAI ? "Online recipes, backup, Claude" : "Online recipes, backup") {
                     SettingsDataView()
@@ -446,6 +452,41 @@ struct SettingsBrewView: View {
 }
 
 // MARK: - Sound, haptics and voice
+
+struct SettingsAppearanceView: View {
+    @AppStorage(SettingsKey.accentColor) private var accent = AccentChoice.copper
+    @AppStorage(SettingsKey.appearance) private var appearance = AppearanceMode.system
+
+    var body: some View {
+        Form {
+            Section("Accent color") {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 14) {
+                    ForEach(AccentChoice.allCases) { choice in
+                        Button { accent = choice } label: {
+                            Circle().fill(choice.color)
+                                .frame(width: 38, height: 38)
+                                .overlay {
+                                    if accent == choice { Image(systemName: "checkmark").font(.footnote.bold()).foregroundStyle(.white) }
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(choice.title)
+                        .accessibilityAddTraits(accent == choice ? .isSelected : [])
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+            Section("Appearance") {
+                Picker("Appearance", selection: $appearance) {
+                    ForEach(AppearanceMode.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+            }
+        }
+        .navigationTitle("Appearance")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
 
 struct SettingsSoundView: View {
     @AppStorage(SettingsKey.soundEnabled) private var soundEnabled = true

@@ -32,3 +32,17 @@ final class WhatsNewTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(WhatsNew.self, from: Data(json.utf8)).ios, ["A"])
     }
 }
+
+final class AccentChoiceTests: XCTestCase {
+    func testEveryChoiceHasDistinctColors() {
+        let lights = Set(AccentChoice.allCases.map { $0.hex.light })
+        XCTAssertEqual(lights.count, AccentChoice.allCases.count)
+        XCTAssertEqual(AccentChoice.allCases.first, .copper)
+    }
+
+    func testAppearanceModes() {
+        XCTAssertNil(AppearanceMode.system.colorScheme)
+        XCTAssertEqual(AppearanceMode.dark.colorScheme, .dark)
+        XCTAssertEqual(AppearanceMode(rawValue: "light"), .light)
+    }
+}

@@ -64,6 +64,7 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             .putBoolean("shotStopLearn", next.shotStopLearn)
             .putBoolean("rinsePaper", next.rinsePaper)
             .putString("darkMode", next.darkMode.raw)
+            .putString("accent", next.accent.raw)
             .putString("steamAfterShot", next.steamAfterShot.raw)
             .putString("pressureFocus", next.pressureFocus.raw)
             .putBoolean("landscapeChart", next.landscapeChart)
@@ -100,6 +101,7 @@ class SettingsRepository(private val prefs: SharedPreferences) {
             shotStopLearn = prefs.getBoolean("shotStopLearn", d.shotStopLearn),
             rinsePaper = prefs.getBoolean("rinsePaper", d.rinsePaper),
             darkMode = com.brewlog.app.domain.DarkMode.entries.firstOrNull { it.raw == prefs.getString("darkMode", null) } ?: d.darkMode,
+            accent = com.brewlog.app.domain.AccentChoice.fromRaw(prefs.getString("accent", null)),
             steamAfterShot = com.brewlog.app.domain.SteamAfterShot.entries.firstOrNull { it.raw == prefs.getString("steamAfterShot", null) }
                 ?: d.steamAfterShot,
             pressureFocus = com.brewlog.app.analysis.PressureFocusMode.entries.firstOrNull { it.raw == prefs.getString("pressureFocus", null) }

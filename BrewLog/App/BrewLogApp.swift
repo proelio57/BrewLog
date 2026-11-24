@@ -8,6 +8,8 @@ struct BrewLogApp: App {
     @State private var setup = BrewSetup()
     @State private var espressoSetup = BrewSetup(scope: .espresso)
     @State private var router = AppRouter()
+    @AppStorage(SettingsKey.accentColor) private var accent = AccentChoice.copper
+    @AppStorage(SettingsKey.appearance) private var appearance = AppearanceMode.system
 
     init() {
         AppSettings.registerDefaults()
@@ -27,6 +29,8 @@ struct BrewLogApp: App {
                 .environment(ScaleManager.shared)
                 .environment(MachineManager.shared)
                 .environment(PressureMonitor.shared)
+                .tint(accent.color)
+                .preferredColorScheme(appearance.colorScheme)
         }
         .modelContainer(container)
     }

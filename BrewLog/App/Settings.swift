@@ -19,6 +19,8 @@ enum SettingsKey {
     static let voicePreview = "voicePreview"
     static let keepAwake = "keepAwake"
     static let onboardingDone = "onboardingDone"
+    static let accentColor = "appearance.accent"
+    static let appearance = "appearance.mode"
     static let setupBannerDismissed = "setupBannerDismissed"
     static let quickWeighAutoStart = "quickWeighAutoStart"
     static let chartShowsFlow = "chartShowsFlow"
