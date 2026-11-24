@@ -92,6 +92,7 @@ You don't need a paid developer account. GitHub Actions ([.github/workflows/ios.
 **1. Put AltStore Classic on the iPhone (once)**
 
 - Install **AltServer** on a Mac or Windows PC and **AltStore Classic** on the iPhone from [altstore.io](https://altstore.io), signing in with your Apple ID (a free one is enough). The computer renews the signature in the background while it is on and in the same Wi-Fi.
+- **Without a computer:** AltStore Classic's **Remote AltServer** (Settings → Set up Remote AltServer, beta) works with **[LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044)** and a free Apple ID: open LocalDevVPN, tap **Connect**, and keep it connected while AltStore installs or refreshes. Steps: [AltStore's no-computer guide](https://faq.altstore.io/altstore-classic/no-computer-instructions).
 - **AltStore PAL (the EU marketplace) does not work**: it only installs apps Apple has notarized. If AltStore says an app is "missing a marketplaceID", you have PAL.
 
 **2. Add BrewLog in AltStore**
@@ -101,7 +102,7 @@ You don't need a paid developer account. GitHub Actions ([.github/workflows/ios.
 2. Install **BrewLog** from the source once.
 3. New builds then appear under **My Apps → Update** (`raw.githubusercontent.com` caches for about 5 minutes).
 
-With a free Apple ID the app has to be refreshed every 7 days (AltServer does it, or tap **Refresh All** in AltStore), at most 3 sideloaded apps are active at once, and BrewLog uses two app IDs because of its Live Activity extension. More detail — widgets, app groups, version numbers — is in [docs/altstore.md](docs/altstore.md). If you installed BrewLog another way before, export your recipes first in case it installs as a separate app.
+With a free Apple ID the app has to be refreshed every 7 days (AltServer or the Remote AltServer does it, or tap **Refresh All** in AltStore), at most 3 sideloaded apps are active at once, and BrewLog uses two app IDs because of its Live Activity extension. More detail — widgets, app groups, version numbers — is in [docs/altstore.md](docs/altstore.md). If you installed BrewLog another way before, export your recipes first in case it installs as a separate app.
 
 ## Getting started
 

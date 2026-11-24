@@ -26,7 +26,8 @@ builds and publishes.
 
 ## On the iPhone
 
-You need **AltStore Classic** and a computer (Mac or Windows PC) that runs **AltServer** in the same Wi-Fi.
+You need **AltStore Classic** and an **AltServer** that signs and refreshes the apps. That is either a computer
+(Mac or Windows PC) in the same Wi-Fi, or, without a computer, the **Remote AltServer** below.
 
 > **AltStore PAL is not enough.** The EU marketplace version of AltStore only installs apps that Apple has
 > notarized (each app needs a `marketplaceID`). BrewLog is signed with your own free Apple ID, so it needs
@@ -40,6 +41,22 @@ You need **AltStore Classic** and a computer (Mac or Windows PC) that runs **Alt
 3. Install **BrewLog** from the source once. If you installed BrewLog another way before, export your recipes first,
    in case it installs as a separate app.
 4. New builds then show up under **My Apps → Update**. `raw.githubusercontent.com` caches for about 5 minutes.
+
+### Without a computer: Remote AltServer (LocalDevVPN)
+
+AltStore Classic can refresh and install apps without a computer in the same Wi-Fi by using a **Remote AltServer**.
+It works with a free Apple ID.
+
+1. Install **[LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044)** from the App Store
+   ([source on GitHub](https://github.com/jkcoxson/LocalDevVPN)). Open it, tap **Connect** and allow the VPN
+   profile (the iPhone needs a passcode). Keep it connected while AltStore installs or refreshes apps, otherwise the
+   Remote AltServer can't be reached.
+2. In AltStore Classic open **Settings → Set up Remote AltServer** and follow the steps in the app.
+3. Sign in with your (free) Apple ID, then add the source and install BrewLog as above.
+
+This feature is still in beta and the steps may change; AltStore's own guide has the current ones:
+[faq.altstore.io/altstore-classic/no-computer-instructions](https://faq.altstore.io/altstore-classic/no-computer-instructions).
+AltStore Classic itself is installed once the usual way (AltServer on a computer).
 
 Without a source you can also install a release's `BrewLog.ipa` directly (GitHub → Releases) with AltStore's
 **My Apps → +** or with Sideloadly; then every update is a new install of the newer `.ipa`.
@@ -60,7 +77,8 @@ Without a source you can also install a release's `BrewLog.ipa` directly (GitHub
   can be created per week. The Live Activity is an app extension and needs its own app ID, so BrewLog uses two.
   If you run out, remove the extension when AltStore asks; BrewLog then works without the Lock Screen view.
 - **Refreshing**: AltServer renews the signature in the background while the computer is on and in the same
-  Wi-Fi. Otherwise open AltStore and tap **Refresh All** before the 7 days are over.
+  Wi-Fi; with the Remote AltServer, LocalDevVPN has to be connected. Otherwise open AltStore and tap
+  **Refresh All** before the 7 days are over.
 - **Pull requests** are built and tested, and the `.ipa` is attached to the run as an artifact, but nothing is
   published.
 - **Manual run**: Actions → iOS → *Run workflow*.
