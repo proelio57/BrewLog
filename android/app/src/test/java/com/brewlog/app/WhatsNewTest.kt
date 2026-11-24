@@ -30,3 +30,11 @@ class WhatsNewTest {
         assertNull(WhatsNew.parse("not json"))
     }
 }
+
+class AccentChoiceTest {
+    @Test fun unknownOrMissingFallsBackToCopper() {
+        assertEquals(com.brewlog.app.domain.AccentChoice.COPPER, com.brewlog.app.domain.AccentChoice.fromRaw(null))
+        assertEquals(com.brewlog.app.domain.AccentChoice.COPPER, com.brewlog.app.domain.AccentChoice.fromRaw("pink"))
+        assertEquals(com.brewlog.app.domain.AccentChoice.BLUE, com.brewlog.app.domain.AccentChoice.fromRaw("blue"))
+    }
+}

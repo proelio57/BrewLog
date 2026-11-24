@@ -507,6 +507,16 @@ fun SettingsScreen(nav: NavHostController) {
                             }
                         }
                     }
+                    Spacer(Modifier.height(12.dp))
+                    Text("Accent color", fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        com.brewlog.app.domain.AccentChoice.entries.forEach { choice ->
+                            PillChip(choice.title, settings.accent == choice, tint = androidx.compose.ui.graphics.Color(choice.light)) {
+                                update { it.copy(accent = choice) }
+                            }
+                        }
+                    }
                 }
             }
             item {

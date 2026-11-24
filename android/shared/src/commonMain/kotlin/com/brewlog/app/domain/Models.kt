@@ -302,6 +302,20 @@ enum class DarkMode(val raw: String, val title: String) {
     DARK("dark", "Dark"),
 }
 
+/** The app's accent color (Settings → Appearance), as sRGB hex for light and dark mode. Same colors as on iOS. */
+enum class AccentChoice(val raw: String, val title: String, val light: Long, val dark: Long) {
+    COPPER("copper", "Copper", 0xFFB86D3C, 0xFFE29961),
+    BLUE("blue", "Blue", 0xFF0A6CFF, 0xFF5AA2FF),
+    GREEN("green", "Green", 0xFF2E9E5B, 0xFF4CC17D),
+    PURPLE("purple", "Purple", 0xFF7B5CE0, 0xFFA58BFF),
+    RED("red", "Red", 0xFFD6403A, 0xFFFF6B63),
+    GRAPHITE("graphite", "Graphite", 0xFF5F6368, 0xFFA8ADB3);
+
+    companion object {
+        fun fromRaw(raw: String?) = entries.firstOrNull { it.raw == raw } ?: COPPER
+    }
+}
+
 data class AppSettings(
     val autoStartThreshold: Double = 1.5,
     val pingLeadMode: PingLeadMode = PingLeadMode.AUTO,
@@ -335,6 +349,7 @@ data class AppSettings(
     val shotStopLearn: Boolean = true,
     val rinsePaper: Boolean = true,
     val darkMode: DarkMode = DarkMode.SYSTEM,
+    val accent: AccentChoice = AccentChoice.COPPER,
     val steamAfterShot: SteamAfterShot = SteamAfterShot.ASK,
     /** Settings → Pressure view. */
     val pressureFocus: com.brewlog.app.analysis.PressureFocusMode = com.brewlog.app.analysis.PressureFocusMode.AUTOMATIC,

@@ -6,6 +6,8 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import com.brewlog.app.domain.AccentChoice
 
 // Same palette as the iOS app (AccentColor asset + iOS grouped backgrounds).
 val Accent = Color(0xFFB86D3C)
@@ -55,7 +57,18 @@ private val DarkColors = darkColorScheme(
 @Composable
 fun BrewLogTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    accent: AccentChoice = AccentChoice.COPPER,
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(colorScheme = if (darkTheme) DarkColors else LightColors, content = content)
+    val base = if (darkTheme) DarkColors else LightColors
+    val scheme = if (accent == AccentChoice.COPPER) base else {
+        val primary = Color(if (darkTheme) accent.dark else accent.light)
+        base.copy(
+            primary = primary,
+            onPrimary = if (darkTheme) Color(0xFF1A1A1A) else Color.White,
+            primaryContainer = if (darkTheme) lerp(Color(0xFF1C1C1E), primary, 0.35f) else lerp(Color.White, primary, 0.18f),
+            onPrimaryContainer = if (darkTheme) lerp(primary, Color.White, 0.7f) else lerp(primary, Color.Black, 0.55f),
+        )
+    }
+    MaterialTheme(colorScheme = scheme, content = content)
 }
