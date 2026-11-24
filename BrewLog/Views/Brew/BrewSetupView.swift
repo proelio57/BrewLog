@@ -70,8 +70,6 @@ private struct SetupScreen: View {
     @Environment(MachineManager.self) private var machine
     @Environment(AppRouter.self) private var router
     @AppStorage(SettingsKey.setupBannerDismissed) private var setupBannerDismissed = false
-    @AppStorage(SettingsKey.weighBeansFirst) private var weighBeansFirst = true
-    @AppStorage(SettingsKey.rinsePaper) private var rinsePaper = true
     @Query(filter: #Predicate<Bean> { !$0.isArchived }, sort: \Bean.createdAt, order: .reverse) private var beans: [Bean]
     @Query(sort: \Equipment.name) private var equipment: [Equipment]
     @Query(sort: \Brew.date, order: .reverse) private var brews: [Brew]
@@ -124,7 +122,10 @@ private struct SetupScreen: View {
                     }
                 } else {
                     ScaleStatusCard()
-                    doseCard
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionHeader(title: "Recipe")
+                        doseCard
+                    }
                     VStack(alignment: .leading, spacing: 8) {
                         SectionHeader(title: "Coffee")
                         beanCard
@@ -132,15 +133,6 @@ private struct SetupScreen: View {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionHeader(title: "Gear & grind")
                         gearCard
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader(title: "Before you brew")
-                        stepsCard
-                    }
-                    // Last: the recipe is set once and rarely changed.
-                    VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader(title: "Recipe")
-                        recipeCard
                     }
                 }
                 Color.clear.frame(height: 80)
@@ -309,75 +301,20 @@ private struct SetupScreen: View {
         .accessibilityIdentifier("brew.recipeHeader")
     }
 
-    private var recipeCard: some View {
-        NavigationLink {
-            RecipePickerView(espresso: espresso)
-        } label: {
-            Card {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(setup.recipe.name).font(.title2.bold()).foregroundStyle(.primary)
-                            Text(setup.recipe.author).font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        MethodBadge(method: setup.recipe.method)
-                    }
-                    Text(setup.recipe.tasteNotes)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(3)
-                    TasteProfileView(profile: setup.recipe.taste)
-                    HStack {
-                        Text("Change recipe").font(.subheadline.weight(.semibold))
-                        Image(systemName: "chevron.right").font(.caption.weight(.bold))
-                    }
-                    .foregroundStyle(Color.accentColor)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// Optional steps, remembered: weighing the beans (needs a scale) and rinsing the paper (pour-over only).
-    private var stepsCard: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 12) {
-                StepCheck(title: "Weigh the beans", detail: scale.isReady ? "On the scale, before the brewer goes on" : "With a scale connected",
-                          isOn: $weighBeansFirst)
-                if !espresso {
-                    Divider()
-                    StepCheck(title: "Rinse the paper", detail: "With hot water, then discard it", isOn: $rinsePaper)
-                }
-            }
-        }
-    }
-
+    /// Filter: coffee, water (with the ratio) and temperature in one card; the numbers sit on the controls.
     private var doseCard: some View {
         @Bindable var setup = setup
         let recipe = setup.scaledRecipe
         return Card {
-            VStack(spacing: 14) {
-                HStack {
-                    StatView(value: setup.dose.grams1, label: "Coffee", symbol: "circle.grid.3x3.fill")
-                    StatView(value: recipe.water.grams, label: recipe.method.isEspresso ? "Yield" : "Water", symbol: "drop.fill")
-                    StatView(value: recipe.ratioText, label: "Ratio")
-                    StatView(value: "\(Int(setup.waterTemp))°", label: "Temp", symbol: "thermometer.medium")
-                }
-                Divider()
+            VStack(spacing: 12) {
                 Stepper(value: $setup.dose, in: 5...60, step: 0.5) {
-                    Label("Coffee dose", systemImage: "scalemass")
+                    ValueLabel(title: "Coffee", value: setup.dose.grams1, symbol: "scalemass")
                 }
+                ValueLabel(title: "Water", value: "\(recipe.water.grams) · \(recipe.ratioText)", symbol: "drop.fill")
+                    .padding(.trailing, 4)
                 Stepper(value: $setup.waterTemp, in: 70...100, step: 1) {
-                    Label(recipe.method.isEspresso ? "Brew temperature" : "Water temperature", systemImage: "thermometer.medium")
+                    ValueLabel(title: "Temperature", value: "\(Int(setup.waterTemp)) °C", symbol: "thermometer.medium")
                 }
-                HStack {
-                    Label("Grind", systemImage: "dial.medium").foregroundStyle(.secondary)
-                    Spacer()
-                    Text(setup.recipe.grind).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
-                }
-                .font(.subheadline)
             }
         }
     }
@@ -434,6 +371,12 @@ private struct SetupScreen: View {
                 gearRow("Grinder", symbol: "gearshape.2.fill", items: grinders, selection: $setup.grinderID)
                 GrindInputView(spec: selectedGrinder?.grinderSpec, value: grindByHand, text: $setup.grindText,
                                recommendation: recommendation, focus: $grindFocused)
+                if !setup.recipe.grind.isEmpty {
+                    Label("Recipe: \(setup.recipe.grind)", systemImage: "dial.medium")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 if let hint = recipeGrindHint {
                     Label(hint, systemImage: "arrow.left.arrow.right")
                         .font(.caption)
@@ -458,6 +401,12 @@ private struct SetupScreen: View {
                 gearRow("Grinder", symbol: "gearshape.2.fill", items: grinders, selection: $setup.grinderID)
                 GrindInputView(spec: selectedGrinder?.grinderSpec, value: grindByHand, text: $setup.grindText,
                                recommendation: recommendation, focus: $grindFocused)
+                if !setup.recipe.grind.isEmpty {
+                    Label("Recipe: \(setup.recipe.grind)", systemImage: "dial.medium")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 if let hint = recipeGrindHint {
                     Label(hint, systemImage: "arrow.left.arrow.right")
                         .font(.caption)
@@ -659,30 +608,17 @@ struct GrindInputView: View {
     }
 }
 
-/// A remembered on/off step shown as a check mark.
-private struct StepCheck: View {
+/// "Coffee ........ 15.0 g": a setting's name on the left, its value next to the controls.
+struct ValueLabel: View {
     let title: String
-    let detail: String
-    @Binding var isOn: Bool
+    let value: String
+    let symbol: String
 
     var body: some View {
-        Button {
-            isOn.toggle()
-            Haptics.tap()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(isOn ? Color.accentColor : Color.secondary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                    Text(detail).font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            .contentShape(Rectangle())
+        HStack {
+            Label(title, systemImage: symbol)
+            Spacer(minLength: 8)
+            Text(value).fontWeight(.semibold).monospacedDigit()
         }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isOn ? [.isSelected] : [])
     }
 }

@@ -9,12 +9,12 @@ struct ScaleStatusCard: View {
             Button { showConnect = true } label: {
                 HStack(spacing: 12) {
                     ZStack {
-                        Circle().fill(statusColor.opacity(0.15)).frame(width: 42, height: 42)
+                        Circle().fill(statusColor.opacity(0.15)).frame(width: 34, height: 34)
                         Image(systemName: "scalemass.fill").foregroundStyle(statusColor)
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(scale.isReady ? scale.displayName : "No scale connected")
-                            .font(.headline)
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
                         Text(subtitle)
                             .font(.caption)
@@ -36,8 +36,8 @@ struct ScaleStatusCard: View {
             // Next to the weight, not inside the card's button: tapping the card opens the connection sheet.
             if scale.isReady { TareChip { scale.tare() } }
         }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .padding(10)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .sheet(isPresented: $showConnect) { ScaleConnectSheet() }
     }
 
@@ -53,7 +53,7 @@ struct ScaleStatusCard: View {
         if scale.isDemo { return "Simulated pours. Turn off in Settings." }
         var text = scale.state.label
         if scale.state == .connected, let battery = scale.batteryLevel { text += " · \(battery)% battery" }
-        if scale.state == .idle { text = "Tap to connect your scale, or brew with the timer only" }
+        if scale.state == .idle { text = "Not connected · brews with the timer only" }
         return text
     }
 }
