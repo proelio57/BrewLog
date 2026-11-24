@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.13.0",
+          "buildVersion": "147",
+          "date": "2026-11-24T16:31:32Z",
+          "localizedDescription": "iOS\n• Settings are split into pages: Scale, Machine, Shot, Power & smart plug, Brew assistant, Sound/haptics/voice, and Recipes/backup/data, with a one-line summary for each\n• The long help text under \"Espresso machine\" is now one short note under each setting\n• Opening the machine from its card goes straight to the Machine settings\n• Fixed: the \"Your machine\" row in Settings had a huge empty space\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.13.0/BrewLog.ipa",
+          "size": 12892275,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.12.1",
           "buildVersion": "143",
           "date": "2026-11-23T09:31:25Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.4.0/BrewLog.ipa",
           "size": 12701519,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.3.2",
-          "buildVersion": "112",
-          "date": "2026-11-17T08:17:04Z",
-          "localizedDescription": "iOS\n• The pressure graph's numbers no longer overlap in a short graph\n\nAndroid\n• The pressure graph's numbers no longer overlap in a short graph\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.3.2/BrewLog.ipa",
-          "size": 12666485,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.12.1",
-      "versionDate": "2026-11-23T09:31:25Z",
-      "versionDescription": "• Give the After THREE recipe a grind size the Android test can read",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.12.1/BrewLog.ipa",
-      "size": 12864162
+      "version": "2.13.0",
+      "versionDate": "2026-11-24T16:31:32Z",
+      "versionDescription": "iOS\n• Settings are split into pages: Scale, Machine, Shot, Power & smart plug, Brew assistant, Sound/haptics/voice, and Recipes/backup/data, with a one-line summary for each\n• The long help text under \"Espresso machine\" is now one short note under each setting\n• Opening the machine from its card goes straight to the Machine settings\n• Fixed: the \"Your machine\" row in Settings had a huge empty space\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.13.0/BrewLog.ipa",
+      "size": 12892275
     }
   ],
   "news": []
