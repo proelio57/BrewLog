@@ -66,6 +66,9 @@ struct SettingsView: View {
             }
             Section {
                 LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
+                if let notes = WhatsNew.load(), !notes.ios.isEmpty {
+                    NavigationLink("What's new") { WhatsNewView(notes: notes).navigationBarTitleDisplayMode(.inline) }
+                }
             } header: {
                 Text("About")
             } footer: {

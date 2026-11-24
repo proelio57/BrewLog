@@ -73,6 +73,10 @@ jobs:
           echo "build=$build" >> "$GITHUB_OUTPUT"
           echo "Version $version ($build)"
 
+      - name: What's new
+        # The notes of this release, bundled into the app for its "What's new" screen after an update.
+        run: scripts/whats-new.sh "${{ steps.version.outputs.version }}" > Shared/whats-new.json
+
       # Tests run on the pull request; the release build after the merge skips them.
       - name: Unit tests
         if: vars.SKIP_TESTS != 'true' && github.event_name == 'pull_request'
