@@ -406,7 +406,7 @@ struct OnboardingView: View {
             Label("The demo machine simulates shots so you can try everything.", systemImage: "info.circle")
                 .font(.caption).foregroundStyle(.secondary)
         case .none:
-            Label("You can connect a machine any time in Settings → Espresso machine.", systemImage: "info.circle")
+            Label("You can connect a machine any time in Settings → Machine.", systemImage: "info.circle")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

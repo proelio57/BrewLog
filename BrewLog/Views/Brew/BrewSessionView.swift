@@ -55,7 +55,7 @@ struct BrewSessionView: View {
             Button("Switch off") { MachinePower.shared.switchOff() }
             Button("Not now", role: .cancel) {}
         } message: {
-            Text("Standby, and the smart plug if you set one up. Settings → After an espresso changes this.")
+            Text("Standby, and the smart plug if you set one up. Settings → Shot → After an espresso changes this.")
         }
         .fullScreenCover(isPresented: $showLandscapeChart) { LandscapeChartView(session: session, isPresented: $showLandscapeChart) }
         // Turning the phone during a brew opens the charts full screen (Settings → Landscape chart).

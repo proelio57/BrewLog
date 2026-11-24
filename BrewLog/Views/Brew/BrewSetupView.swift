@@ -79,6 +79,7 @@ private struct SetupScreen: View {
     @State private var activeBrew: BrewConfig?
     @State private var showNewBean = false
     @State private var showSettings = false
+    @State private var showMachineSettings = false
     @State private var showPresets = false
     @FocusState private var grindFocused: Bool
 
@@ -111,7 +112,7 @@ private struct SetupScreen: View {
                 recipeHeader
                 if espresso {
                     // Machine, its state and the scale; then the beans; then the recipe with the grind.
-                    MachineCard { showSettings = true }
+                    MachineCard { showMachineSettings = true }
                     VStack(alignment: .leading, spacing: 8) {
                         SectionHeader(title: "Coffee")
                         beanCard
@@ -179,6 +180,9 @@ private struct SetupScreen: View {
                 NavigationStack {
                     BeanEditorView(bean: nil) { bean in setup.beanID = bean.id }
                 }
+            }
+            .sheet(isPresented: $showMachineSettings) {
+                NavigationStack { SettingsMachineView(showsDone: true) }
             }
             .sheet(isPresented: $showSettings) {
                 NavigationStack { SettingsView(showsDone: true) }
