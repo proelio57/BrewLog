@@ -1,6 +1,6 @@
 # Builds BrewLog for iOS on every push to main, runs the unit tests and publishes the unsigned .ipa
-# for SideStore (a GitHub release + source.json). SideStore signs the app with your Apple ID when installing.
-# Setup: docs/sidestore.md
+# for AltStore (a GitHub release + source.json). AltStore signs the app with your Apple ID when installing.
+# Setup: docs/altstore.md
 name: iOS
 
 on:
@@ -102,7 +102,7 @@ jobs:
         run: |
           # One version for iOS and Android: semantic versioning from the merged commits (scripts/next-version.sh).
           # The version is shared with Android; the build number is this workflow's run number, which only goes up
-          # (iOS and SideStore compare it on updates).
+          # (iOS and AltStore compare it on updates).
           version="${{ inputs.version }}"
           if [ -z "$version" ]; then version=$(scripts/next-version.sh); fi
           build=$GITHUB_RUN_NUMBER
@@ -153,7 +153,7 @@ jobs:
           path: build/BrewLog.ipa
           retention-days: 14
 
-      - name: Publish for SideStore
+      - name: Publish the AltStore source
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}

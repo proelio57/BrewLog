@@ -85,24 +85,24 @@ Grind advice is concrete. A typical result: *"Grind finer: go from 24 clicks to 
 - Xcode 16 or newer (developed with Xcode 27), iOS 17+ (iPhone)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) to generate the Xcode project: `brew install xcodegen`
 
-## Install on your iPhone (SideStore, no Mac)
+## Install on your iPhone (AltStore)
 
-You don't need a Mac or a paid developer account. GitHub Actions ([.github/workflows/ios.yml](.github/workflows/ios.yml)) builds an unsigned `BrewLog.ipa` on every push to `main` and publishes it as a **SideStore source**; SideStore signs it on the phone with your own Apple ID and keeps it up to date.
+You don't need a paid developer account. GitHub Actions ([.github/workflows/ios.yml](.github/workflows/ios.yml)) builds an unsigned `BrewLog.ipa` on every push to `main` and publishes it as an **AltStore source**; AltStore signs it with your own Apple ID and keeps it up to date.
 
-**1. Put SideStore on the iPhone (once)**
+**1. Put AltStore Classic on the iPhone (once)**
 
-- Install [SideStore](https://sidestore.io) following its "Get Started" guide (on Windows this uses AltServer to copy SideStore and a pairing file to the phone once).
-- Install **[LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044)** from the App Store ([source on GitHub](https://github.com/jkcoxson/LocalDevVPN)). It is the small on-device VPN SideStore needs: open it, tap **Connect** and allow the VPN profile when iOS asks (the iPhone needs a passcode for that). This loopback tunnel is what lets SideStore install and re-sign apps on the phone itself, with no computer — keep it connected when installing or refreshing, or the 7-day refresh fails.
-- Open SideStore and sign in with your Apple ID (a free one is enough).
+- Install **AltServer** on a Mac or Windows PC and **AltStore Classic** on the iPhone from [altstore.io](https://altstore.io), signing in with your Apple ID (a free one is enough). The computer renews the signature in the background while it is on and in the same Wi-Fi.
+- **Without a computer:** AltStore Classic's **Remote AltServer** (Settings → Set up Remote AltServer, beta) works with **[LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044)** and a free Apple ID: open LocalDevVPN, tap **Connect**, and keep it connected while AltStore installs or refreshes. Steps: [AltStore's no-computer guide](https://faq.altstore.io/altstore-classic/no-computer-instructions).
+- **AltStore PAL (the EU marketplace) does not work**: it only installs apps Apple has notarized. If AltStore says an app is "missing a marketplaceID", you have PAL.
 
-**2. Add BrewLog in SideStore**
+**2. Add BrewLog in AltStore**
 
-1. **Sources → +** and enter
+1. Open `altstore://source?url=https://raw.githubusercontent.com/proelio57/BrewLog/sidestore/source.json` on the iPhone, or **Browse → Sources → +** and enter
    `https://raw.githubusercontent.com/proelio57/BrewLog/sidestore/source.json`
 2. Install **BrewLog** from the source once.
 3. New builds then appear under **My Apps → Update** (`raw.githubusercontent.com` caches for about 5 minutes).
 
-With a free Apple ID, SideStore re-signs the app every 7 days automatically (keep LocalDevVPN connected so this works without a computer), at most 3 sideloaded apps are active at once, and BrewLog uses two app IDs because of its Live Activity extension. More detail — widgets, app groups, version numbers — is in [docs/sidestore.md](docs/sidestore.md). If you sideloaded BrewLog before, export your recipes first in case it installs as a separate app.
+With a free Apple ID the app has to be refreshed every 7 days (AltServer or the Remote AltServer does it, or tap **Refresh All** in AltStore), at most 3 sideloaded apps are active at once, and BrewLog uses two app IDs because of its Live Activity extension. More detail — widgets, app groups, version numbers — is in [docs/altstore.md](docs/altstore.md). If you installed BrewLog another way before, export your recipes first in case it installs as a separate app.
 
 ## Getting started
 
@@ -115,7 +115,7 @@ open BrewLog.xcodeproj
 - **Simulator**: run the `BrewLog` scheme. The setup assistant opens on first launch. On its last step (or later on the Brew tab's scale card) turn on **Demo scale**.
 - **Your iPhone + BOOKOO**: `cp Config/Local.xcconfig.example Config/Local.xcconfig`, enter your Team ID and a unique bundle id, then run `xcodegen generate` again and run on the device. Switch the scale on, tap the scale card and select it. BrewLog reconnects automatically from then on.
 
-On a Mac, `scripts/build-ipa.sh` also builds the unsigned `.ipa` that the SideStore source publishes (see below).
+On a Mac, `scripts/build-ipa.sh` also builds the unsigned `.ipa` that the AltStore source publishes (see below).
 
 ## Tests
 
