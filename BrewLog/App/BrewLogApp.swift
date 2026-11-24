@@ -38,7 +38,7 @@ enum AppTab: Hashable {
 
 /// Full-screen flows presented above the tabs.
 enum RootCover: String, Identifiable {
-    case onboarding, quickWeigh
+    case onboarding, quickWeigh, whatsNew
     var id: String { rawValue }
 }
 

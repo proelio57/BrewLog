@@ -111,6 +111,10 @@ jobs:
           echo "Version $version ($build)"
           xcodebuild -version
 
+      - name: What's new
+        # The notes of this release, bundled into the app for its "What's new" screen after an update.
+        run: scripts/whats-new.sh "${{ steps.version.outputs.version }}" > Shared/whats-new.json
+
       - name: Generate Xcode project
         run: xcodegen generate
 

@@ -9,7 +9,13 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.brewlog.app.BuildConfig
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.TextButton
@@ -104,6 +110,27 @@ fun AppRoot() {
     val startDestination = remember { if (container.settings.current.onboardingDone) Routes.BREW else Routes.ONBOARDING }
 
     LaunchedEffect(Unit) { container.scale.start() }
+    // After an update that changed something on Android: what's new, once per version.
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var whatsNew by remember {
+        val notes = runCatching { context.assets.open("whats-new.json").bufferedReader().use { it.readText() } }
+            .getOrNull()?.let { com.brewlog.app.domain.WhatsNew.parse(it) }
+        val prefs = container.preferences
+        val pending = com.brewlog.app.domain.WhatsNew.pending(
+            notes, BuildConfig.VERSION_NAME, prefs.getString("whatsNew.lastSeenVersion", null),
+            container.settings.current.onboardingDone,
+        )
+        prefs.edit().putString("whatsNew.lastSeenVersion", BuildConfig.VERSION_NAME).apply()
+        mutableStateOf(pending)
+    }
+    whatsNew?.let { notes ->
+        AlertDialog(
+            onDismissRequest = { whatsNew = null },
+            title = { Text("What's new in ${notes.version}") },
+            text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { notes.android.forEach { Text("• $it") } } },
+            confirmButton = { TextButton(onClick = { whatsNew = null }) { Text("Continue") } },
+        )
+    }
     // After a shot (Settings → After the shot: Ask): offer to switch the machine to steam for the milk.
     if (container.steamPrompt.value) {
         val dismiss = { container.steamPrompt.value = false }

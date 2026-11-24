@@ -49,6 +49,10 @@ struct RootView: View {
                                onJustWeigh: { router.present(.quickWeigh) })
             case .quickWeigh:
                 QuickWeighView()
+            case .whatsNew:
+                if let notes = WhatsNew.load() {
+                    WhatsNewView(notes: notes) { router.present(nil) }
+                }
             }
         }
         .task {
@@ -62,6 +66,8 @@ struct RootView: View {
             PressureMonitor.shared.start()
             if !UserDefaults.standard.bool(forKey: SettingsKey.onboardingDone) {
                 router.cover = .onboarding
+            } else if showWhatsNew() {
+                router.cover = .whatsNew
             }
             WidgetSync.update(context: context, pourOver: setup, espresso: espressoSetup)
             await RecipeFeed.shared.syncIfNeeded()
@@ -97,6 +103,16 @@ struct RootView: View {
                 }
             }
         }
+    }
+
+    /// After an update that changed something on iOS: remembers the version so it shows once.
+    private func showWhatsNew() -> Bool {
+        let d = UserDefaults.standard
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let pending = WhatsNew.pending(WhatsNew.load(), installedVersion: version, lastSeen: d.string(forKey: WhatsNew.seenKey),
+                                       onboardingDone: d.bool(forKey: SettingsKey.onboardingDone))
+        d.set(version, forKey: WhatsNew.seenKey)
+        return pending != nil
     }
 
     /// Own recipes aren't presets, so each setup (pour-over and espresso) gets its own back from the store.
