@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 
-/// How BrewLog reaches the espresso machine's smart plug (Settings → Espresso machine → Smart plug).
+/// How BrewLog reaches the espresso machine's smart plug (Settings → Power & smart plug).
 enum PlugKind: String, CaseIterable, Identifiable {
     case none
     /// Two shortcuts in the Shortcuts app that switch the plug (works with HomeKit, Home Assistant, any plug app).

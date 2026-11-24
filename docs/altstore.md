@@ -6,7 +6,7 @@ and AltStore signs the app with your own Apple ID. No paid developer account and
 
 Changing only `Shared/recipes.json` doesn't need an app update at all: the **Recipes** workflow publishes the
 list in a few seconds and the app picks it up within a few hours (or right away via
-**Gear → Settings → Recipes → Check now**).
+**Settings → Recipes, backup & data → Check now**).
 
 ```
 push to main ──► .github/workflows/ios.yml ──► GitHub release v<version>  (BrewLog.ipa, BrewLog.apk)

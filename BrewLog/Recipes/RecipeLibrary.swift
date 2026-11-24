@@ -132,7 +132,7 @@ struct EquipmentPreset: Identifiable, Hashable {
         .init(name: "Clever Dripper", type: .brewer, method: .hybrid, shape: .cone),
         // Espresso machines
         .init(name: "Gaggia Classic (GaggiMate)", type: .brewer, method: .espresso,
-              notes: "Connect it in Settings → Espresso machine for pressure curves and shot control."),
+              notes: "Connect it in Settings → Machine for pressure curves and shot control."),
         .init(name: "Gaggia Classic", type: .brewer, method: .espresso),
         .init(name: "Rancilio Silvia", type: .brewer, method: .espresso),
         .init(name: "Lelit Bianca", type: .brewer, method: .espresso),
