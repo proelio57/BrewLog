@@ -254,6 +254,7 @@ struct SettingsShotView: View {
     @AppStorage(SettingsKey.pressureFocus) private var pressureFocus = PressureFocusMode.automatic
     @AppStorage(SettingsKey.landscapeChart) private var landscapeChart = true
     @AppStorage(SettingsKey.steamAfterShot) private var steamAfterShot = SteamAfterShot.ask
+    @AppStorage(SettingsKey.milkTiming) private var milkTiming = MilkTiming.after
     @State private var learnedLags = StopLagLearner.all()
 
     var body: some View {
@@ -299,6 +300,16 @@ struct SettingsShotView: View {
                 Text("Live screen")
             } footer: {
                 Text("Pressure view: Automatic shows the big pressure number and graph while a pressure sensor is connected, Always also with the machine's own pressure. Landscape chart: a button on the live chart, and turning the phone, show it full screen.")
+            }
+
+            Section {
+                Picker("Weigh the milk", selection: $milkTiming) {
+                    ForEach(MilkTiming.allCases) { Text($0.title).tag($0) }
+                }
+            } header: {
+                Text("Milk drink")
+            } footer: {
+                Text("Before the shot: the milk step comes first (pitcher on the scale, pour to the recipe's amount), then the shot. After the shot: the machine heats up for steam while you weigh the milk.")
             }
 
             if machine.kind == .gaggimate || machine.kind == .demo {

@@ -17,15 +17,26 @@ struct BrewSessionView: View {
     /// Milk drink: the milk step shows before the rating screen.
     @State private var milkStep = false
     @State private var milkSteaming = false
+    /// Milk drink with "Weigh the milk: Before the shot": the milk step comes first, its weight is kept for the brew.
+    @State private var milkBeforePending: Bool
+    @State private var milkBefore: Double?
 
     init(config: BrewConfig) {
         self.config = config
         _session = State(initialValue: BrewSession(recipe: config.recipe))
+        _milkBeforePending = State(initialValue: config.recipe.isMilkDrink && config.recipe.method.isEspresso
+                                   && MilkTiming.current == .before)
     }
 
     var body: some View {
         Group {
-            if let savedBrew, milkStep, let target = session.recipe.milk {
+            if milkBeforePending, let target = session.recipe.milk {
+                MilkStepView(target: target, steaming: false) { weight in
+                    milkBefore = weight
+                    withAnimation(.spring) { milkBeforePending = false }
+                    session.activate()
+                }
+            } else if let savedBrew, milkStep, let target = session.recipe.milk {
                 MilkStepView(target: target, steaming: milkSteaming) { weight in
                     savedBrew.milkWeight = weight
                     try? context.save()
@@ -43,7 +54,8 @@ struct BrewSessionView: View {
         }
         .onAppear {
             session.onAutoFinish = { finish() }
-            session.activate()
+            // With the milk weighed first, the session starts when that step is done (both use the scale).
+            if !milkBeforePending { session.activate() }
             UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         }
         .onDisappear {
@@ -475,7 +487,11 @@ struct BrewSessionView: View {
     private func afterShot() {
         guard session.isEspresso else { return }
         switch AfterShot.action(milkDrink: session.recipe.isMilkDrink, canSteam: machine.canSwitchToSteam,
-                                canSwitchOff: MachinePower.shared.canSwitchOff, setting: SteamAfterShot.current) {
+                                canSwitchOff: MachinePower.shared.canSwitchOff, setting: SteamAfterShot.current,
+                                milkTiming: MilkTiming.current) {
+        case .steam:
+            machine.setMode(.steam)
+            MachinePower.shared.steamChosen()
         case .steamAndMilk:
             machine.setMode(.steam)
             MachinePower.shared.steamChosen()
@@ -527,6 +543,7 @@ struct BrewSessionView: View {
         brew.usedScale = session.usesScale
         brew.samples = session.samples
         brew.machineSamples = session.machineSamples
+        if let milkBefore { brew.milkWeight = milkBefore }
         if let bean = config.bean {
             brew.bean = bean
             bean.remaining = max(0, bean.remaining - session.dose)

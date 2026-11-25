@@ -11,6 +11,17 @@ final class MilkDrinkTests: XCTestCase {
         XCTAssertEqual(AfterShot.action(milkDrink: true, canSteam: false, canSwitchOff: false, setting: .ask), .milk)
     }
 
+    func testMilkWeighedBeforeTheShotOnlySteamsAfterIt() {
+        XCTAssertEqual(AfterShot.action(milkDrink: true, canSteam: true, canSwitchOff: true, setting: .ask, milkTiming: .before), .steam)
+        XCTAssertEqual(AfterShot.action(milkDrink: true, canSteam: false, canSwitchOff: true, setting: .ask, milkTiming: .before), .nothing)
+        XCTAssertEqual(AfterShot.action(milkDrink: false, canSteam: true, canSwitchOff: true, setting: .ask, milkTiming: .before), .askSwitchOff)
+    }
+
+    func testMilkTimingDefaultsToAfterTheShot() {
+        XCTAssertEqual(MilkTiming(rawValue: "after"), .after)
+        XCTAssertEqual(MilkTiming.allCases.count, 2)
+    }
+
     func testEspressoFollowsTheSettingAndNeverSteams() {
         XCTAssertEqual(AfterShot.action(milkDrink: false, canSteam: true, canSwitchOff: true, setting: .ask), .askSwitchOff)
         XCTAssertEqual(AfterShot.action(milkDrink: false, canSteam: true, canSwitchOff: true, setting: .switchOff), .switchOff)

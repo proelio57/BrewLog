@@ -5,6 +5,7 @@ iOS
 • Brew and espresso screens: the flow color (flow line, flow readouts, the "finish" flash) follows the chosen accent color instead of a fixed teal/blue
 • New "Back" button on the screen before the pour or shot ("Ready"): goes back one screen so the beans can be weighed again
 • Espresso: the "Milk drink" switch moved to the top of the Brew tab, right under the recipe
+• New Settings → Shot → Weigh the milk: before the shot (the milk step comes first, the machine steams after the shot) or after the shot (as before)
 
 Android
 • Stopping a shot or finishing a brew takes two taps: the button turns yellow ("Really stop? Tap again"), the second tap ends it (red). A quick double tap is ignored, and the yellow state goes back after 4 seconds
