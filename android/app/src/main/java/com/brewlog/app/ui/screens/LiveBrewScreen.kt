@@ -1044,6 +1044,15 @@ private fun Controls(
     }
 }
 
+/** Back to Ready, to weigh the beans again or put the brewer on again. */
+@Composable
+private fun BackButton(onClick: () -> Unit) {
+    TextButton(onClick = onClick) {
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null, modifier = Modifier.size(18.dp))
+        Text("Back", fontWeight = FontWeight.SemiBold)
+    }
+}
+
 /** Zeroes the scale before the pour (the cup, the brewer, the portafilter); see `BrewSession.tare()`. */
 @Composable
 private fun TareButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
