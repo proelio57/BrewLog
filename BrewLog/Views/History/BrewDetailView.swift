@@ -108,7 +108,7 @@ struct BrewDetailView: View {
                     }
                     Spacer()
                     if let bean = brew.bean, bean.photo != nil {
-                        BeanThumbnail(photo: bean.photo, roast: bean.roastLevel, size: 40)
+                        BeanThumbnail(photo: bean.photo, roast: bean.roastLevel, size: 40, zoomable: true)
                     }
                     if let method = brew.recipe?.method { MethodBadge(method: method) }
                 }

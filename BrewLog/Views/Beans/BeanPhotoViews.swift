@@ -8,8 +8,28 @@ struct BeanThumbnail: View {
     let photo: Data?
     let roast: RoastLevel
     var size: CGFloat = 44
+    /// Tapping a real photo opens it full screen.
+    var zoomable = false
+    @State private var showFull = false
+
+    private var canZoom: Bool { zoomable && photo.flatMap { BeanPhotoCache.image(for: $0) } != nil }
 
     var body: some View {
+        thumbnail
+            .contentShape(Rectangle())
+            .onTapGesture { if canZoom { showFull = true } }
+            .fullScreenCover(isPresented: $showFull) {
+                if let photo, let image = BeanPhotoCache.image(for: photo) {
+                    BeanPhotoViewer(image: image) { showFull = false }
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(canZoom ? "Bean photo" : "")
+            .accessibilityHidden(!canZoom)
+            .accessibilityAddTraits(canZoom ? .isButton : [])
+    }
+
+    private var thumbnail: some View {
         Group {
             if let photo, let image = BeanPhotoCache.image(for: photo) {
                 Image(uiImage: image).resizable().scaledToFill()
@@ -19,7 +39,53 @@ struct BeanThumbnail: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
-        .accessibilityHidden(true)
+    }
+}
+
+/// A bean's photo full screen: pinch to zoom, drag when zoomed, double tap to reset, tap or ✕ to close.
+struct BeanPhotoViewer: View {
+    let image: UIImage
+    var onClose: () -> Void
+    @State private var scale: CGFloat = 1
+    @State private var baseScale: CGFloat = 1
+    @State private var offset: CGSize = .zero
+    @State private var baseOffset: CGSize = .zero
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .scaleEffect(scale)
+                .offset(offset)
+                .gesture(
+                    MagnifyGesture()
+                        .onChanged { scale = min(max(baseScale * $0.magnification, 1), 6) }
+                        .onEnded { _ in
+                            baseScale = scale
+                            if scale == 1 { offset = .zero; baseOffset = .zero }
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture()
+                        .onChanged { if scale > 1 { offset = CGSize(width: baseOffset.width + $0.translation.width,
+                                                                    height: baseOffset.height + $0.translation.height) } }
+                        .onEnded { _ in baseOffset = offset }
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation { scale = 1; baseScale = 1; offset = .zero; baseOffset = .zero }
+                }
+                .onTapGesture { if scale == 1 { onClose() } }
+            Button(action: onClose) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, .black.opacity(0.5))
+                    .padding()
+            }
+            .accessibilityLabel("Close")
+        }
     }
 }
 
