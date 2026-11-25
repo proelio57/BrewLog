@@ -45,7 +45,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -96,8 +95,6 @@ import com.brewlog.app.ui.components.MethodBadge
 import com.brewlog.app.ui.components.PickerOption
 import com.brewlog.app.ui.components.ScaleIcon
 import com.brewlog.app.ui.components.SectionHeader
-import com.brewlog.app.ui.components.StatView
-import com.brewlog.app.ui.components.TasteProfileBars
 import com.brewlog.app.ui.theme.GoodGreen
 import com.brewlog.app.ui.theme.WarnOrange
 import kotlin.math.max
@@ -296,70 +293,17 @@ fun BrewSetupScreen(nav: NavHostController) {
                     }, onAdd = { nav.navigate(Routes.PRESETS) })
                     Spacer(Modifier.height(10.dp))
                     GrindInput(selectedGrinder?.grinder, setup.grindValue, { setup.setGrind(it) }, setup.grindText, { setup.grindText = it }, recommendation)
-                    selectedGrinder?.let { g -> GrindConverter.hint(setup.recipe.grind, GrindConverter.calibrated(g.grinder, g.name)) }?.let { hint ->
-                        Text("Recipe: $hint on your ${selectedGrinder.name}", Modifier.fillMaxWidth().padding(top = 6.dp),
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
-                    }
+                    val grindHint = selectedGrinder?.let { g -> GrindConverter.hint(setup.recipe.grind, GrindConverter.calibrated(g.grinder, g.name)) }
+                    Text(
+                        if (grindHint != null) "Recipe: $grindHint on your ${selectedGrinder.name}" else "Recipe: ${setup.recipe.grind}",
+                        Modifier.fillMaxWidth().padding(top = 6.dp),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End,
+                    )
                     if (waters.isNotEmpty()) {
                         HorizontalDivider(Modifier.padding(vertical = 10.dp))
                         GearRow("Water", Icons.Filled.WaterDrop, waters, setup.waterId, { setup.waterId = it }) { nav.navigate(Routes.TOOLS_WATER) }
                     }
                 }
-            }
-            item {
-                SectionHeader("Before you brew")
-                Spacer(Modifier.height(8.dp))
-                BrewCard {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                container.settings.update { it.copy(weighBeansFirst = !settings.weighBeansFirst) }
-                            }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Weigh the beans", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                            Text(
-                                if (ready) "On the scale, before the brewer goes on" else "With a scale connected",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Switch(
-                            checked = settings.weighBeansFirst,
-                            onCheckedChange = { v -> container.settings.update { it.copy(weighBeansFirst = v) } },
-                        )
-                    }
-                    if (!isEspresso) {
-                        HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    container.settings.update { it.copy(rinsePaper = !settings.rinsePaper) }
-                                }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Rinse the paper", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                                Text("With hot water, then discard it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Switch(
-                                checked = settings.rinsePaper,
-                                onCheckedChange = { v -> container.settings.update { it.copy(rinsePaper = v) } },
-                            )
-                        }
-                    }
-                }
-            }
-            // Last: the recipe is set once and rarely changed.
-            item {
-                SectionHeader("Recipe")
-                Spacer(Modifier.height(8.dp))
-                RecipeCard(setup = setup, onClick = { nav.navigate(Routes.RECIPE_PICKER) })
             }
         }
     }
@@ -499,17 +443,12 @@ fun EspressoSetupCard(
     val displayTemp = (machineTemp ?: setup.waterTemp).toInt()
 
     BrewCard {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            StatView(setup.dose.grams1(), "Dose", Icons.Filled.Scale)
-            StatView(recipe.water.grams(), "Yield", Icons.Filled.WaterDrop)
-            StatView(recipe.ratioText, "Ratio")
-            StatView("$displayTemp°", "Temp", Icons.Filled.Thermostat)
-        }
-        HorizontalDivider(Modifier.padding(vertical = 12.dp))
-        StepperRow("Dose", setup.dose.grams1(), Icons.Filled.Scale,
+        ValueStepperRow("Dose", Icons.Filled.Scale, setup.dose.grams1(),
             onMinus = { setup.dose = maxOf(5.0, setup.dose - 0.5) },
             onPlus = { setup.dose = minOf(30.0, setup.dose + 0.5) },
         )
+        Spacer(Modifier.height(6.dp))
+        ValueRow("Yield", Icons.Filled.WaterDrop, "${recipe.water.grams()} · ${recipe.ratioText}")
         if (machine.isConnected) {
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -543,18 +482,11 @@ fun EspressoSetupCard(
             }
             Text("from ${machine.displayName}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
         } else {
-            StepperRow("Brew temperature", "${setup.waterTemp.toInt()} °C", Icons.Filled.Thermostat,
+            Spacer(Modifier.height(6.dp))
+            ValueStepperRow("Brew temperature", Icons.Filled.Thermostat, "${setup.waterTemp.toInt()} °C",
                 onMinus = { setup.waterTemp = maxOf(70.0, setup.waterTemp - 1.0) },
                 onPlus = { setup.waterTemp = minOf(100.0, setup.waterTemp + 1.0) },
             )
-        }
-        Spacer(Modifier.height(4.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Tune, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Grind", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.weight(1f))
-            Text(setup.recipe.grind, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
         }
     }
 }
@@ -577,7 +509,7 @@ private fun SetupBanner(onStart: () -> Unit, onDismiss: () -> Unit) {
     }
 }
 
-/** The selected recipe at the top of the screen, compact; the full card with its taste notes stays at the bottom. */
+/** The selected recipe at the top of the screen (tap to change it). */
 @Composable
 private fun RecipeHeader(setup: BrewSetupState, onClick: () -> Unit) {
     val recipe = setup.scaledRecipe
@@ -599,53 +531,46 @@ private fun RecipeHeader(setup: BrewSetupState, onClick: () -> Unit) {
 }
 
 @Composable
-private fun RecipeCard(setup: BrewSetupState, onClick: () -> Unit) {
-    val recipe = setup.recipe
-    BrewCard(onClick = onClick) {
-        Row(verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f)) {
-                Text(recipe.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(recipe.author, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            MethodBadge(recipe.method)
+private fun DoseCard(setup: BrewSetupState) {
+    val recipe = setup.scaledRecipe
+    BrewCard {
+        ValueStepperRow("Coffee", Icons.Filled.Scale, setup.dose.grams1(),
+            onMinus = { setup.dose = max(5.0, setup.dose - 0.5) }, onPlus = { setup.dose = minOf(60.0, setup.dose + 0.5) })
+        Spacer(Modifier.height(6.dp))
+        ValueRow(if (recipe.isEspresso) "Yield" else "Water", Icons.Filled.WaterDrop, "${recipe.water.grams()} · ${recipe.ratioText}")
+        Spacer(Modifier.height(6.dp))
+        ValueStepperRow(if (recipe.isEspresso) "Brew temperature" else "Temperature", Icons.Filled.Thermostat, "${setup.waterTemp.toInt()} °C",
+            onMinus = { setup.waterTemp = max(70.0, setup.waterTemp - 1) }, onPlus = { setup.waterTemp = minOf(100.0, setup.waterTemp + 1) })
+    }
+}
+
+/** "Label ... value [−] [+]": the number sits next to the control that changes it. */
+@Composable
+private fun ValueStepperRow(label: String, icon: ImageVector, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(label, Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.titleMedium.merge(tabular), fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.width(8.dp))
+        androidx.compose.material3.OutlinedIconButton(onClick = onMinus, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Filled.Remove, contentDescription = "Less")
         }
-        Spacer(Modifier.height(10.dp))
-        Text(recipe.tasteNotes, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3)
-        Spacer(Modifier.height(12.dp))
-        TasteProfileBars(recipe.taste)
-        Spacer(Modifier.height(12.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Change recipe", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(4.dp))
+        androidx.compose.material3.OutlinedIconButton(onClick = onPlus, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Filled.Add, contentDescription = "More")
         }
     }
 }
 
+/** A value that follows from the others (water from dose and ratio): no control. */
 @Composable
-private fun DoseCard(setup: BrewSetupState) {
-    val recipe = setup.scaledRecipe
-    BrewCard {
-        Row {
-            StatView(setup.dose.grams1(), "Coffee")
-            StatView(recipe.water.grams(), if (recipe.isEspresso) "Yield" else "Water", Icons.Filled.WaterDrop)
-            StatView(recipe.ratioText, "Ratio")
-            StatView("${setup.waterTemp.toInt()}°", "Temp", Icons.Filled.Thermostat)
-        }
-        HorizontalDivider(Modifier.padding(vertical = 12.dp))
-        StepperRow("Coffee dose", setup.dose.grams1(), Icons.Filled.Scale,
-            onMinus = { setup.dose = max(5.0, setup.dose - 0.5) }, onPlus = { setup.dose = minOf(60.0, setup.dose + 0.5) })
-        Spacer(Modifier.height(8.dp))
-        StepperRow(if (recipe.isEspresso) "Brew temperature" else "Water temperature", "${setup.waterTemp.toInt()} °C", Icons.Filled.Thermostat,
-            onMinus = { setup.waterTemp = max(70.0, setup.waterTemp - 1) }, onPlus = { setup.waterTemp = minOf(100.0, setup.waterTemp + 1) })
-        Spacer(Modifier.height(10.dp))
-        Row {
-            Icon(Icons.Filled.Tune, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Grind", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.width(12.dp))
-            Text(setup.recipe.grind, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
-        }
+private fun ValueRow(label: String, icon: ImageVector, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(label, Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.titleMedium.merge(tabular), fontWeight = FontWeight.SemiBold)
     }
 }
 

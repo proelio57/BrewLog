@@ -98,16 +98,16 @@ fun ScaleStatusCard(onClick: () -> Unit) {
     val subtitle = when {
         isDemo -> "Simulated pours. Turn off in Settings."
         state == ScaleConnectionState.CONNECTED -> "Connected" + (battery?.let { " · $it% battery" } ?: "")
-        state == ScaleConnectionState.IDLE -> "Tap to connect your scale, or brew with the timer only"
+        state == ScaleConnectionState.IDLE -> "Not connected · brews with the timer only"
         else -> state.label
     }
     BrewCard(onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconCircle(Icons.Filled.Scale, color, size = 42)
+            IconCircle(Icons.Filled.Scale, color, size = 34)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(if (ready) (if (isDemo) "Demo scale" else name ?: "Scale") else "No scale connected",
-                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (ready) {
