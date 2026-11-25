@@ -17,6 +17,13 @@ check "ungrouped notes apply to ios" "$loose" ios '["Fixed the chart labels", "A
 check "ungrouped notes apply to android" "$loose" android '["Fixed the chart labels", "Added a flush button"]'
 check "fallback line" "Bug fixes and improvements." web '["Bug fixes and improvements."]'
 check "missing section is empty" $'iOS\n• One thing' android '[]'
+shared=$'iOS & Android\n• Shared line\n\niOS\n• Only iOS\n\nWeb\n• No changes in this release'
+check "shared heading: ios" "$shared" ios '["Shared line", "Only iOS"]'
+check "shared heading: android" "$shared" android '["Shared line"]'
+check "shared heading: web" "$shared" web '[]'
+everyone=$'All platforms\n• For everyone\n\nAndroid & Web\n• Not iOS'
+check "all platforms: ios" "$everyone" ios '["For everyone"]'
+check "all platforms: web" "$everyone" web '["For everyone", "Not iOS"]'
 version=$(NOTES="$grouped" "$script" 2.14.0 | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])")
 [ "$version" = "2.14.0" ] || { echo "FAIL: version $version"; fail=1; }
 [ "$fail" -eq 0 ] && echo "whats-new: all tests passed"

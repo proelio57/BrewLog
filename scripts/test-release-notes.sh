@@ -73,6 +73,49 @@ check curated-file "iOS
 Android
 • Dark mode"
 
+# Lines that are the same for several platforms are written once under a shared heading.
+git checkout -q -b shared
+printf 'iOS\n• Same everywhere\n• Only iOS\n\nAndroid\n• Same everywhere\n• Only Android\n\nWeb\n• No changes in this release\n' > RELEASE_NOTES.md
+git add RELEASE_NOTES.md
+git commit -q -m "docs: shared notes"
+git checkout -q main
+git merge -q --no-ff shared -m "Merge shared"
+check shared-lines "iOS & Android
+• Same everywhere
+
+iOS
+• Only iOS
+
+Android
+• Only Android
+
+Web
+• No changes in this release"
+
+git checkout -q -b everywhere
+printf 'iOS\n• Same\n\nAndroid\n• Same\n\nWeb\n• Same\n• Web only\n' > RELEASE_NOTES.md
+git add RELEASE_NOTES.md
+git commit -q -m "docs: notes for everyone"
+git checkout -q main
+git merge -q --no-ff everywhere -m "Merge everywhere"
+check all-platforms "All platforms
+• Same
+
+Web
+• Web only"
+
+git checkout -q -b nochanges
+printf 'iOS\n• A thing\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release\n' > RELEASE_NOTES.md
+git add RELEASE_NOTES.md
+git commit -q -m "docs: notes with nothing for two platforms"
+git checkout -q main
+git merge -q --no-ff nochanges -m "Merge nochanges"
+check no-changes-merged "iOS
+• A thing
+
+Android & Web
+• No changes in this release"
+
 # The next release doesn't touch the file: back to commit subjects.
 git checkout -q -b after
 git commit -q --allow-empty -m "fix: later fix"

@@ -71,7 +71,7 @@ Without a source you can also install a release's `BrewLog.ipa` directly (GitHub
   a `fix` raises the patch (2.12.0 → 2.12.1), a `feat` the minor (→ 2.13.0), a breaking change the major. iOS and
   Android publish the same version into one release, and a re-run of a release keeps its version. The GitHub run
   number is the build number.
-- **Changelog**: the notes of the release (`RELEASE_NOTES.md`, grouped by platform; otherwise the commit subjects)
+- **Changelog**: the notes of the release (`RELEASE_NOTES.md`, grouped by platform, a line that is the same for several platforms appears once under "iOS & Android" or "All platforms"; otherwise the commit subjects)
   are the update description in AltStore.
 - **Free Apple ID**: apps have to be refreshed every 7 days, at most 3 apps are active at once and 10 app IDs
   can be created per week. The Live Activity is an app extension and needs its own app ID, so BrewLog uses two.
