@@ -109,7 +109,8 @@ private struct SetupScreen: View {
                 // Always in view: which recipe you're about to brew (tap to change it).
                 recipeHeader
                 if espresso {
-                    // Machine, its state and the scale; then the beans; then the recipe with the grind.
+                    // Milk drink or not; the machine, its state and the scale; then the beans; then the recipe with the grind.
+                    MilkDrinkCard()
                     MachineCard { showMachineSettings = true }
                     VStack(alignment: .leading, spacing: 8) {
                         SectionHeader(title: "Coffee")

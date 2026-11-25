@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Dose, yield, ratio and the milk for espresso. The machine's temperature, pressure and profile are on the machine
+/// Dose, yield and ratio for espresso. The machine's temperature, pressure and profile are on the machine
 /// card above; without a connected machine the brew temperature is set here.
 struct EspressoSetupView: View {
     @Environment(BrewSetup.self) private var setup
@@ -22,7 +22,26 @@ struct EspressoSetupView: View {
                 }
                 ValueLabel(title: "Yield", value: "\(recipe.water.grams) · \(recipe.ratioText)", symbol: "drop.fill")
                     .padding(.trailing, 4)
-                // Milk drink: after the shot the machine switches to steam and BrewLog weighs the milk.
+                if !machine.isConnected {
+                    Stepper(value: $setup.waterTemp, in: 70...100, step: 1) {
+                        ValueLabel(title: "Temperature", value: "\(Int(setup.waterTemp)) °C", symbol: "thermometer.medium")
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+/// Milk drink or plain espresso, right under the recipe at the top of the espresso Brew tab: after the shot the
+/// machine switches to steam and BrewLog weighs the milk.
+struct MilkDrinkCard: View {
+    @Environment(BrewSetup.self) private var setup
+
+    var body: some View {
+        @Bindable var setup = setup
+        return Card {
+            VStack(spacing: 10) {
                 Toggle(isOn: Binding(get: { setup.milk > 0 },
                                      set: { setup.milk = $0 ? (setup.recipe.milk ?? MilkStep.defaultMilk) : 0 })) {
                     Label("Milk drink", systemImage: "drop.halffull")
@@ -30,11 +49,6 @@ struct EspressoSetupView: View {
                 if setup.milk > 0 {
                     Stepper(value: $setup.milk, in: 20...500, step: 10) {
                         ValueLabel(title: "Milk", value: setup.milk.grams, symbol: "scalemass")
-                    }
-                }
-                if !machine.isConnected {
-                    Stepper(value: $setup.waterTemp, in: 70...100, step: 1) {
-                        ValueLabel(title: "Temperature", value: "\(Int(setup.waterTemp)) °C", symbol: "thermometer.medium")
                     }
                 }
             }

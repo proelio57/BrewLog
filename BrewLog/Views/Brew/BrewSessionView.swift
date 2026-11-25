@@ -17,15 +17,26 @@ struct BrewSessionView: View {
     /// Milk drink: the milk step shows before the rating screen.
     @State private var milkStep = false
     @State private var milkSteaming = false
+    /// Milk drink with "Weigh the milk: Before the shot": the milk step comes first, its weight is kept for the brew.
+    @State private var milkBeforePending: Bool
+    @State private var milkBefore: Double?
 
     init(config: BrewConfig) {
         self.config = config
         _session = State(initialValue: BrewSession(recipe: config.recipe))
+        _milkBeforePending = State(initialValue: config.recipe.isMilkDrink && config.recipe.method.isEspresso
+                                   && MilkTiming.current == .before)
     }
 
     var body: some View {
         Group {
-            if let savedBrew, milkStep, let target = session.recipe.milk {
+            if milkBeforePending, let target = session.recipe.milk {
+                MilkStepView(target: target, steaming: false) { weight in
+                    milkBefore = weight
+                    withAnimation(.spring) { milkBeforePending = false }
+                    session.activate()
+                }
+            } else if let savedBrew, milkStep, let target = session.recipe.milk {
                 MilkStepView(target: target, steaming: milkSteaming) { weight in
                     savedBrew.milkWeight = weight
                     try? context.save()
@@ -43,7 +54,8 @@ struct BrewSessionView: View {
         }
         .onAppear {
             session.onAutoFinish = { finish() }
-            session.activate()
+            // With the milk weighed first, the session starts when that step is done (both use the scale).
+            if !milkBeforePending { session.activate() }
             UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         }
         .onDisappear {
@@ -216,7 +228,7 @@ struct BrewSessionView: View {
                     // The flow in the chart's flow colour, big enough to read while pouring.
                     Text(String(format: "%.1f g/s", max(session.flowRate, 0)))
                         .font(.title3.weight(.semibold))
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(AccentChoice.flowColor)
                         .monospacedDigit()
                         .contentTransition(.numericText())
                 } else {
@@ -410,7 +422,11 @@ struct BrewSessionView: View {
             primaryButton("Ready", symbol: "checkmark.circle.fill") { session.ready() }
         case .armed:
             if session.isEspresso {
-                if session.canTare { tareButton.font(.subheadline.weight(.semibold)) }
+                HStack(spacing: 24) {
+                    if session.canTare { tareButton }
+                    backButton
+                }
+                .font(.subheadline.weight(.semibold))
                 if session.followsMachine && machine.canControl {
                     primaryButton("Start shot on \(machine.displayName)", symbol: "play.fill") { machine.startShot() }
                 } else {
@@ -419,22 +435,30 @@ struct BrewSessionView: View {
             } else if session.usesScale {
                 HStack(spacing: 24) {
                     tareButton
+                    backButton
                     Button("Start timer manually") { session.startManually() }
                 }
                 .font(.subheadline.weight(.semibold))
                 .padding(.bottom, 4)
             } else {
+                backButton.font(.subheadline.weight(.semibold))
                 primaryButton("Start timer", symbol: "play.fill") { session.startManually() }
             }
         case .brewing:
             if session.isEspresso {
-                primaryButton("Stop · shot done", symbol: "stop.fill", tint: .green) { finish() }
+                StopButton(title: "Stop · shot done", confirmTitle: "Really stop? Tap again") { finish() }
             } else {
-                primaryButton("Finish · drawdown done", symbol: "stop.fill", tint: .green) { finish() }
+                StopButton(title: "Finish · drawdown done", confirmTitle: "Really finish? Tap again") { finish() }
             }
         case .finished:
             ProgressView()
         }
+    }
+
+    /// Back to Ready, to weigh the beans again or put the brewer on again.
+    private var backButton: some View {
+        Button("Back", systemImage: "chevron.backward") { session.stepBack() }
+            .accessibilityIdentifier("brew.back")
     }
 
     /// Zeroes the scale before the pour (the cup, the brewer, the portafilter); see `BrewSession.tare()`.
@@ -463,7 +487,11 @@ struct BrewSessionView: View {
     private func afterShot() {
         guard session.isEspresso else { return }
         switch AfterShot.action(milkDrink: session.recipe.isMilkDrink, canSteam: machine.canSwitchToSteam,
-                                canSwitchOff: MachinePower.shared.canSwitchOff, setting: SteamAfterShot.current) {
+                                canSwitchOff: MachinePower.shared.canSwitchOff, setting: SteamAfterShot.current,
+                                milkTiming: MilkTiming.current) {
+        case .steam:
+            machine.setMode(.steam)
+            MachinePower.shared.steamChosen()
         case .steamAndMilk:
             machine.setMode(.steam)
             MachinePower.shared.steamChosen()
@@ -515,6 +543,7 @@ struct BrewSessionView: View {
         brew.usedScale = session.usesScale
         brew.samples = session.samples
         brew.machineSamples = session.machineSamples
+        if let milkBefore { brew.milkWeight = milkBefore }
         if let bean = config.bean {
             brew.bean = bean
             bean.remaining = max(0, bean.remaining - session.dose)
@@ -630,7 +659,7 @@ private struct ActiveStepCard: View {
         switch session.flash {
         case .target: return .green
         case .nextStep: return .accentColor
-        case .finish: return .blue
+        case .finish: return AccentChoice.flowColor
         default: return .clear
         }
     }
@@ -789,5 +818,58 @@ private struct MachineWarningAlert: ViewModifier {
     private var isPresented: Binding<Bool> {
         Binding(get: { !machine.startBlockedBy.isEmpty },
                 set: { if !$0 && !machine.startBlockedBy.isEmpty { machine.dismissStartWarning() } })
+    }
+}
+
+
+/// Ends the brew in two taps: green, then yellow ("Really stop?"), then red while it ends. Taps right after the
+/// first one are ignored (`StopConfirmation`), and the yellow state goes back to green after a few seconds.
+struct StopButton: View {
+    let title: String
+    let confirmTitle: String
+    let action: () -> Void
+    @State private var confirmation = StopConfirmation()
+    @State private var armed = false
+    @State private var ending = false
+    @State private var reset: Task<Void, Never>?
+
+    private var tint: Color { ending ? .red : (armed ? .yellow : .green) }
+
+    var body: some View {
+        Button(action: tap) {
+            Label(ending ? "Ending…" : (armed ? confirmTitle : title), systemImage: "stop.fill")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 18)
+                .background(tint.gradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .foregroundStyle(armed && !ending ? Color.black : Color.white)
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, 4)
+        .animation(.easeInOut(duration: 0.15), value: armed)
+        .onDisappear { reset?.cancel() }
+    }
+
+    private func tap() {
+        guard !ending else { return }
+        switch confirmation.tap(now: Date()) {
+        case .arm:
+            armed = true
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            reset?.cancel()
+            reset = Task {
+                try? await Task.sleep(for: .seconds(StopConfirmation.timeout))
+                guard !Task.isCancelled else { return }
+                confirmation.reset()
+                armed = false
+            }
+        case .ignore:
+            break
+        case .stop:
+            reset?.cancel()
+            ending = true
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            action()
+        }
     }
 }

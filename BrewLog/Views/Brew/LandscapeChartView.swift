@@ -63,7 +63,7 @@ struct LandscapeChartView: View {
             number("TIME", session.elapsed.mmss, color: session.isPastTargetTime && session.phase == .brewing ? .orange : .primary)
             if session.usesScale {
                 number("WEIGHT", max(session.weight, 0).scaleReadout + " g")
-                number("FLOW", String(format: "%.1f g/s", max(session.flowRate, 0)), color: .teal)
+                number("FLOW", String(format: "%.1f g/s", max(session.flowRate, 0)), color: AccentChoice.flowColor)
             }
             if session.hasPressure {
                 number("PRESSURE", pressure.map { String(format: "%.1f bar", max($0, 0)) } ?? "–",

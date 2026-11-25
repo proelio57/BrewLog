@@ -199,6 +199,15 @@ class BrewRepository(private val directory: File, private val scope: CoroutineSc
         d.copy(beans = beans, brews = d.brews.map { if (it.id == brewId) it.copy(beanId = beanId) else it })
     }
 
+    /** Throws a brew away right after it was recorded: the coffee goes back into the bag. */
+    fun discardBrew(id: String) {
+        val brew = data.value.brews.firstOrNull { it.id == id }
+        if (brew?.beanId != null) {
+            update { d -> d.copy(beans = d.beans.map { if (it.id == brew.beanId) it.copy(remaining = it.remaining + brew.dose) else it }) }
+        }
+        deleteBrew(id)
+    }
+
     fun deleteBrew(id: String) {
         update { d -> d.copy(brews = d.brews.filterNot { it.id == id }) }
         synchronized(samplesCache) { samplesCache.remove(id) }

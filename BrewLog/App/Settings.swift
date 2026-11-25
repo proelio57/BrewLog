@@ -36,6 +36,7 @@ enum SettingsKey {
     static let pressureFocus = "pressure.focus"
     static let landscapeChart = "chart.landscape"
     static let steamAfterShot = "machine.steamAfterShot"
+    static let milkTiming = "milk.timing"
     /// Smart plug of the espresso machine (`PlugKind`), the two shortcuts, and when it goes off.
     static let powerPlug = "power.plug"
     static let powerShortcutOn = "power.shortcutOn"
@@ -92,6 +93,7 @@ enum AppSettings {
             SettingsKey.pressureFocus: PressureFocusMode.automatic.rawValue,
             SettingsKey.landscapeChart: true,
             SettingsKey.steamAfterShot: SteamAfterShot.ask.rawValue,
+            SettingsKey.milkTiming: MilkTiming.after.rawValue,
             SettingsKey.powerPlug: PlugKind.none.rawValue,
             SettingsKey.powerShortcutOn: "Machine on",
             SettingsKey.powerShortcutOff: "Machine off",
@@ -160,18 +162,45 @@ enum SteamAfterShot: String, CaseIterable, Identifiable {
     }
 }
 
+/// Settings → Shot → Weigh the milk: when the milk of a milk drink is weighed.
+enum MilkTiming: String, CaseIterable, Identifiable {
+    /// After the shot, while the machine heats up for steam.
+    case after
+    /// Before the shot: pitcher on the scale first, then the shot.
+    case before
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .after: return "After the shot"
+        case .before: return "Before the shot"
+        }
+    }
+
+    static var current: MilkTiming {
+        UserDefaults.standard.string(forKey: SettingsKey.milkTiming).flatMap(MilkTiming.init) ?? .after
+    }
+}
+
 /// What BrewLog does with the machine when a shot is done.
 enum AfterShot: Equatable {
     /// Milk drink: switch to steam and weigh the milk.
     case steamAndMilk
+    /// Milk drink whose milk was weighed before the shot: only switch to steam.
+    case steam
     /// Milk drink on a machine BrewLog can't switch: only weigh the milk.
     case milk
     case askSwitchOff
     case switchOff
     case nothing
 
-    static func action(milkDrink: Bool, canSteam: Bool, canSwitchOff: Bool, setting: SteamAfterShot) -> AfterShot {
-        if milkDrink { return canSteam ? .steamAndMilk : .milk }
+    static func action(milkDrink: Bool, canSteam: Bool, canSwitchOff: Bool, setting: SteamAfterShot,
+                       milkTiming: MilkTiming = .after) -> AfterShot {
+        if milkDrink {
+            if milkTiming == .before { return canSteam ? .steam : .nothing }
+            return canSteam ? .steamAndMilk : .milk
+        }
         guard canSwitchOff else { return .nothing }
         switch setting {
         case .ask: return .askSwitchOff

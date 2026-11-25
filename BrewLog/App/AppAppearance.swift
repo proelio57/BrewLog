@@ -21,6 +21,15 @@ enum AccentChoice: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The second data color next to the accent (flow rates): teal, except where that would be too close to the accent.
+    var flowHex: UInt32 {
+        switch self {
+        case .blue: return 0x25B7A5
+        case .green: return 0x3A86FF
+        default: return 0x30B0C7
+        }
+    }
+
     var color: Color {
         let hex = hex
         return Color(UIColor { $0.userInterfaceStyle == .dark ? Self.ui(hex.dark) : Self.ui(hex.light) })
@@ -29,6 +38,12 @@ enum AccentChoice: String, CaseIterable, Identifiable {
     private static func ui(_ rgb: UInt32) -> UIColor {
         UIColor(red: CGFloat((rgb >> 16) & 0xFF) / 255, green: CGFloat((rgb >> 8) & 0xFF) / 255,
                 blue: CGFloat(rgb & 0xFF) / 255, alpha: 1)
+    }
+
+    /// The flow color of the chosen accent (flow lines, flow readouts, the "finish" flash).
+    static var flowColor: Color {
+        let hex = current.flowHex
+        return Color(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
     }
 
     static var current: AccentChoice {

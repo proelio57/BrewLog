@@ -79,7 +79,7 @@ struct PressureFocusReadouts: View {
             }
             HStack(spacing: 8) {
                 if session.usesScale {
-                    tile("Flow", String(format: "%.1f g/s", max(session.flowRate, 0)), color: .teal)
+                    tile("Flow", String(format: "%.1f g/s", max(session.flowRate, 0)), color: AccentChoice.flowColor)
                 }
                 tile("Ratio", session.liveRatio.map { String(format: "1:%.1f", $0) } ?? "–")
                 if machine.isConnected, let temperature = session.currentTemperature ?? machine.status.temperature {

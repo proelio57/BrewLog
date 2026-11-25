@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.WaterDrop
@@ -91,10 +92,8 @@ import com.brewlog.app.ui.components.color
 import com.brewlog.app.analysis.PressureFocus
 import com.brewlog.app.analysis.PressureZone
 import com.brewlog.app.domain.PressureSample
-import com.brewlog.app.ui.theme.FlowTeal
 import com.brewlog.app.ui.components.icon
 import com.brewlog.app.ui.theme.GoodGreen
-import com.brewlog.app.ui.theme.InfoBlue
 import com.brewlog.app.ui.theme.WarnOrange
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -283,6 +282,7 @@ fun LiveBrewScreen(nav: NavHostController) {
             },
             onTare = { session.tare(); container.haptics.tap() },
             onSkipDosing = { session.skipDosing() },
+            onBack = { session.stepBack(); container.haptics.tap() },
             onReady = {
                 session.ready()
                 container.haptics.tap()
@@ -455,12 +455,12 @@ private fun ShotReadouts(
                 }
                 if (snapshot.usesScale) {
                     // The flow big and in the flow colour of the charts, with the recipe's target range.
-                    androidx.compose.material3.Surface(shape = RoundedCornerShape(12.dp), color = FlowTeal.copy(alpha = 0.1f), modifier = Modifier.fillMaxWidth()) {
+                    androidx.compose.material3.Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), modifier = Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.Bottom) {
                             Text("FLOW ", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
-                            Text(fmt1(maxOf(snapshot.flowRate, 0.0)), fontSize = 34.sp, fontWeight = FontWeight.SemiBold, style = tabular, color = FlowTeal)
-                            Text(" g/s", style = MaterialTheme.typography.titleMedium, color = FlowTeal, modifier = Modifier.padding(bottom = 6.dp))
+                            Text(fmt1(maxOf(snapshot.flowRate, 0.0)), fontSize = 34.sp, fontWeight = FontWeight.SemiBold, style = tabular, color = MaterialTheme.colorScheme.secondary)
+                            Text(" g/s", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(bottom = 6.dp))
                             Spacer(Modifier.weight(1f))
                             if (recipe.flowMax > 0) {
                                 Text("target ${com.brewlog.app.ui.components.flowLabel(recipe.flowMin)}–${com.brewlog.app.ui.components.flowLabel(recipe.flowMax)} g/s",
@@ -475,7 +475,7 @@ private fun ShotReadouts(
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (focus && fromSensor && snapshot.usesScale) {
-                ReadoutTile(title = "Flow", value = "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", color = FlowTeal, modifier = Modifier.weight(1f))
+                ReadoutTile(title = "Flow", value = "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
             }
             ReadoutTile(
                 title = "Ratio",
@@ -620,7 +620,7 @@ private fun LandscapeChart(
                         BigNumber("TIME", snapshot.elapsed.mmss(), MaterialTheme.colorScheme.onSurface)
                         if (snapshot.usesScale) {
                             BigNumber("WEIGHT", "${maxOf(snapshot.weight, 0.0).scaleReadout()} g", MaterialTheme.colorScheme.onSurface)
-                            BigNumber("FLOW", "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", FlowTeal)
+                            BigNumber("FLOW", "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", MaterialTheme.colorScheme.secondary)
                         }
                         if (session.hasPressure) BigNumber("PRESSURE", pressure?.let { "${fmt1(maxOf(it, 0.0))} bar" } ?: "–", zone.color())
                     }
@@ -804,7 +804,7 @@ private fun ActiveStepCard(snapshot: BrewSnapshot, session: BrewSession) {
     val flashColor = when (snapshot.flash) {
         BrewCue.TARGET -> GoodGreen
         BrewCue.NEXT_STEP -> MaterialTheme.colorScheme.primary
-        BrewCue.FINISH -> InfoBlue
+        BrewCue.FINISH -> MaterialTheme.colorScheme.secondary
         else -> Color.Transparent
     }
     Box(Modifier.border(if (snapshot.flash != null) 3.dp else 0.dp, flashColor, RoundedCornerShape(20.dp))) {
@@ -987,6 +987,7 @@ private fun Controls(
     canTare: Boolean,
     onTare: () -> Unit,
     onSkipDosing: () -> Unit,
+    onBack: () -> Unit,
     onReady: () -> Unit,
     espresso: Boolean,
     onStart: () -> Unit,
@@ -1019,19 +1020,36 @@ private fun Controls(
             PrimaryButton("Ready", Icons.Filled.CheckCircle, onClick = onReady)
         }
         BrewPhase.ARMED -> if (espresso) {
-            if (canTare) TareButton(onTare, Modifier.fillMaxWidth())
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                if (canTare) TareButton(onTare)
+                BackButton(onBack)
+            }
             PrimaryButton("Start shot", Icons.Filled.PlayArrow, onClick = onStart)
         } else if (snapshot.usesScale) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 TareButton(onTare)
+                BackButton(onBack)
                 TextButton(onClick = onStart) { Text("Start timer manually", fontWeight = FontWeight.SemiBold) }
             }
         } else {
+            BackButton(onBack)
             PrimaryButton("Start timer", Icons.Filled.PlayArrow, onClick = onStart)
         }
-        BrewPhase.BREWING -> PrimaryButton(if (espresso) "Stop · shot done" else "Finish · drawdown done", Icons.Filled.Stop,
-            color = GoodGreen, onClick = onFinish)
+        BrewPhase.BREWING -> StopButton(
+            title = if (espresso) "Stop · shot done" else "Finish · drawdown done",
+            confirmTitle = if (espresso) "Really stop? Tap again" else "Really finish? Tap again",
+            onFinish = onFinish,
+        )
         BrewPhase.FINISHED -> Unit
+    }
+}
+
+/** Back to Ready, to weigh the beans again or put the brewer on again. */
+@Composable
+private fun BackButton(onClick: () -> Unit) {
+    TextButton(onClick = onClick) {
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null, modifier = Modifier.size(18.dp))
+        Text("Back", fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -1048,3 +1066,51 @@ private fun TareButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 /** From 0.5 g off the plan the recipe follows what was weighed. */
 private fun rescaleNote(weight: Double, dose: Double): String =
     if (kotlin.math.abs(weight - dose) >= BeanDosing.RESCALE_THRESHOLD) " Ready scales the recipe to ${weight.grams1()}." else ""
+
+
+/** Ends the brew in two taps: green, then yellow ("Really stop?"), then red while it ends. Taps right after the
+ *  first one are ignored (StopConfirmation), and the yellow state goes back to green after a few seconds. */
+@Composable
+private fun StopButton(title: String, confirmTitle: String, onFinish: () -> Unit) {
+    val confirmation = remember { com.brewlog.app.domain.StopConfirmation() }
+    var armed by remember { mutableStateOf(false) }
+    var ending by remember { mutableStateOf(false) }
+    // The yellow state runs out again.
+    androidx.compose.runtime.LaunchedEffect(armed) {
+        if (armed) {
+            kotlinx.coroutines.delay(com.brewlog.app.domain.StopConfirmation.TIMEOUT_MS)
+            confirmation.reset()
+            armed = false
+        }
+    }
+    val color = when {
+        ending -> Color(0xFFD32F2F)
+        armed -> Color(0xFFFFCC00)
+        else -> GoodGreen
+    }
+    val text = when {
+        ending -> "Ending…"
+        armed -> confirmTitle
+        else -> title
+    }
+    androidx.compose.material3.Button(
+        onClick = {
+            if (ending) return@Button
+            when (confirmation.tap(System.currentTimeMillis())) {
+                com.brewlog.app.domain.StopConfirmation.Result.ARM -> armed = true
+                com.brewlog.app.domain.StopConfirmation.Result.IGNORE -> Unit
+                com.brewlog.app.domain.StopConfirmation.Result.STOP -> { ending = true; onFinish() }
+            }
+        },
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = color,
+            contentColor = if (armed && !ending) Color.Black else Color.White,
+        ),
+    ) {
+        Icon(Icons.Filled.Stop, null)
+        Spacer(Modifier.width(8.dp))
+        Text(text, fontWeight = FontWeight.SemiBold)
+    }
+}

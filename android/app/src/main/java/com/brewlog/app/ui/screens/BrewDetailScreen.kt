@@ -27,6 +27,9 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.HorizontalDivider
+import com.brewlog.app.domain.BrewMistake
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -104,6 +107,27 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
         }
     }
 
+    // A shot of 0 s, nothing in the cup: highlight "Discard brew".
+    val mistake = if (isNew) {
+        BrewMistake.check(brew.recipe?.method?.isEspresso == true, brew.usedScale, brew.totalTime, brew.finalWeight, brew.targetWater)
+    } else null
+    var confirmDiscard by remember { mutableStateOf(false) }
+    if (confirmDiscard) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("Discard this brew?") },
+            text = { Text("It is not saved and the beans are put back.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDiscard = false
+                    // The screen closes by itself: the brew is gone from the data.
+                    repo.discardBrew(brewId)
+                }) { Text("Discard brew", color = Color(0xFFD32F2F)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Keep it") } },
+        )
+    }
+
     BrewScreen(
         title = if (isNew) "How was it?" else brew.recipeName,
         onBack = if (isNew) null else ({ nav.popBackStack() }),
@@ -118,6 +142,9 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
         },
     ) { padding ->
         CardList(padding) {
+            if (isNew && mistake != null) {
+                item { MistakeCard(mistake, brew, onDiscard = { confirmDiscard = true }) }
+            }
             item { SummaryCard(brew) }
             if (brew.usedScale && brew.recipe != null && samples.isNotEmpty()) {
                 item {
@@ -138,6 +165,15 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
                 }
             }
             item { DetailsCard(nav, brew) }
+            if (isNew && mistake == null) {
+                item {
+                    TextButton(onClick = { confirmDiscard = true }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Filled.Delete, null, tint = Color(0xFFD32F2F))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Discard brew", fontWeight = FontWeight.SemiBold, color = Color(0xFFD32F2F))
+                    }
+                }
+            }
             if (!isNew) {
                 item {
                     TextButton(onClick = { brewAgain(container, brew); nav.switchTab(Routes.BREW) }, modifier = Modifier.fillMaxWidth()) {
@@ -148,6 +184,32 @@ fun BrewDetailScreen(nav: NavHostController, brewId: String, isNew: Boolean) {
                     }
                 }
             }
+        }
+    }
+}
+
+/** A shot of 0 s or with nothing in the cup: say so and offer to throw it away. */
+@Composable
+private fun MistakeCard(mistake: BrewMistake, brew: Brew, onDiscard: () -> Unit) {
+    val red = Color(0xFFD32F2F)
+    BrewCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Warning, null, tint = red)
+            Spacer(Modifier.width(8.dp))
+            Text("This looks like a mistake", fontWeight = FontWeight.SemiBold, color = red)
+        }
+        Text(
+            if (mistake == BrewMistake.TOO_SHORT) "The brew ran only ${brew.totalTime.mmss()}." else "Only ${brew.finalWeight.grams()} in the cup.",
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        androidx.compose.material3.Button(
+            onClick = onDiscard, modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = red, contentColor = Color.White),
+        ) {
+            Icon(Icons.Filled.Delete, null)
+            Spacer(Modifier.width(8.dp))
+            Text("Discard brew", fontWeight = FontWeight.SemiBold)
         }
     }
 }

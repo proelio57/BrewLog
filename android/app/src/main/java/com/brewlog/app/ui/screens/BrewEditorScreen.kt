@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Thermostat
@@ -84,6 +85,11 @@ fun BrewEditorScreen(nav: NavHostController, brewId: String) {
     var brewerId by remember { mutableStateOf(brew.brewerId) }
     var grinderId by remember { mutableStateOf(brew.grinderId) }
     var filterId by remember { mutableStateOf(brew.filterId) }
+    // The grind on the grinder's scale (a grinder is chosen) or as free text (none).
+    var grindValue by remember { mutableStateOf(brew.grindValue) }
+    var grindText by remember { mutableStateOf(brew.grindSetting) }
+    val grinderSpec = data.equipment.firstOrNull { it.id == grinderId && it.type == EquipmentType.GRINDER }?.grinder
+        ?: if (grinderId != null && grinderId == brew.grinderId) brew.grinderSpec else null
 
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -159,6 +165,8 @@ fun BrewEditorScreen(nav: NavHostController, brewId: String) {
                                 grinderId = grinderItem?.id ?: if (grinderId == null) null else b.grinderId,
                                 grinderName = grinderItem?.name ?: b.grinderName,
                                 grinderSpec = grinderItem?.grinder ?: b.grinderSpec,
+                                grindValue = if (grinderSpec != null) grindValue?.coerceIn(0.0, 10_000.0) else null,
+                                grindSetting = if (grinderSpec == null) grindText.take(120) else b.grindSetting,
                                 filterId = filterItem?.id ?: if (filterId == null) null else b.filterId,
                                 filterName = filterItem?.name ?: b.filterName,
                                 filterFlow = filterItem?.filterFlow ?: b.filterFlow,
@@ -214,7 +222,7 @@ fun BrewEditorScreen(nav: NavHostController, brewId: String) {
                 BrewCard {
                     NumberRow("Coffee dose", dose, "g", Icons.Filled.Coffee) { dose = it }
                     HorizontalDivider(Modifier.padding(vertical = 6.dp))
-                    NumberRow("Water weight", finalWeight, "g", Icons.Filled.WaterDrop) { finalWeight = it }
+                    NumberRow("Water in the cup", finalWeight, "g", Icons.Filled.WaterDrop) { finalWeight = it }
                     HorizontalDivider(Modifier.padding(vertical = 6.dp))
                     NumberRow("Water temp", waterTemp, "°C", Icons.Filled.Thermostat) { waterTemp = it }
                     HorizontalDivider(Modifier.padding(vertical = 6.dp))
@@ -247,17 +255,36 @@ fun BrewEditorScreen(nav: NavHostController, brewId: String) {
             }
 
             item {
+                SectionHeader("Grind")
+                Spacer(Modifier.height(8.dp))
+                BrewCard {
+                    val grinders = data.equipment.filter { it.type == EquipmentType.GRINDER }
+                    val grinderOptions = listOf(PickerOption("", "None")) + grinders.map { PickerOption(it.id, it.name) }
+                    MenuPickerRow("Grinder", Icons.Filled.Build, grinderOptions, grinderId) { grinderId = it }
+                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                    if (grinderSpec != null) {
+                        NumberRow("Grind size", grindValue ?: 0.0,
+                            grinderSpec.unit.suffix.ifEmpty { grinderSpec.unit.displayName.lowercase() },
+                            Icons.Filled.Tune) { grindValue = it }
+                    } else {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.Icon(Icons.Filled.Tune, null, Modifier.padding(end = 8.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            OutlinedTextField(
+                                value = grindText, onValueChange = { grindText = it.take(120) },
+                                label = { Text("Grind size (e.g. medium-fine)") }, singleLine = true, modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
                 SectionHeader("Gear")
                 Spacer(Modifier.height(8.dp))
                 BrewCard {
                     val brewers = data.equipment.filter { it.type == EquipmentType.BREWER }
                     val brewerOptions = listOf(PickerOption("", "None")) + brewers.map { PickerOption(it.id, it.name) }
                     MenuPickerRow("Brewer", Icons.Filled.Coffee, brewerOptions, brewerId) { brewerId = it }
-
-                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
-                    val grinders = data.equipment.filter { it.type == EquipmentType.GRINDER }
-                    val grinderOptions = listOf(PickerOption("", "None")) + grinders.map { PickerOption(it.id, it.name) }
-                    MenuPickerRow("Grinder", Icons.Filled.Build, grinderOptions, grinderId) { grinderId = it }
 
                     HorizontalDivider(Modifier.padding(vertical = 6.dp))
                     val filters = data.equipment.filter { it.type == EquipmentType.FILTER }
