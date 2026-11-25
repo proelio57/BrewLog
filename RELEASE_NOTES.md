@@ -3,6 +3,8 @@
 iOS
 • Stopping a shot or finishing a brew takes two taps: the button turns yellow ("Really stop? Tap again"), the second tap ends it (red). A quick double tap is ignored, and the yellow state goes back after 4 seconds
 • Brew and espresso screens: the flow color (flow line, flow readouts, the "finish" flash) follows the chosen accent color instead of a fixed teal/blue
+• New "Back" button on the screen before the pour or shot ("Ready"): goes back one screen so the beans can be weighed again
+• Espresso: the "Milk drink" switch moved to the top of the Brew tab, right under the recipe
 
 Android
 • Stopping a shot or finishing a brew takes two taps: the button turns yellow ("Really stop? Tap again"), the second tap ends it (red). A quick double tap is ignored, and the yellow state goes back after 4 seconds
@@ -10,6 +12,7 @@ Android
 • "Before you brew" (weigh the beans, rinse the paper) is only in Settings; the recipe card at the bottom is gone, the recipe is chosen from the card at the top
 • Espresso: dose, yield and temperature sit on the controls too
 • Brew and espresso screens: the flow color (flow line, flow readouts, the "finish" flash) follows the chosen accent color instead of a fixed teal/blue
+• New "Back" button on the screen before the pour or shot ("Ready"): goes back one screen so the beans can be weighed again
 
 Web
 • No changes in this release

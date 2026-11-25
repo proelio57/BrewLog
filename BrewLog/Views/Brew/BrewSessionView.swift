@@ -410,7 +410,11 @@ struct BrewSessionView: View {
             primaryButton("Ready", symbol: "checkmark.circle.fill") { session.ready() }
         case .armed:
             if session.isEspresso {
-                if session.canTare { tareButton.font(.subheadline.weight(.semibold)) }
+                HStack(spacing: 24) {
+                    if session.canTare { tareButton }
+                    backButton
+                }
+                .font(.subheadline.weight(.semibold))
                 if session.followsMachine && machine.canControl {
                     primaryButton("Start shot on \(machine.displayName)", symbol: "play.fill") { machine.startShot() }
                 } else {
@@ -419,11 +423,13 @@ struct BrewSessionView: View {
             } else if session.usesScale {
                 HStack(spacing: 24) {
                     tareButton
+                    backButton
                     Button("Start timer manually") { session.startManually() }
                 }
                 .font(.subheadline.weight(.semibold))
                 .padding(.bottom, 4)
             } else {
+                backButton.font(.subheadline.weight(.semibold))
                 primaryButton("Start timer", symbol: "play.fill") { session.startManually() }
             }
         case .brewing:
@@ -435,6 +441,12 @@ struct BrewSessionView: View {
         case .finished:
             ProgressView()
         }
+    }
+
+    /// Back to Ready, to weigh the beans again or put the brewer on again.
+    private var backButton: some View {
+        Button("Back", systemImage: "chevron.backward") { session.stepBack() }
+            .accessibilityIdentifier("brew.back")
     }
 
     /// Zeroes the scale before the pour (the cup, the brewer, the portafilter); see `BrewSession.tare()`.

@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.WaterDrop
@@ -281,6 +282,7 @@ fun LiveBrewScreen(nav: NavHostController) {
             },
             onTare = { session.tare(); container.haptics.tap() },
             onSkipDosing = { session.skipDosing() },
+            onBack = { session.stepBack(); container.haptics.tap() },
             onReady = {
                 session.ready()
                 container.haptics.tap()
@@ -985,6 +987,7 @@ private fun Controls(
     canTare: Boolean,
     onTare: () -> Unit,
     onSkipDosing: () -> Unit,
+    onBack: () -> Unit,
     onReady: () -> Unit,
     espresso: Boolean,
     onStart: () -> Unit,
@@ -1017,14 +1020,19 @@ private fun Controls(
             PrimaryButton("Ready", Icons.Filled.CheckCircle, onClick = onReady)
         }
         BrewPhase.ARMED -> if (espresso) {
-            if (canTare) TareButton(onTare, Modifier.fillMaxWidth())
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                if (canTare) TareButton(onTare)
+                BackButton(onBack)
+            }
             PrimaryButton("Start shot", Icons.Filled.PlayArrow, onClick = onStart)
         } else if (snapshot.usesScale) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 TareButton(onTare)
+                BackButton(onBack)
                 TextButton(onClick = onStart) { Text("Start timer manually", fontWeight = FontWeight.SemiBold) }
             }
         } else {
+            BackButton(onBack)
             PrimaryButton("Start timer", Icons.Filled.PlayArrow, onClick = onStart)
         }
         BrewPhase.BREWING -> StopButton(

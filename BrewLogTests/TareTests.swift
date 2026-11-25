@@ -84,3 +84,26 @@ final class ShotBeforeTareTests: XCTestCase {
         XCTAssertTrue(session.stopRequested)
     }
 }
+
+/// "Back" from the armed screen returns to Ready, so the beans can be weighed again.
+final class StepBackTests: XCTestCase {
+    func testBackFromArmedReturnsToReady() {
+        let scale = ScaleManager()
+        scale.isDemo = true
+        let session = BrewSession(recipe: RecipeLibrary.blankRecipe(), scale: scale)
+        session.ready()
+        XCTAssertEqual(session.phase, .armed)
+        session.stepBack()
+        XCTAssertEqual(session.phase, .preparing)
+        XCTAssertNil(session.weighedDose)
+    }
+
+    func testBackDoesNothingOutsideTheArmedScreen() {
+        let scale = ScaleManager()
+        scale.isDemo = true
+        let session = BrewSession(recipe: RecipeLibrary.blankRecipe(), scale: scale)
+        XCTAssertEqual(session.phase, .preparing)
+        session.stepBack()
+        XCTAssertEqual(session.phase, .preparing)
+    }
+}

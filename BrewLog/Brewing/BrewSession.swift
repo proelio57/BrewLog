@@ -253,6 +253,22 @@ final class BrewSession {
         Haptics.tap()
     }
 
+    /// "Back" while waiting for the pour: one screen back to Ready (tare, put the brewer on) so the beans can be
+    /// weighed again. A dose weighed before is dropped (the plan stays) and weighing starts again.
+    func stepBack() {
+        guard phase == .armed else { return }
+        scale.dosingFinished()
+        phase = .preparing
+        zeroConfirmed = false
+        retareSent = false
+        recent.removeAll()
+        let hadWeighed = weighedDose != nil
+        weighedDose = nil
+        recipe = plannedRecipe
+        Haptics.tap()
+        if hadWeighed { weighBeans() }
+    }
+
     // MARK: Espresso machine
 
     var isEspresso: Bool { recipe.method.isEspresso }

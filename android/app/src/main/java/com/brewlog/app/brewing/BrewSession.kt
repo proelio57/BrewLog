@@ -265,6 +265,24 @@ class BrewSession(
         phase = BrewPhase.PREPARING
     }
 
+    /**
+     * "Back" while waiting for the pour: one screen back to Ready (tare, put the brewer on) so the beans can be
+     * weighed again. A dose weighed before is dropped (the plan stays) and weighing starts again.
+     */
+    fun stepBack() {
+        if (phase != BrewPhase.ARMED) return
+        scale.dosingFinished()
+        phase = BrewPhase.PREPARING
+        zeroConfirmed = false
+        retareSent = false
+        recent.clear()
+        val hadWeighed = weighedDose != null
+        weighedDose = null
+        recipe = plannedRecipe
+        publish()
+        if (hadWeighed) weighBeans()
+    }
+
     /** Optional: brew with the planned dose without weighing. */
     fun skipDosing() {
         if (phase != BrewPhase.DOSING) return
