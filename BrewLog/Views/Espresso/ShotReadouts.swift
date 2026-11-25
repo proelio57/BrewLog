@@ -42,8 +42,8 @@ struct ShotReadouts: View {
                 .font(.system(size: 34, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .contentTransition(.numericText())
-                .foregroundStyle(.teal)
-            Text("g/s").font(.headline).foregroundStyle(.teal)
+                .foregroundStyle(AccentChoice.flowColor)
+            Text("g/s").font(.headline).foregroundStyle(AccentChoice.flowColor)
             Spacer()
             if session.recipe.flowMax > 0 {
                 Text(String(format: "target %g–%g g/s", session.recipe.flowMin, session.recipe.flowMax))
@@ -54,7 +54,7 @@ struct ShotReadouts: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
-        .background(Color.teal.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+        .background(AccentChoice.flowColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(format: "Flow %.1f grams per second", max(session.flowRate, 0)))
     }

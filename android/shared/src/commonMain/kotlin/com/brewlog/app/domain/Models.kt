@@ -302,11 +302,12 @@ enum class DarkMode(val raw: String, val title: String) {
     DARK("dark", "Dark"),
 }
 
-/** The app's accent color (Settings → Appearance), as sRGB hex for light and dark mode. Same colors as on iOS. */
-enum class AccentChoice(val raw: String, val title: String, val light: Long, val dark: Long) {
+/** The app's accent color (Settings → Appearance), as sRGB hex for light and dark mode, plus the matching color for flow rates (the second data color next to
+ * the accent). Same colors as on iOS. */
+enum class AccentChoice(val raw: String, val title: String, val light: Long, val dark: Long, val flow: Long = 0xFF30B0C7) {
     COPPER("copper", "Copper", 0xFFB86D3C, 0xFFE29961),
-    BLUE("blue", "Blue", 0xFF0A6CFF, 0xFF5AA2FF),
-    GREEN("green", "Green", 0xFF2E9E5B, 0xFF4CC17D),
+    BLUE("blue", "Blue", 0xFF0A6CFF, 0xFF5AA2FF, 0xFF25B7A5),
+    GREEN("green", "Green", 0xFF2E9E5B, 0xFF4CC17D, 0xFF3A86FF),
     PURPLE("purple", "Purple", 0xFF7B5CE0, 0xFFA58BFF),
     RED("red", "Red", 0xFFD6403A, 0xFFFF6B63),
     GRAPHITE("graphite", "Graphite", 0xFF5F6368, 0xFFA8ADB3);

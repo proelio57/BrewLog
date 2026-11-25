@@ -91,10 +91,8 @@ import com.brewlog.app.ui.components.color
 import com.brewlog.app.analysis.PressureFocus
 import com.brewlog.app.analysis.PressureZone
 import com.brewlog.app.domain.PressureSample
-import com.brewlog.app.ui.theme.FlowTeal
 import com.brewlog.app.ui.components.icon
 import com.brewlog.app.ui.theme.GoodGreen
-import com.brewlog.app.ui.theme.InfoBlue
 import com.brewlog.app.ui.theme.WarnOrange
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -455,12 +453,12 @@ private fun ShotReadouts(
                 }
                 if (snapshot.usesScale) {
                     // The flow big and in the flow colour of the charts, with the recipe's target range.
-                    androidx.compose.material3.Surface(shape = RoundedCornerShape(12.dp), color = FlowTeal.copy(alpha = 0.1f), modifier = Modifier.fillMaxWidth()) {
+                    androidx.compose.material3.Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), modifier = Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.Bottom) {
                             Text("FLOW ", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
-                            Text(fmt1(maxOf(snapshot.flowRate, 0.0)), fontSize = 34.sp, fontWeight = FontWeight.SemiBold, style = tabular, color = FlowTeal)
-                            Text(" g/s", style = MaterialTheme.typography.titleMedium, color = FlowTeal, modifier = Modifier.padding(bottom = 6.dp))
+                            Text(fmt1(maxOf(snapshot.flowRate, 0.0)), fontSize = 34.sp, fontWeight = FontWeight.SemiBold, style = tabular, color = MaterialTheme.colorScheme.secondary)
+                            Text(" g/s", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(bottom = 6.dp))
                             Spacer(Modifier.weight(1f))
                             if (recipe.flowMax > 0) {
                                 Text("target ${com.brewlog.app.ui.components.flowLabel(recipe.flowMin)}–${com.brewlog.app.ui.components.flowLabel(recipe.flowMax)} g/s",
@@ -475,7 +473,7 @@ private fun ShotReadouts(
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (focus && fromSensor && snapshot.usesScale) {
-                ReadoutTile(title = "Flow", value = "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", color = FlowTeal, modifier = Modifier.weight(1f))
+                ReadoutTile(title = "Flow", value = "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
             }
             ReadoutTile(
                 title = "Ratio",
@@ -620,7 +618,7 @@ private fun LandscapeChart(
                         BigNumber("TIME", snapshot.elapsed.mmss(), MaterialTheme.colorScheme.onSurface)
                         if (snapshot.usesScale) {
                             BigNumber("WEIGHT", "${maxOf(snapshot.weight, 0.0).scaleReadout()} g", MaterialTheme.colorScheme.onSurface)
-                            BigNumber("FLOW", "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", FlowTeal)
+                            BigNumber("FLOW", "${fmt1(maxOf(snapshot.flowRate, 0.0))} g/s", MaterialTheme.colorScheme.secondary)
                         }
                         if (session.hasPressure) BigNumber("PRESSURE", pressure?.let { "${fmt1(maxOf(it, 0.0))} bar" } ?: "–", zone.color())
                     }
@@ -804,7 +802,7 @@ private fun ActiveStepCard(snapshot: BrewSnapshot, session: BrewSession) {
     val flashColor = when (snapshot.flash) {
         BrewCue.TARGET -> GoodGreen
         BrewCue.NEXT_STEP -> MaterialTheme.colorScheme.primary
-        BrewCue.FINISH -> InfoBlue
+        BrewCue.FINISH -> MaterialTheme.colorScheme.secondary
         else -> Color.Transparent
     }
     Box(Modifier.border(if (snapshot.flash != null) 3.dp else 0.dp, flashColor, RoundedCornerShape(20.dp))) {

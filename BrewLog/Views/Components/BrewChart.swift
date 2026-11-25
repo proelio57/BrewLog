@@ -83,7 +83,7 @@ struct BrewChart: View {
 
     @AppStorage(SettingsKey.chartShowsFlow) private var flowVisible = true
 
-    private static let flowColor = Color.teal
+    private static var flowColor: Color { AccentChoice.flowColor }
 
     var body: some View {
         let model = BrewChartModel(samples: samples, recipe: recipe, currentTime: currentTime)

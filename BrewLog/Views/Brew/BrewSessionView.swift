@@ -216,7 +216,7 @@ struct BrewSessionView: View {
                     // The flow in the chart's flow colour, big enough to read while pouring.
                     Text(String(format: "%.1f g/s", max(session.flowRate, 0)))
                         .font(.title3.weight(.semibold))
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(AccentChoice.flowColor)
                         .monospacedDigit()
                         .contentTransition(.numericText())
                 } else {
@@ -630,7 +630,7 @@ private struct ActiveStepCard: View {
         switch session.flash {
         case .target: return .green
         case .nextStep: return .accentColor
-        case .finish: return .blue
+        case .finish: return AccentChoice.flowColor
         default: return .clear
         }
     }

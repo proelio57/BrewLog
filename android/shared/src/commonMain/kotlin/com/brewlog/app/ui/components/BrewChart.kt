@@ -45,7 +45,6 @@ import com.brewlog.app.domain.Recipe
 import com.brewlog.app.domain.WeightSample
 import com.brewlog.app.domain.fmt1
 import com.brewlog.app.domain.mmss
-import com.brewlog.app.ui.theme.FlowTeal
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.log10
@@ -143,6 +142,7 @@ fun PureBrewChart(
     }
     val measurer = rememberTextMeasurer()
     val accent = MaterialTheme.colorScheme.primary
+    val flowColor = MaterialTheme.colorScheme.secondary
     val grid = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val recipeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
@@ -187,12 +187,12 @@ fun PureBrewChart(
                 if (showFlowRange && recipe != null) {
                     val yTop = yF(min(recipe.flowMax, model.maxFlow))
                     val yBottom = yF(min(recipe.flowMin, model.maxFlow))
-                    drawRect(FlowTeal.copy(alpha = 0.08f), topLeft = Offset(x0, yTop), size = Size(x1 - x0, yBottom - yTop))
+                    drawRect(flowColor.copy(alpha = 0.08f), topLeft = Offset(x0, yTop), size = Size(x1 - x0, yBottom - yTop))
                 }
-                drawSeries(model.flow, ::x, ::yF, y1, FlowTeal, 1.5.dp.toPx(),
-                    Brush.verticalGradient(listOf(FlowTeal.copy(alpha = 0.22f), FlowTeal.copy(alpha = 0.10f)), startY = y0, endY = y1))
+                drawSeries(model.flow, ::x, ::yF, y1, flowColor, 1.5.dp.toPx(),
+                    Brush.verticalGradient(listOf(flowColor.copy(alpha = 0.22f), flowColor.copy(alpha = 0.10f)), startY = y0, endY = y1))
                 model.flowTicks.forEach { f ->
-                    val layout = measurer.measure(flowLabel(f), labelStyle.copy(color = FlowTeal))
+                    val layout = measurer.measure(flowLabel(f), labelStyle.copy(color = flowColor))
                     drawText(layout, topLeft = Offset(x1 + 4.dp.toPx(), yF(f) - layout.size.height / 2f))
                 }
             }
@@ -279,6 +279,7 @@ private fun Legend(
     recipeColor: Color,
     onToggleFlow: () -> Unit,
 ) {
+    val flowColor = MaterialTheme.colorScheme.secondary
     Row(verticalAlignment = Alignment.CenterVertically) {
         LegendItem("Weight g") { Box(Modifier.width(14.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(accent)) }
         if (hasRecipe) {
@@ -302,8 +303,8 @@ private fun Legend(
             LegendItem("Flow g/s") {
                 Box(
                     Modifier.size(14.dp, 8.dp).clip(RoundedCornerShape(2.dp))
-                        .background(FlowTeal.copy(alpha = if (flowVisible) 0.5f else 0.15f))
-                        .border(1.dp, FlowTeal, RoundedCornerShape(2.dp)),
+                        .background(flowColor.copy(alpha = if (flowVisible) 0.5f else 0.15f))
+                        .border(1.dp, flowColor, RoundedCornerShape(2.dp)),
                 )
             }
         }

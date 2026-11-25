@@ -61,10 +61,12 @@ fun BrewLogTheme(
     content: @Composable () -> Unit,
 ) {
     val base = if (darkTheme) DarkColors else LightColors
-    val scheme = if (accent == AccentChoice.COPPER) base else {
+    val flow = Color(accent.flow)
+    val scheme = if (accent == AccentChoice.COPPER) base.copy(secondary = flow) else {
         val primary = Color(if (darkTheme) accent.dark else accent.light)
         base.copy(
             primary = primary,
+            secondary = flow,
             onPrimary = if (darkTheme) Color(0xFF1A1A1A) else Color.White,
             primaryContainer = if (darkTheme) lerp(Color(0xFF1C1C1E), primary, 0.35f) else lerp(Color.White, primary, 0.18f),
             onPrimaryContainer = if (darkTheme) lerp(primary, Color.White, 0.7f) else lerp(primary, Color.Black, 0.55f),

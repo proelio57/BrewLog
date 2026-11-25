@@ -47,7 +47,7 @@ struct MachineChart: View {
                     if let flow = sample.f {
                         LineMark(x: .value("Time", sample.t), y: .value("Flow", min(flow, 12)),
                                  series: .value("Series", "Flow"))
-                            .foregroundStyle(Color.teal)
+                            .foregroundStyle(AccentChoice.flowColor)
                             .lineStyle(StrokeStyle(lineWidth: 1.5))
                             .interpolationMethod(.monotone)
                     }
@@ -74,7 +74,7 @@ struct MachineChart: View {
 
             HStack(spacing: 14) {
                 legend("Pressure (bar)", Color.accentColor)
-                legend("Pump flow (ml/s)", .teal)
+                legend("Pump flow (ml/s)", AccentChoice.flowColor)
                 Spacer()
                 if let temperature = averageTemperature {
                     Text(String(format: "Ø %.1f °C", temperature))
