@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.17.0",
+          "buildVersion": "163",
+          "date": "2026-11-25T10:27:16Z",
+          "localizedDescription": "iOS\n• Stopping a shot or finishing a brew takes two taps: the button turns yellow (\"Really stop? Tap again\"), the second tap ends it (red). A quick double tap is ignored, and the yellow state goes back after 4 seconds\n• Brew and espresso screens: the flow color (flow line, flow readouts, the \"finish\" flash) follows the chosen accent color instead of a fixed teal/blue\n• New \"Back\" button on the screen before the pour or shot (\"Ready\"): goes back one screen so the beans can be weighed again\n• \"Discard brew\" on the rating screen throws a brew away and puts the beans back. It is highlighted in red when the shot was very short or hardly anything is in the cup\n• Edit brew is tidier: amounts, a new Grind section (grinder and grind size, on the grinder's scale or as text) and the gear, each as a labelled row\n• Espresso: the \"Milk drink\" switch moved to the top of the Brew tab, right under the recipe\n• New Settings → Shot → Weigh the milk: before the shot (the milk step comes first, the machine steams after the shot) or after the shot (as before)\n\nAndroid\n• Stopping a shot or finishing a brew takes two taps: the button turns yellow (\"Really stop? Tap again\"), the second tap ends it (red). A quick double tap is ignored, and the yellow state goes back after 4 seconds\n• Brew tab is more compact (same as on iOS): the numbers sit on the controls (coffee, water with ratio, temperature), the scale is one slim row, the recipe's grind is with the grinder\n• \"Before you brew\" (weigh the beans, rinse the paper) is only in Settings; the recipe card at the bottom is gone, the recipe is chosen from the card at the top\n• Espresso: dose, yield and temperature sit on the controls too\n• Brew and espresso screens: the flow color (flow line, flow readouts, the \"finish\" flash) follows the chosen accent color instead of a fixed teal/blue\n• New \"Back\" button on the screen before the pour or shot (\"Ready\"): goes back one screen so the beans can be weighed again\n• \"Discard brew\" on the rating screen",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.17.0/BrewLog.ipa",
+          "size": 13030013,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.16.0",
           "buildVersion": "154",
           "date": "2026-11-25T07:30:31Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.8.0/BrewLog.ipa",
           "size": 12825918,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.7.0",
-          "buildVersion": "120",
-          "date": "2026-11-19T09:46:31Z",
-          "localizedDescription": "iOS\n• Journal filters: Filter or Espresso, To review, one bean, one recipe\n\nAndroid\n• Journal filters: Filter or Espresso, To review, one bean, one recipe\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.7.0/BrewLog.ipa",
-          "size": 12758372,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.16.0",
-      "versionDate": "2026-11-25T07:30:31Z",
-      "versionDescription": "iOS\n• Tap a bean's photo to see it full screen (pinch to zoom, double tap to reset)\n\nAndroid\n• Tap a bean's photo to see it full screen (pinch to zoom, double tap to reset)\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.16.0/BrewLog.ipa",
-      "size": 12940433
+      "version": "2.17.0",
+      "versionDate": "2026-11-25T10:27:16Z",
+      "versionDescription": "iOS\n• Stopping a shot or finishing a brew takes two taps: the button turns yellow (\"Really stop? Tap again\"), the second tap ends it (red). A quick double tap is ignored, and the yellow state goes back after 4 seconds\n• Brew and espresso screens: the flow color (flow line, flow readouts, the \"finish\" flash) follows the chosen accent color instead of a fixed teal/blue\n• New \"Back\" button on the screen before the pour or shot (\"Ready\"): goes back one screen so the beans can be weighed again\n• \"Discard brew\" on the rating screen throws a brew away and puts the beans back. It is highlighted in red when the shot was very short or hardly anything is in the cup\n• Edit brew is tidier: amounts, a new Grind section (grinder and grind size, on the grinder's scale or as text) and the gear, each as a labelled row\n• Espresso: the \"Milk drink\" switch moved to the top of the Brew tab, right under the recipe\n• New Settings → Shot → Weigh the milk: before the shot (the milk step comes first, the machine steams after the shot) or after the shot (as before)\n\nAndroid\n• Stopping a shot or finishing a brew takes two taps: the button turns yellow (\"Really stop? Tap again\"), the second tap ends it (red). A quick double tap is ignored, and the yellow state goes back after 4 seconds\n• Brew tab is more compact (same as on iOS): the numbers sit on the controls (coffee, water with ratio, temperature), the scale is one slim row, the recipe's grind is with the grinder\n• \"Before you brew\" (weigh the beans, rinse the paper) is only in Settings; the recipe card at the bottom is gone, the recipe is chosen from the card at the top\n• Espresso: dose, yield and temperature sit on the controls too\n• Brew and espresso screens: the flow color (flow line, flow readouts, the \"finish\" flash) follows the chosen accent color instead of a fixed teal/blue\n• New \"Back\" button on the screen before the pour or shot (\"Ready\"): goes back one screen so the beans can be weighed again\n• \"Discard brew\" on the rating screen",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.17.0/BrewLog.ipa",
+      "size": 13030013
     }
   ],
   "news": []
