@@ -9,12 +9,21 @@
       "name": "BrewLog",
       "bundleIdentifier": "com.brewlog.app",
       "developerName": "BrewLog",
-      "subtitle": "Pour-over brewing companion",
-      "localizedDescription": "Live BOOKOO scale guidance, a brew journal and taste-based tips for your next cup.",
+      "subtitle": "Pour-over and espresso brewing companion",
+      "localizedDescription": "Guides every brew, pour-over or espresso, and keeps a journal of it.\n\n• Bluetooth scales (BOOKOO, Timemore, Decent): live weight and flow, a ping just before the target weight, spoken step prompts and a live graph. Also on the Lock Screen and in the Dynamic Island.\n• Espresso machines (GaggiMate, Decent DE1, La Marzocco): follows the shot, stops it at the yield, shows pressure and temperature, and switches the machine and its smart plug off when you are done.\n• Recipes from the specialty scene, your own gear, beans (scan the bag) and grinder settings down to the click.\n• Taste feedback that tells you what to change next time, statistics, widgets and optional Git backup.\n\nNo account, no analytics: your data stays on your iPhone.",
       "iconURL": "https://raw.githubusercontent.com/proelio57/BrewLog/sidestore/icon.png",
       "tintColor": "#B86D3C",
       "category": "lifestyle",
       "versions": [
+        {
+          "version": "2.17.2",
+          "buildVersion": "168",
+          "date": "2026-11-25T17:06:57Z",
+          "localizedDescription": "• The app page in AltStore describes the app as it is now (pour-over and espresso, scales, machines, journal), and \"What's New\" shows only the iOS changes",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.17.2/BrewLog.ipa",
+          "size": 13040957,
+          "minOSVersion": "17.0"
+        },
         {
           "version": "2.17.1",
           "buildVersion": "166",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.10.0/BrewLog.ipa",
           "size": 12861142,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.9.0",
-          "buildVersion": "132",
-          "date": "2026-11-19T11:23:03Z",
-          "localizedDescription": "iOS\n• Learns when to stop the shot: after each shot BrewLog stopped it measures what still dripped in and adjusts the stop lead (per machine and scale)\n• The rating screen shows target vs. the weight in the cup\n• Fixed: starting the shot right after Ready stopped the machine after a second (the scale wasn't tared yet and the cup counted as the yield)\n• Flush button for GaggiMate: on the machine card, in the shot's preparation and on the rating screen after the shot\n\nAndroid\n• Learns when to stop the shot: after each shot BrewLog stopped it measures what still dripped in and adjusts the stop lead (per machine and scale)\n• Fixed: starting the shot right after Ready stopped the machine after a second (the scale wasn't tared yet and the cup counted as the yield)\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.9.0/BrewLog.ipa",
-          "size": 12859718,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.17.1",
-      "versionDate": "2026-11-25T12:33:53Z",
-      "versionDescription": "iOS\n• The accent color now applies to the live brew screen, sheets and every other screen too (the brew screen was still copper)\n\nAndroid & Web\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.17.1/BrewLog.ipa",
-      "size": 13040541
+      "version": "2.17.2",
+      "versionDate": "2026-11-25T17:06:57Z",
+      "versionDescription": "• The app page in AltStore describes the app as it is now (pour-over and espresso, scales, machines, journal), and \"What's New\" shows only the iOS changes",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.17.2/BrewLog.ipa",
+      "size": 13040957
     }
   ],
   "news": []
