@@ -277,3 +277,12 @@ xcodegen generate
 # 2. Run iOS unit tests
 xcodebuild test -project BrewLog.xcodeproj -scheme BrewLog -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
+
+## Parity status of recent features
+
+| Feature | iOS | Android | Web |
+|---|---|---|---|
+| Compact Brew tab, two-tap stop, Back, Discard brew, learned stop lead, journal filters, accent color, What's new, full-screen bean photo, grind in the brew editor | yes | yes | no |
+| Milk drink (switch, weigh the milk before or after the shot), power button and smart plug (Shortcuts), flush button, Settings in pages, light/dark/system choice in Settings → Appearance | yes | no (Android has light/dark/system already) | no |
+
+Shared logic goes in `android/shared` (Kotlin, also used by iOS where it is wired up): `StopLagLearner`, `StopConfirmation`, `BrewMistake`, `WhatsNew`, `AccentChoice`. Their Swift counterparts (`StopConfirmation.swift`, `BrewMistake.swift`, `WhatsNew.swift`, `AppAppearance.swift`) use the same numbers and have the same tests; keep them in step. `Shared/whats-new.json` is written by CI for the release (`scripts/whats-new.sh`).
