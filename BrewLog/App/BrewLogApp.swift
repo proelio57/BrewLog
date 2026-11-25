@@ -31,6 +31,9 @@ struct BrewLogApp: App {
                 .environment(PressureMonitor.shared)
                 .tint(accent.color)
                 .preferredColorScheme(appearance.colorScheme)
+                .onAppear { AppearanceApplier.apply(accent: accent, mode: appearance) }
+                .onChange(of: accent) { _, new in AppearanceApplier.apply(accent: new, mode: appearance) }
+                .onChange(of: appearance) { _, new in AppearanceApplier.apply(accent: accent, mode: new) }
         }
         .modelContainer(container)
     }

@@ -43,17 +43,20 @@ struct RootView: View {
             Text("Switch the machine off: standby, and the smart plug if you set one up.")
         }
         .fullScreenCover(item: $router.cover) { cover in
-            switch cover {
-            case .onboarding:
-                OnboardingView(onFinish: { router.present(nil) },
-                               onJustWeigh: { router.present(.quickWeigh) })
-            case .quickWeigh:
-                QuickWeighView()
-            case .whatsNew:
-                if let notes = WhatsNew.load() {
-                    WhatsNewView(notes: notes) { router.present(nil) }
+            Group {
+                switch cover {
+                case .onboarding:
+                    OnboardingView(onFinish: { router.present(nil) },
+                                   onJustWeigh: { router.present(.quickWeigh) })
+                case .quickWeigh:
+                    QuickWeighView()
+                case .whatsNew:
+                    if let notes = WhatsNew.load() {
+                        WhatsNewView(notes: notes) { router.present(nil) }
+                    }
                 }
             }
+            .appTint()
         }
         .task {
             // Unit tests run inside the app: don't touch Bluetooth or show onboarding.

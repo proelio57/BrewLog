@@ -30,10 +30,13 @@ enum AccentChoice: String, CaseIterable, Identifiable {
         }
     }
 
-    var color: Color {
+    /// The accent as a dynamic UIKit color (light and dark variant).
+    var uiColor: UIColor {
         let hex = hex
-        return Color(UIColor { $0.userInterfaceStyle == .dark ? Self.ui(hex.dark) : Self.ui(hex.light) })
+        return UIColor { $0.userInterfaceStyle == .dark ? Self.ui(hex.dark) : Self.ui(hex.light) }
     }
+
+    var color: Color { Color(uiColor) }
 
     private static func ui(_ rgb: UInt32) -> UIColor {
         UIColor(red: CGFloat((rgb >> 16) & 0xFF) / 255, green: CGFloat((rgb >> 8) & 0xFF) / 255,
@@ -59,6 +62,14 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 
     var title: String { rawValue.capitalized }
 
+    var interfaceStyle: UIUserInterfaceStyle {
+        switch self {
+        case .system: return .unspecified
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+
     var colorScheme: ColorScheme? {
         switch self {
         case .system: return nil
@@ -66,4 +77,33 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
         case .dark: return .dark
         }
     }
+}
+
+/// Puts the chosen accent color and appearance on the app's windows. SwiftUI's `.tint` doesn't reach everything that
+/// is presented (the live brew screen, sheets), so the windows carry the tint too: whatever is shown in them,
+/// `Color.accentColor` and the controls follow the choice.
+enum AppearanceApplier {
+    static func apply(accent: AccentChoice, mode: AppearanceMode) {
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows {
+                window.tintColor = accent.uiColor
+                window.overrideUserInterfaceStyle = mode.interfaceStyle
+            }
+        }
+    }
+}
+
+/// `.tint` doesn't carry into everything that is presented (sheets, full-screen covers): put it on their content.
+private struct AppTint: ViewModifier {
+    @AppStorage(SettingsKey.accentColor) private var accent = AccentChoice.copper
+
+    func body(content: Content) -> some View {
+        content.tint(accent.color)
+    }
+}
+
+extension View {
+    /// The chosen accent color, for the content of a sheet or full-screen cover.
+    func appTint() -> some View { modifier(AppTint()) }
 }

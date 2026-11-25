@@ -16,12 +16,44 @@ else
   changed="$rev~1..$rev"
 fi
 
-# Notes written by hand: a release whose commits change RELEASE_NOTES.md (repo root) uses that file, e.g. grouped
-# by platform ("iOS", "Android", "Web" with "• " lines under each). HTML comments in it are left out.
+# Notes written by hand: a release whose commits change RELEASE_NOTES.md (repo root) uses that file, grouped by
+# platform ("iOS", "Android", "Web" with "• " lines under each). HTML comments in it are left out. A line that is
+# the same for several platforms is written once, under a shared heading ("iOS & Android", "All platforms").
 if git diff --name-only "$changed" -- RELEASE_NOTES.md 2>/dev/null | grep -q .; then
   git show "$rev:RELEASE_NOTES.md" | python3 -c '
 import re, sys
+PLATFORMS = ["iOS", "Android", "Web"]
 text = re.sub(r"<!--.*?-->", "", sys.stdin.read(), flags=re.S).strip()
+sections, loose, current = {}, [], None
+for raw in text.splitlines():
+    line = raw.strip()
+    if not line:
+        continue
+    if line in PLATFORMS:
+        current = line
+        sections.setdefault(current, [])
+        continue
+    (sections[current] if current else loose).append(line)
+if sections:
+    # Which platforms share each line (in the order the lines first appear).
+    owners = {}
+    for platform in PLATFORMS:
+        for line in sections.get(platform, []):
+            owners.setdefault(line, [])
+            if platform not in owners[line]:
+                owners[line].append(platform)
+    groups = {}
+    for line, platforms in owners.items():
+        groups.setdefault(tuple(platforms), []).append(line)
+    # Shared groups first (the widest first), then each platform on its own; "No changes" lines come last.
+    def empty(key):
+        return all(re.match(r"(?i)^(•|-|\*)?\s*no (app )?changes", line) for line in groups[key])
+    keys = sorted(groups, key=lambda k: (empty(k), -len(k), [PLATFORMS.index(p) for p in k]))
+    blocks = (["\n".join(loose)] if loose else [])
+    for key in keys:
+        heading = "All platforms" if len(key) == len(PLATFORMS) else " & ".join(key)
+        blocks.append(heading + "\n" + "\n".join(groups[key]))
+    text = "\n\n".join(blocks)
 print((text or "Bug fixes and improvements.")[:2000].rstrip())
 '
   exit 0
