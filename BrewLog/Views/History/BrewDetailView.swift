@@ -21,14 +21,34 @@ struct BrewDetailView: View {
     @State private var showEditor = false
     @State private var showAllSuggestions = false
     @State private var showAllFindings = false
+    @State private var confirmDiscard = false
+    /// The brew was discarded: nothing may touch it any more.
+    @State private var discarded = false
     @FocusState private var focused: Bool
 
     var body: some View {
+        if discarded {
+            Color(.systemGroupedBackground).ignoresSafeArea()
+        } else {
+            content
+        }
+    }
+
+    /// What looks wrong about a new brew (a shot of 0 s, nothing in the cup), if anything.
+    private var mistake: BrewMistake? {
+        guard isNew else { return nil }
+        return BrewMistake.check(isEspresso: brew.isEspresso, usedScale: brew.usedScale, totalTime: brew.totalTime,
+                                 finalWeight: brew.finalWeight, targetWater: brew.targetWater)
+    }
+
+    @ViewBuilder
+    private var content: some View {
         let analysis = brew.analyze(allBrews: allBrews)
         ScrollView {
             VStack(spacing: 18) {
                 // Right after a shot: rinse the screen while you rate it.
                 if isNew, brew.isEspresso { FlushButton() }
+                if let mistake { mistakeBanner(mistake) }
                 summaryCard
                 if brew.usedScale, let recipe = brew.recipe, !brew.samples.isEmpty {
                     chartCard(recipe)
@@ -45,6 +65,7 @@ struct BrewDetailView: View {
                 BrewExtractionCard(brew: brew, focus: $focused)
                 detailsCard
                 if !isNew { brewAgainButton(analysis) }
+                if isNew && mistake == nil { discardButton }
             }
             .padding(.horizontal)
             .padding(.bottom, 30)
@@ -91,8 +112,63 @@ struct BrewDetailView: View {
     }
 
     private func storeSuggestion(_ analysis: BrewAnalysis?) {
-        guard let analysis else { return }
+        guard !discarded, let analysis else { return }
         if brew.suggestedGrind != analysis.suggestedGrind { brew.suggestedGrind = analysis.suggestedGrind }
+    }
+
+    // MARK: Discard
+
+    /// A shot that ran 0 s or put nothing in the cup: say so and offer to throw it away.
+    private func mistakeBanner(_ mistake: BrewMistake) -> some View {
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("This looks like a mistake", systemImage: "exclamationmark.triangle.fill")
+                    .font(.headline)
+                    .foregroundStyle(.red)
+                Text(mistake == .tooShort ? "The brew ran only \(brew.totalTime.mmss)." : "Only \(brew.finalWeight.grams) in the cup.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Button(role: .destructive) { confirmDiscard = true } label: {
+                    Label("Discard brew", systemImage: "trash").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .controlSize(.large)
+                .accessibilityIdentifier("brew.discard")
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.red.opacity(0.6), lineWidth: 1.5))
+        .confirmationDialog("Discard this brew?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+            Button("Discard brew", role: .destructive) { discard() }
+            Button("Keep it", role: .cancel) {}
+        } message: {
+            Text("It is not saved and the beans are put back.")
+        }
+    }
+
+    /// The plain version at the bottom of the rating screen.
+    private var discardButton: some View {
+        Button(role: .destructive) { confirmDiscard = true } label: {
+            Label("Discard brew", systemImage: "trash").frame(maxWidth: .infinity)
+        }
+        .padding(.top, 4)
+        .accessibilityIdentifier("brew.discard")
+        .confirmationDialog("Discard this brew?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+            Button("Discard brew", role: .destructive) { discard() }
+            Button("Keep it", role: .cancel) {}
+        } message: {
+            Text("It is not saved and the beans are put back.")
+        }
+    }
+
+    /// Throws the brew away and gives its coffee back to the bean.
+    private func discard() {
+        discarded = true
+        if let bean = brew.bean { bean.remaining += brew.dose }
+        context.delete(brew)
+        try? context.save()
+        WidgetSync.update(context: context, pourOver: pourOverSetup, espresso: espressoSetup)
+        onDone?()
     }
 
     // MARK: Summary
