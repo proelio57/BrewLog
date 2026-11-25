@@ -13,6 +13,47 @@ import re
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
+SUBTITLE = "Pour-over and espresso brewing companion"
+DESCRIPTION = (
+    "Guides every brew, pour-over or espresso, and keeps a journal of it.\n\n"
+    "• Bluetooth scales (BOOKOO, Timemore, Decent): live weight and flow, a ping just before the target weight, "
+    "spoken step prompts and a live graph. Also on the Lock Screen and in the Dynamic Island.\n"
+    "• Espresso machines (GaggiMate, Decent DE1, La Marzocco): follows the shot, stops it at the yield, shows "
+    "pressure and temperature, and switches the machine and its smart plug off when you are done.\n"
+    "• Recipes from the specialty scene, your own gear, beans (scan the bag) and grinder settings down to the click.\n"
+    "• Taste feedback that tells you what to change next time, statistics, widgets and optional Git backup.\n\n"
+    "No account, no analytics: your data stays on your iPhone."
+)
+
+PLATFORMS = ("ios", "android", "web")
+
+
+def ios_notes(text):
+    """The release notes for the iOS app: only what applies to iOS, as plain lines without platform headings.
+
+    RELEASE_NOTES.md groups its lines by platform ("iOS", "Android", "Web", or shared headings such as
+    "iOS & Android" and "All platforms"); this source is the iOS app, so Android and Web lines are left out, and
+    so are "No changes" lines. Notes without such headings (commit subjects) are kept as they are.
+    """
+    heading = re.compile(r"(?i)^(all platforms|(ios|android|web)(\s*(&|,|and)\s*(ios|android|web))*)$")
+    current = None
+    lines = []
+    grouped = False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if heading.match(line):
+            grouped = True
+            current = set(PLATFORMS) if line.lower() == "all platforms" else set(re.findall(r"ios|android|web", line.lower()))
+            continue
+        if grouped and "ios" not in (current or set()):
+            continue
+        if re.match(r"(?i)^[•\-*]?\s*no (app )?changes\b", line):
+            continue
+        lines.append(line)
+    return "\n".join(lines) or "Bug fixes and improvements."
+
 
 def read(path):
     with open(os.path.join(ROOT, path), encoding="utf-8") as f:
@@ -56,7 +97,7 @@ def main():
     # Drop the same version and any "newer" ones, e.g. after the numbering was reset from 1.0.x to 0.1.x.
     versions = [v for v in old_app.get("versions", []) if key(v.get("version", "0")) < key(args.version)]
     now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    notes = args.notes.strip()[:2000]
+    notes = ios_notes(args.notes)[:2000]
     size = os.path.getsize(args.ipa)
     version = {
         "version": args.version,
@@ -73,8 +114,8 @@ def main():
         "name": "BrewLog",
         "bundleIdentifier": bundle_id,
         "developerName": "BrewLog",
-        "subtitle": "Pour-over brewing companion",
-        "localizedDescription": "Live BOOKOO scale guidance, a brew journal and taste-based tips for your next cup.",
+        "subtitle": SUBTITLE,
+        "localizedDescription": DESCRIPTION,
         "iconURL": args.icon_url,
         "tintColor": "#B86D3C",
         "category": "lifestyle",

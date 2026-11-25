@@ -7,6 +7,11 @@ The Android version of BrewLog: native **Kotlin + Jetpack Compose**, with the sa
 - One chart with weight (left axis) and flow in g/s (right axis) against the recipe curve
 - Setup assistant, Quick weigh, recipes (incl. your own), beans, gear (CAFEC/Hario filters, grinder scales), journal
 - Rule-based taste feedback with concrete grind suggestions ("go from 24 to 22 clicks"), filter- and roast-aware
+- **Compact Brew tab**: numbers on their controls (coffee, water with ratio, temperature), a slim scale row, the recipe's grind with the grinder; "Before you brew" is in Settings
+- **Shot control**: stops the shot just before the yield and learns the stop lead per machine and scale; two-tap **Stop**/**Finish** with debounce; **Back** to weigh the beans again; **Discard brew** (highlighted for very short or empty brews)
+- **Journal filters** and a **Grind** section in the brew editor (grinder and grind size)
+- **Appearance**: accent color (copper, blue, green, purple, red, graphite) next to light/dark/system
+- **What's new** after an update (only when the release changed something on Android) and a full-screen view for bean photos
 - **Brew Editor**: Edit any past brew (dose, water, grind, temperature, gear, recipe, date) with automatic live recalculation of ratio and extraction feedback
 - **Full AppData Backup & Restore**: Export full JSON backups of all brews, beans, gear, and custom recipes, and restore them with intelligent deduplication
 - **Lock-Screen Brew Timer**: Ongoing status notification during active brewing (parity with iOS Live Activities)

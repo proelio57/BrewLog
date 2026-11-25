@@ -32,7 +32,7 @@ A pour-over and espresso brewing companion for iPhone, with matching [Android](a
   - The recipe's target pour rate as a shaded band (journal only).
 
   The flow axis scales to the 98th percentile, so a bump on the scale doesn't squash the graph. Tap **Flow** in the legend to hide or show it.
-- **Recipes from the specialty scene**, each with a description of how the cup should taste and an acidity/sweetness/body/clarity profile: Hoffmann Ultimate V60, Better 1-Cup V60, Kasuya 4:6 (+ sweet variant), Rao V60, Everyday 3-Pour, Kasuya Switch Hybrid, Switch Full Immersion, Flat-Bottom Pulse. Scale any recipe by dose, or duplicate it and build your own.
+- **Recipes from the specialty scene**, each with a description of how the cup should taste and an acidity/sweetness/body/clarity profile: Hoffmann Ultimate V60, Better 1-Cup V60, Kasuya 4:6 (+ sweet variant), Rao V60, Everyday 3-Pour, After THREE Hot Drip, Kasuya Switch Hybrid, Switch Full Immersion, Flat-Bottom Pulse. Scale any recipe by dose, or duplicate it and build your own.
 - **Gear** with quick-add presets:
   - **Brewers & Espresso machines**: V60, Hario Switch, Kalita, Orea, April, Origami, Chemex, Cafelat Robot, Flair 58, Decent DE1, La Marzocco, Gaggia Classic (GaggiMate), Rancilio Silvia, Lelit Bianca, Breville / Sage Barista …
   - **Filters** with flow speed and roast suitability: **CAFEC T-90 / T-92 / T-83**, Abaca(+), **Hario V60 standard**, tabbed and natural papers, Sibarist, Kalita, Chemex …
@@ -60,6 +60,14 @@ A pour-over and espresso brewing companion for iPhone, with matching [Android](a
 - **La Marzocco** (iOS, Android, web, opt-in): sign in with your La Marzocco account (Settings → Espresso machine → La Marzocco). BrewLog follows the shot, shows the boiler and can switch the machine on or to standby and change the brew temperature. This goes through La Marzocco's servers; your login stays securely stored.
 - **Decent DE1** (iOS, Android, web): connect over Bluetooth (Settings → Espresso machine → Decent DE1). BrewLog records pressure, temperature and flow, follows the shot, can start/stop it (DE1 without group head controller) and switch modes. The weight comes from your Bluetooth scale.
 - **Online recipe updates**: the app downloads the recipe list from `Shared/recipes.json` every few hours, so new or corrected recipes don't need an app update.
+- **Compact Brew tab** (iOS, Android): the numbers sit on their controls (coffee, water with the ratio, temperature), the scale is one slim row, the recipe's grind is shown with your grinder, and "Before you brew" (weigh the beans, rinse the paper) lives in Settings. Tap the recipe card to pick another recipe; **Brew this** on a recipe goes straight into the brew.
+- **Shot control** (iOS, Android): with a scale and a machine BrewLog can control it **stops the shot just before the yield** and **learns the stop lead** per machine and scale from every shot it stopped. **Stop · shot done** and **Finish · drawdown done** take two taps (green, then yellow "Really stop?"; a quick double tap is ignored). **Back** on the Ready screen returns one step to weigh the beans again. **Discard brew** on the rating screen throws a brew away and puts the beans back; it is highlighted when the shot was very short or hardly anything is in the cup. A **Flush** button (GaggiMate, iOS) rinses the group before and after a shot.
+- **Milk drinks** (iOS): a "Milk drink" switch at the top of the espresso Brew tab adds a milk step: weigh the milk before the shot, or after it while the machine heats up for steam (Settings → Shot → Weigh the milk). The machine switches to steam after the shot.
+- **Power & smart plug** (iOS): a power button on the espresso Brew tab shows the plug's state and switches the machine on and off. BrewLog puts the machine in standby and switches the plug off after a countdown, can switch off after idling (auto-off) and asks after steaming. The plug is switched with two **Shortcuts** ("Machine on", "Machine off": HomeKit, Home Assistant or any plug app). Settings → Power & smart plug.
+- **Journal filters** (iOS, Android): Espresso / Filter, reviewed, bean and recipe. **Edit** on a brew also corrects the grinder and the **grind size** (a number on the grinder's scale, or text).
+- **Appearance**: choose the **accent color** (copper, blue, green, purple, red, graphite; iOS and Android) and light, dark or system (iOS; Android has it in Settings → Appearance). The flow color on the live screens follows the accent.
+- **What's new** after an update (iOS, Android): a screen lists what changed, once per version, and only if the release changed something on that platform (the notes come from `RELEASE_NOTES.md`, see below). iOS also has it under Settings → About.
+- **Settings in pages** (iOS): Scale, Machine, Shot, Power, Brew assistant, Sound, Appearance, Recipes & backup & data. Each page has a one-line summary in the list. Tap a bean photo anywhere to see it full screen (pinch to zoom; iOS, Android).
 
 ## Taste feedback & analysis (no AI)
 
@@ -176,6 +184,10 @@ The documented XOR checksum matches the tare command, but the **timer commands u
 - **Input validation**: recipes, beans and gear are sanitized and clamped (lengths, NaN/∞, ranges, step counts, monotonic pour targets). Stored recipes are re-validated when decoded.
 - **Bounded memory**: brew recordings are capped (30 min / 10 Hz) and auto-finish, and the live buffers are size-limited.
 - **No secrets in git**: your signing team and bundle id live in the git-ignored `Config/Local.xcconfig`, and `.gitignore` also blocks certificates, provisioning profiles and `.env` files.
+
+## Releases and "What's new"
+
+Merging to `main` releases: GitHub Actions builds the iPhone app (AltStore source), the Android APK (GitHub Releases) and deploys the web app. The version follows semantic versioning from the merged commits (`feat` = minor, `fix` = patch, `scripts/next-version.sh`). The release notes come from `RELEASE_NOTES.md`, grouped by platform (iOS, Android, Web); a line that is the same for several platforms is written once under a shared heading ("iOS & Android", "All platforms"), otherwise the notes are the `feat`/`fix`/`perf` commit subjects (`scripts/release-notes.sh`). CI writes them to `Shared/whats-new.json` (`scripts/whats-new.sh`), which the apps show after an update, and the AltStore page shows only the iOS lines. Details: [docs/altstore.md](docs/altstore.md).
 
 ## Android
 

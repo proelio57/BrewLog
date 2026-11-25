@@ -138,6 +138,7 @@ jobs:
         run: |
           bash scripts/test-release-notes.sh
           bash scripts/test-next-version.sh
+          bash scripts/test-sidestore-source.sh
 
       - name: Build unsigned IPA
         run: |
