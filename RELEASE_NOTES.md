@@ -3,10 +3,7 @@
      subjects. Write a line under every platform it applies to: a line that is the same for several platforms is
      shown once ("iOS & Android", "All platforms"), so identical lines are never repeated. -->
 iOS
-• The accent color now applies to the live brew screen, sheets and every other screen too (the brew screen was still copper)
+• The app page in AltStore describes the app as it is now (pour-over and espresso, scales, machines, journal), and "What's New" shows only the iOS changes
 
-Android
-• No changes in this release
-
-Web
+Android & Web
 • No changes in this release
