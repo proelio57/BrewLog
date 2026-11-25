@@ -44,5 +44,8 @@ final class AccentChoiceTests: XCTestCase {
         XCTAssertNil(AppearanceMode.system.colorScheme)
         XCTAssertEqual(AppearanceMode.dark.colorScheme, .dark)
         XCTAssertEqual(AppearanceMode(rawValue: "light"), .light)
+        XCTAssertEqual(AppearanceMode.system.interfaceStyle, .unspecified)
+        XCTAssertEqual(AppearanceMode.light.interfaceStyle, .light)
+        XCTAssertEqual(AppearanceMode.dark.interfaceStyle, .dark)
     }
 }

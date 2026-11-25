@@ -173,18 +173,19 @@ private struct SetupScreen: View {
                 NavigationStack {
                     BeanEditorView(bean: nil) { bean in setup.beanID = bean.id }
                 }
+                .appTint()
             }
             .sheet(isPresented: $showMachineSettings) {
-                NavigationStack { SettingsMachineView(showsDone: true) }
+                NavigationStack { SettingsMachineView(showsDone: true) }.appTint()
             }
             .sheet(isPresented: $showSettings) {
-                NavigationStack { SettingsView(showsDone: true) }
+                NavigationStack { SettingsView(showsDone: true) }.appTint()
             }
             .sheet(isPresented: $showPresets) {
-                NavigationStack { PresetPickerView() }
+                NavigationStack { PresetPickerView() }.appTint()
             }
             .fullScreenCover(item: $activeBrew) { config in
-                BrewSessionView(config: config)
+                BrewSessionView(config: config).appTint()
             }
     }
 

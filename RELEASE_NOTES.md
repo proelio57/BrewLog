@@ -3,7 +3,7 @@
      subjects. Write a line under every platform it applies to: a line that is the same for several platforms is
      shown once ("iOS & Android", "All platforms"), so identical lines are never repeated. -->
 iOS
-• No changes in this release
+• The accent color now applies to the live brew screen, sheets and every other screen too (the brew screen was still copper)
 
 Android
 • No changes in this release
