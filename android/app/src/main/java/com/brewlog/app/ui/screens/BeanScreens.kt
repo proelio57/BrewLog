@@ -101,7 +101,7 @@ fun BeanListScreen(nav: NavHostController) {
 private fun BeanRow(bean: Bean, brewCount: Int, onClick: () -> Unit) {
     BrewCard(onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            com.brewlog.app.ui.components.BeanThumbnail(bean.id, bean.roastLevel, size = 40.dp)
+            com.brewlog.app.ui.components.BeanThumbnail(bean.id, bean.roastLevel, size = 40.dp, zoomable = true)
             Spacer(Modifier.width(12.dp))
             Text(bean.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(bean.roastLevel.displayName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

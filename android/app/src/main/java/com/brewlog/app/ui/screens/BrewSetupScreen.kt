@@ -256,7 +256,7 @@ fun BrewSetupScreen(nav: NavHostController) {
                 BrewCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         selectedBean?.let {
-                            com.brewlog.app.ui.components.BeanThumbnail(it.id, it.roastLevel, size = 36.dp)
+                            com.brewlog.app.ui.components.BeanThumbnail(it.id, it.roastLevel, size = 36.dp, zoomable = true)
                             Spacer(Modifier.width(10.dp))
                         }
                         Box(Modifier.weight(1f)) {

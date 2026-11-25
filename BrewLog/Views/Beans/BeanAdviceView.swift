@@ -49,7 +49,7 @@ struct BeanAdviceView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            BeanThumbnail(photo: bean.photo, roast: bean.roastLevel, size: 52)
+            BeanThumbnail(photo: bean.photo, roast: bean.roastLevel, size: 52, zoomable: true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(bean.name).font(.headline)
                 Text([bean.roaster, bean.origin].filter { !$0.isEmpty }.joined(separator: " · "))

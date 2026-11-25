@@ -334,7 +334,7 @@ private struct SetupScreen: View {
                 }
                 if let bean = selectedBean {
                     HStack(spacing: 12) {
-                        BeanThumbnail(photo: bean.photo, roast: bean.roastLevel, size: 36)
+                        BeanThumbnail(photo: bean.photo, roast: bean.roastLevel, size: 36, zoomable: true)
                         Label(bean.roastLevel.displayName, systemImage: "flame")
                         if let days = bean.daysOffRoast { Label("\(days) d off roast", systemImage: "calendar") }
                         Label(bean.remaining.grams + " left", systemImage: "bag")

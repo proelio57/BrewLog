@@ -4,7 +4,23 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -38,16 +54,51 @@ fun roastTint(roast: RoastLevel): Color = when (roast) {
 
 /** The bean's photo, or a drawn bean tinted by the roast level when there is none. */
 @Composable
-fun BeanThumbnail(beanId: String?, roast: RoastLevel, size: Dp = 44.dp, photo: ByteArray? = null) {
+fun BeanThumbnail(beanId: String?, roast: RoastLevel, size: Dp = 44.dp, photo: ByteArray? = null, zoomable: Boolean = false) {
     val repo = LocalContainer.current.repository
     val version by repo.photoVersion.collectAsStateWithLifecycle()
     val bytes = photo ?: remember(beanId, version) { beanId?.let(repo::beanPhoto) }
     val image = remember(bytes) { bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() } }
     val shape = RoundedCornerShape(size * 0.22f)
+    var showFull by remember { mutableStateOf(false) }
     if (image != null) {
-        Image(image, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(size).clip(shape))
+        val click = if (zoomable) Modifier.clickable(onClickLabel = "Show photo") { showFull = true } else Modifier
+        Image(image, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(size).clip(shape).then(click))
+        if (showFull) BeanPhotoViewer(image) { showFull = false }
     } else {
         BeanPlaceholder(roast, Modifier.size(size).clip(shape))
+    }
+}
+
+/** A bean's photo full screen: pinch to zoom, drag when zoomed, double tap to reset, tap or back to close. */
+@Composable
+fun BeanPhotoViewer(image: ImageBitmap, onClose: () -> Unit) {
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+            Image(
+                image, contentDescription = "Bean photo", contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onDoubleTap = { scale = 1f; offset = Offset.Zero },
+                            onTap = { if (scale == 1f) onClose() },
+                        )
+                    }
+                    .pointerInput(Unit) {
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            scale = (scale * zoom).coerceIn(1f, 6f)
+                            offset = if (scale == 1f) Offset.Zero else offset + pan
+                        }
+                    }
+                    .graphicsLayer(scaleX = scale, scaleY = scale, translationX = offset.x, translationY = offset.y),
+            )
+            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
+                Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White)
+            }
+        }
     }
 }
 

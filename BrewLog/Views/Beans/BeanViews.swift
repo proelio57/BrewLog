@@ -63,7 +63,7 @@ private struct BeanRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            BeanThumbnail(photo: bean.photo, roast: bean.roastLevel, size: 48)
+            BeanThumbnail(photo: bean.photo, roast: bean.roastLevel, size: 48, zoomable: true)
             details
         }
         .padding(.vertical, 4)
