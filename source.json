@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.17.1",
+          "buildVersion": "166",
+          "date": "2026-11-25T12:33:53Z",
+          "localizedDescription": "iOS\n• The accent color now applies to the live brew screen, sheets and every other screen too (the brew screen was still copper)\n\nAndroid & Web\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.17.1/BrewLog.ipa",
+          "size": 13040541,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.17.0",
           "buildVersion": "163",
           "date": "2026-11-25T10:27:16Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.9.0/BrewLog.ipa",
           "size": 12859718,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.8.0",
-          "buildVersion": "127",
-          "date": "2026-11-19T10:38:44Z",
-          "localizedDescription": "iOS\n• Espresso Brew tab reorganised: machine and scale on top, then beans, then the recipe with the grind\n• Choose recipe lists the machine's profiles first and asks before sending a BrewLog recipe to the machine\n• Milk drinks: milk amount in the recipe and a \"Milk drink\" switch on the Brew tab\n• After a milk drink's shot the machine switches to steam and BrewLog weighs the milk with you\n• After an espresso without milk BrewLog only asks about switching off (Settings → After an espresso)\n• The power button shows the machine's state: Off (grey), Starting/Heating (orange), On (green)\n• Smart plug: says when a shortcut doesn't exist, and Test buttons for both shortcuts in Settings\n\nAndroid\n• No app changes (2.7.0 was the journal filters again: a re-run of a release counted up; re-runs now keep their version)\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.8.0/BrewLog.ipa",
-          "size": 12825918,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.17.0",
-      "versionDate": "2026-11-25T10:27:16Z",
-      "versionDescription": "iOS\n• Stopping a shot or finishing a brew takes two taps: the button turns yellow (\"Really stop? Tap again\"), the second tap ends it (red). A quick double tap is ignored, and the yellow state goes back after 4 seconds\n• Brew and espresso screens: the flow color (flow line, flow readouts, the \"finish\" flash) follows the chosen accent color instead of a fixed teal/blue\n• New \"Back\" button on the screen before the pour or shot (\"Ready\"): goes back one screen so the beans can be weighed again\n• \"Discard brew\" on the rating screen throws a brew away and puts the beans back. It is highlighted in red when the shot was very short or hardly anything is in the cup\n• Edit brew is tidier: amounts, a new Grind section (grinder and grind size, on the grinder's scale or as text) and the gear, each as a labelled row\n• Espresso: the \"Milk drink\" switch moved to the top of the Brew tab, right under the recipe\n• New Settings → Shot → Weigh the milk: before the shot (the milk step comes first, the machine steams after the shot) or after the shot (as before)\n\nAndroid\n• Stopping a shot or finishing a brew takes two taps: the button turns yellow (\"Really stop? Tap again\"), the second tap ends it (red). A quick double tap is ignored, and the yellow state goes back after 4 seconds\n• Brew tab is more compact (same as on iOS): the numbers sit on the controls (coffee, water with ratio, temperature), the scale is one slim row, the recipe's grind is with the grinder\n• \"Before you brew\" (weigh the beans, rinse the paper) is only in Settings; the recipe card at the bottom is gone, the recipe is chosen from the card at the top\n• Espresso: dose, yield and temperature sit on the controls too\n• Brew and espresso screens: the flow color (flow line, flow readouts, the \"finish\" flash) follows the chosen accent color instead of a fixed teal/blue\n• New \"Back\" button on the screen before the pour or shot (\"Ready\"): goes back one screen so the beans can be weighed again\n• \"Discard brew\" on the rating screen",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.17.0/BrewLog.ipa",
-      "size": 13030013
+      "version": "2.17.1",
+      "versionDate": "2026-11-25T12:33:53Z",
+      "versionDescription": "iOS\n• The accent color now applies to the live brew screen, sheets and every other screen too (the brew screen was still copper)\n\nAndroid & Web\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.17.1/BrewLog.ipa",
+      "size": 13040541
     }
   ],
   "news": []
