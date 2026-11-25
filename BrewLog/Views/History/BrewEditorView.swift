@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Corrects a saved brew: date, recipe, amounts, time, temperature and gear.
+/// Corrects a saved brew: date, recipe, amounts, time, temperature, grind and gear.
 /// Edits go to a draft and are only written on Save. The analysis is recalculated from the new values.
 struct BrewEditorView: View {
     let brew: Brew
@@ -22,6 +22,9 @@ struct BrewEditorView: View {
     @State private var grinderID: UUID?
     @State private var filterID: UUID?
     @State private var waterID: UUID?
+    /// The grind on the grinder's scale (a grinder is chosen) or as free text (none).
+    @State private var grindValue: Double?
+    @State private var grindText: String
     @FocusState private var focused: Bool
 
     init(brew: Brew) {
@@ -38,6 +41,14 @@ struct BrewEditorView: View {
         _grinderID = State(initialValue: brew.grinderID)
         _filterID = State(initialValue: brew.filterID)
         _waterID = State(initialValue: brew.waterID)
+        _grindValue = State(initialValue: brew.grindValue)
+        _grindText = State(initialValue: brew.grindSetting)
+    }
+
+    /// The scale of the chosen grinder (its own, or the one stored with the brew while that grinder is unchanged).
+    private var grinderSpec: GrinderSpec? {
+        if let grinder = equipment.first(where: { $0.id == grinderID && $0.type == .grinder }) { return grinder.grinderSpec }
+        return grinderID != nil && grinderID == brew.grinderID ? brew.grinderSpec : nil
     }
 
     private var recipes: [Recipe] { saved.compactMap(\.recipe) + RecipeLibrary.presets }
@@ -60,8 +71,8 @@ struct BrewEditorView: View {
 
             Section("Amounts") {
                 numberRow("Coffee", unit: "g", value: $dose)
-                numberRow("Water", unit: "g", value: $finalWeight)
-                numberRow("Water temp", unit: "°C", value: $waterTemp)
+                numberRow("Water in the cup", unit: "g", value: $finalWeight)
+                numberRow("Temperature", unit: "°C", value: $waterTemp)
                 HStack {
                     Text("Total time")
                     Spacer()
@@ -78,10 +89,17 @@ struct BrewEditorView: View {
                 }
             }
 
-            Section("Gear") {
-                gearPicker("Brewer", symbol: "cup.and.saucer.fill", type: .brewer, current: brew.brewerName, selection: $brewerID)
+            Section("Grind") {
                 gearPicker("Grinder", symbol: "gearshape.2.fill", type: .grinder, current: brew.grinderName, selection: $grinderID)
-                gearPicker("Filter", symbol: "doc.fill", type: .filter, current: brew.filterName, selection: $filterID)
+                grindRow
+            }
+
+            Section("Gear") {
+                gearPicker(brew.isEspresso ? "Machine" : "Brewer", symbol: "cup.and.saucer.fill", type: .brewer,
+                           current: brew.brewerName, selection: $brewerID)
+                if !brew.isEspresso {
+                    gearPicker("Filter", symbol: "doc.fill", type: .filter, current: brew.filterName, selection: $filterID)
+                }
                 gearPicker("Water", symbol: "drop.triangle.fill", type: .water, current: brew.waterName, selection: $waterID)
             }
         }
@@ -110,14 +128,55 @@ struct BrewEditorView: View {
         }
     }
 
-    /// Gear picker. A deleted item stays selectable under its old name until something else is picked.
+    /// The grind size: a number on the grinder's scale with finer/coarser steps, or free text without a grinder.
+    @ViewBuilder
+    private var grindRow: some View {
+        if let spec = grinderSpec {
+            HStack {
+                Label("Grind size", systemImage: "dial.medium")
+                Spacer()
+                TextField("–", value: $grindValue, format: .number.precision(.fractionLength(0...2)))
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 64)
+                    .focused($focused)
+                    .accessibilityIdentifier("brew.grind")
+                Text(spec.unit.suffix.isEmpty ? spec.unit.displayName.lowercased() : spec.unit.suffix)
+                    .foregroundStyle(.secondary)
+                Stepper("Grind size", onIncrement: { nudgeGrind(spec, by: spec.step) },
+                        onDecrement: { nudgeGrind(spec, by: -spec.step) })
+                    .labelsHidden()
+            }
+        } else {
+            HStack {
+                Label("Grind size", systemImage: "dial.medium")
+                Spacer()
+                TextField("e.g. medium-fine", text: $grindText)
+                    .multilineTextAlignment(.trailing)
+                    .focused($focused)
+            }
+        }
+    }
+
+    private func nudgeGrind(_ spec: GrinderSpec, by delta: Double) {
+        grindValue = max(0, (((grindValue ?? 0) + delta) / spec.step).rounded() * spec.step)
+    }
+
+    /// A gear menu with its label. A deleted item stays selectable under its old name until something else is picked.
     private func gearPicker(_ title: String, symbol: String, type: EquipmentType, current: String,
                             selection: Binding<UUID?>) -> some View {
         var options = equipment.filter { $0.type == type }.map { PickerOption(id: $0.id, name: $0.name) }
         if let id = selection.wrappedValue, !options.contains(where: { $0.id == id }), !current.isEmpty {
             options.insert(PickerOption(id: id, name: current), at: 0)
         }
-        return MenuPickerRow(title: title, symbol: symbol, options: options, selection: selection)
+        return Picker(selection: selection) {
+            Text("None").tag(UUID?.none)
+            ForEach(options) { Text($0.name).tag(Optional($0.id)) }
+        } label: {
+            Label(title, systemImage: symbol)
+        }
+        .pickerStyle(.menu)
+        .accessibilityIdentifier("picker.\(title)")
     }
 
     private func save() {
@@ -161,6 +220,13 @@ struct BrewEditorView: View {
         }
         if waterID != brew.waterID {
             brew.setWater(equipment.first { $0.id == waterID })
+        }
+        // The grind: on the grinder's scale, or free text when there is no grinder.
+        if grinderSpec != nil {
+            brew.grindValue = grindValue.map { $0.clamped(0, 10_000) }
+        } else {
+            brew.grindValue = nil
+            brew.grindSetting = String(grindText.prefix(120))
         }
 
         try? context.save()
