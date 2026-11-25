@@ -16,6 +16,15 @@
       "category": "lifestyle",
       "versions": [
         {
+          "version": "2.16.0",
+          "buildVersion": "154",
+          "date": "2026-11-25T07:30:31Z",
+          "localizedDescription": "iOS\n• Tap a bean's photo to see it full screen (pinch to zoom, double tap to reset)\n\nAndroid\n• Tap a bean's photo to see it full screen (pinch to zoom, double tap to reset)\n\nWeb\n• No changes in this release",
+          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.16.0/BrewLog.ipa",
+          "size": 12940433,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.15.0",
           "buildVersion": "152",
           "date": "2026-11-24T19:30:43Z",
@@ -95,15 +104,6 @@
           "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.7.0/BrewLog.ipa",
           "size": 12758372,
           "minOSVersion": "17.0"
-        },
-        {
-          "version": "2.5.1",
-          "buildVersion": "118",
-          "date": "2026-11-17T16:36:50Z",
-          "localizedDescription": "iOS\n• The machine card's power button switches the machine on when it's offline (smart plug), and says On or Off\n\nAndroid\n• No changes in this release\n\nWeb\n• No changes in this release",
-          "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.5.1/BrewLog.ipa",
-          "size": 12720780,
-          "minOSVersion": "17.0"
         }
       ],
       "appPermissions": {
@@ -114,11 +114,11 @@
           "NSLocalNetworkUsageDescription": "BrewLog connects to your espresso machine (GaggiMate) in your Wi-Fi to record pressure and temperature and to start shots."
         }
       },
-      "version": "2.15.0",
-      "versionDate": "2026-11-24T19:30:43Z",
-      "versionDescription": "iOS\n• New Settings → Appearance: choose the accent color (copper, blue, green, purple, red, graphite) and light, dark or system\n\nAndroid\n• Settings → Appearance: choose the accent color (copper, blue, green, purple, red, graphite) next to light and dark\n\nWeb\n• No changes in this release",
-      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.15.0/BrewLog.ipa",
-      "size": 12923681
+      "version": "2.16.0",
+      "versionDate": "2026-11-25T07:30:31Z",
+      "versionDescription": "iOS\n• Tap a bean's photo to see it full screen (pinch to zoom, double tap to reset)\n\nAndroid\n• Tap a bean's photo to see it full screen (pinch to zoom, double tap to reset)\n\nWeb\n• No changes in this release",
+      "downloadURL": "https://github.com/proelio57/BrewLog/releases/download/v2.16.0/BrewLog.ipa",
+      "size": 12940433
     }
   ],
   "news": []
