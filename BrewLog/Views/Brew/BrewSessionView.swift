@@ -428,9 +428,9 @@ struct BrewSessionView: View {
             }
         case .brewing:
             if session.isEspresso {
-                primaryButton("Stop · shot done", symbol: "stop.fill", tint: .green) { finish() }
+                StopButton(title: "Stop · shot done", confirmTitle: "Really stop? Tap again") { finish() }
             } else {
-                primaryButton("Finish · drawdown done", symbol: "stop.fill", tint: .green) { finish() }
+                StopButton(title: "Finish · drawdown done", confirmTitle: "Really finish? Tap again") { finish() }
             }
         case .finished:
             ProgressView()
@@ -789,5 +789,58 @@ private struct MachineWarningAlert: ViewModifier {
     private var isPresented: Binding<Bool> {
         Binding(get: { !machine.startBlockedBy.isEmpty },
                 set: { if !$0 && !machine.startBlockedBy.isEmpty { machine.dismissStartWarning() } })
+    }
+}
+
+
+/// Ends the brew in two taps: green, then yellow ("Really stop?"), then red while it ends. Taps right after the
+/// first one are ignored (`StopConfirmation`), and the yellow state goes back to green after a few seconds.
+struct StopButton: View {
+    let title: String
+    let confirmTitle: String
+    let action: () -> Void
+    @State private var confirmation = StopConfirmation()
+    @State private var armed = false
+    @State private var ending = false
+    @State private var reset: Task<Void, Never>?
+
+    private var tint: Color { ending ? .red : (armed ? .yellow : .green) }
+
+    var body: some View {
+        Button(action: tap) {
+            Label(ending ? "Ending…" : (armed ? confirmTitle : title), systemImage: "stop.fill")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 18)
+                .background(tint.gradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .foregroundStyle(armed && !ending ? Color.black : Color.white)
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, 4)
+        .animation(.easeInOut(duration: 0.15), value: armed)
+        .onDisappear { reset?.cancel() }
+    }
+
+    private func tap() {
+        guard !ending else { return }
+        switch confirmation.tap(now: Date()) {
+        case .arm:
+            armed = true
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            reset?.cancel()
+            reset = Task {
+                try? await Task.sleep(for: .seconds(StopConfirmation.timeout))
+                guard !Task.isCancelled else { return }
+                confirmation.reset()
+                armed = false
+            }
+        case .ignore:
+            break
+        case .stop:
+            reset?.cancel()
+            ending = true
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            action()
+        }
     }
 }

@@ -1029,8 +1029,11 @@ private fun Controls(
         } else {
             PrimaryButton("Start timer", Icons.Filled.PlayArrow, onClick = onStart)
         }
-        BrewPhase.BREWING -> PrimaryButton(if (espresso) "Stop · shot done" else "Finish · drawdown done", Icons.Filled.Stop,
-            color = GoodGreen, onClick = onFinish)
+        BrewPhase.BREWING -> StopButton(
+            title = if (espresso) "Stop · shot done" else "Finish · drawdown done",
+            confirmTitle = if (espresso) "Really stop? Tap again" else "Really finish? Tap again",
+            onFinish = onFinish,
+        )
         BrewPhase.FINISHED -> Unit
     }
 }
@@ -1048,3 +1051,51 @@ private fun TareButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 /** From 0.5 g off the plan the recipe follows what was weighed. */
 private fun rescaleNote(weight: Double, dose: Double): String =
     if (kotlin.math.abs(weight - dose) >= BeanDosing.RESCALE_THRESHOLD) " Ready scales the recipe to ${weight.grams1()}." else ""
+
+
+/** Ends the brew in two taps: green, then yellow ("Really stop?"), then red while it ends. Taps right after the
+ *  first one are ignored (StopConfirmation), and the yellow state goes back to green after a few seconds. */
+@Composable
+private fun StopButton(title: String, confirmTitle: String, onFinish: () -> Unit) {
+    val confirmation = remember { com.brewlog.app.domain.StopConfirmation() }
+    var armed by remember { mutableStateOf(false) }
+    var ending by remember { mutableStateOf(false) }
+    // The yellow state runs out again.
+    androidx.compose.runtime.LaunchedEffect(armed) {
+        if (armed) {
+            kotlinx.coroutines.delay(com.brewlog.app.domain.StopConfirmation.TIMEOUT_MS)
+            confirmation.reset()
+            armed = false
+        }
+    }
+    val color = when {
+        ending -> Color(0xFFD32F2F)
+        armed -> Color(0xFFFFCC00)
+        else -> GoodGreen
+    }
+    val text = when {
+        ending -> "Ending…"
+        armed -> confirmTitle
+        else -> title
+    }
+    androidx.compose.material3.Button(
+        onClick = {
+            if (ending) return@Button
+            when (confirmation.tap(System.currentTimeMillis())) {
+                com.brewlog.app.domain.StopConfirmation.Result.ARM -> armed = true
+                com.brewlog.app.domain.StopConfirmation.Result.IGNORE -> Unit
+                com.brewlog.app.domain.StopConfirmation.Result.STOP -> { ending = true; onFinish() }
+            }
+        },
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = color,
+            contentColor = if (armed && !ending) Color.Black else Color.White,
+        ),
+    ) {
+        Icon(Icons.Filled.Stop, null)
+        Spacer(Modifier.width(8.dp))
+        Text(text, fontWeight = FontWeight.SemiBold)
+    }
+}
